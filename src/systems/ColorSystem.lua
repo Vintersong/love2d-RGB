@@ -367,32 +367,24 @@ end
 
 -- Helper: Get projectile color for rendering
 function ColorSystem.getProjectileColor()
-    local r, g, b = 1.0, 1.0, 1.0  -- Start white
+    local dominant = ColorSystem.getDominantColor()
     
-    -- Pure additive mixing based on color levels
-    local redLevel = ColorSystem.primary.RED.level
-    local greenLevel = ColorSystem.primary.GREEN.level
-    local blueLevel = ColorSystem.primary.BLUE.level
-    
-    if redLevel > 0 then
-        r = 1.0
-        g = math.max(0, 1.0 - (redLevel * 0.08))
-        b = math.max(0, 1.0 - (redLevel * 0.08))
+    -- If no color chosen, return white
+    if not dominant then
+        return {1, 1, 1}
     end
     
-    if greenLevel > 0 then
-        r = math.max(r - (greenLevel * 0.08), 0)
-        g = 1.0
-        b = math.max(b - (greenLevel * 0.08), 0)
-    end
+    -- Return pure color based on dominant color
+    local colorMap = {
+        RED = {1, 0.2, 0.2},       -- Bright red
+        GREEN = {0.2, 1, 0.2},     -- Bright green
+        BLUE = {0.2, 0.5, 1},      -- Bright blue
+        YELLOW = {1, 1, 0.2},      -- Bright yellow
+        MAGENTA = {1, 0.2, 1},     -- Bright magenta
+        CYAN = {0.2, 1, 1}         -- Bright cyan
+    }
     
-    if blueLevel > 0 then
-        r = math.max(r - (blueLevel * 0.08), 0)
-        g = math.max(g - (blueLevel * 0.08), 0)
-        b = 1.0
-    end
-    
-    return {r, g, b}
+    return colorMap[dominant] or {1, 1, 1}
 end
 
 -- Get RGB color for a specific color name

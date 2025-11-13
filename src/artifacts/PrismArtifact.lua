@@ -37,7 +37,7 @@ PrismArtifact.RED = {
                     speed = 300,
                     color = {1, 0, 0},  -- Red
                     size = 4,
-                    shape = "circle",
+                    shape = "prism",
                     type = "prism_wall",
                     prismWall = true
                 }
@@ -213,7 +213,7 @@ PrismArtifact.MAGENTA = {
                     speed = 280,
                     color = {1, 0.3, 1},  -- Magenta
                     size = 4,
-                    shape = "circle",
+                    shape = "triangle",
                     type = "prism_wall",
                     growOnPierce = true,  -- BLUE growth
                     growthPerHit = 3,

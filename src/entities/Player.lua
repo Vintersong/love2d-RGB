@@ -93,7 +93,7 @@ function Player:update(dt, enemies)
         self.dashTimer = self.dashTimer + dt
         
         -- Spawn continuous dash trail particles
-        local VFXManager = require("src.systems.VFXManager")
+        local VFXLibrary = require("src.systems.VFXLibrary")
         local ColorSystem = require("src.systems.ColorSystem")
         local centerX = self.x + self.width / 2
         local centerY = self.y + self.height / 2
@@ -101,7 +101,7 @@ function Player:update(dt, enemies)
         if self.dashColor then
             local trailColor = ColorSystem.getColorRGB(self.dashColor)
             -- Spawn 2 trail particles per frame
-            VFXManager.spawnImpactBurst(centerX, centerY, trailColor, 2)
+            VFXLibrary.spawnImpactBurst(centerX, centerY, trailColor, 2)
         end
         
         -- Spawn continuous dash trail VFX (color-specific)
@@ -430,10 +430,10 @@ function Player:applyDashPierceEffect(enemy)
         )
         
         -- Visual feedback: Impact VFX at enemy position
-        local VFXManager = require("src.systems.VFXManager")
+        local VFXLibrary = require("src.systems.VFXLibrary")
         local ColorSystem = require("src.systems.ColorSystem")
         local impactColor = ColorSystem.getColorRGB(self.dashColor)
-        VFXManager.spawnImpactBurst(
+        VFXLibrary.spawnImpactBurst(
             enemy.x + enemy.width / 2,
             enemy.y + enemy.height / 2,
             impactColor,

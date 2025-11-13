@@ -3,6 +3,7 @@
 
 local XPParticleSystem = {}
 XPParticleSystem.__index = XPParticleSystem
+local ShapeLibrary = require("src.systems.ShapeLibrary")
 
 -- Initialize particle textures (call once on load)
 function XPParticleSystem.init()
@@ -98,42 +99,29 @@ function XPParticleSystem:collect()
 end
 
 function XPParticleSystem:draw(debugMode)
-    -- Draw sonar pulse ring (thinner, more subtle)
+    -- Draw sonar pulse ring using ShapeLibrary
     if self.pulseAlpha > 0 then
-        love.graphics.setColor(self.color[1], self.color[2], self.color[3], self.pulseAlpha * 0.4)  -- More transparent
-        love.graphics.setLineWidth(2)  -- Thinner line
-        love.graphics.circle("line", self.x, self.y, self.pulseRadius)
+        ShapeLibrary.sonarRing(self.x, self.y, self.pulseRadius, self.color, self.pulseAlpha)
     end
     
-    -- Draw core dodecagon with subtle glow
-    love.graphics.setColor(self.color[1], self.color[2], self.color[3], 0.2)  -- Less glow
-    love.graphics.circle("fill", self.x, self.y, self.coreSize + 3)
+    -- Draw core dodecagon with glow using ShapeLibrary
+    ShapeLibrary.glow(self.x, self.y, self.coreSize, self.color, {
+        layers = 1,
+        expansion = 3,
+        baseAlpha = 0.2
+    })
     
-    love.graphics.setColor(self.color[1], self.color[2], self.color[3], 1.0)
+    ShapeLibrary.dodecagon(self.x, self.y, self.coreSize, self.color, {
+        core = {size = self.coreSize * 0.5, color = {1, 1, 1}, alpha = 0.8}
+    })
     
-    -- Draw 12-sided dodecagon for the core
-    local vertices = {}
-    for i = 0, 11 do
-        local angle = (i / 12) * math.pi * 2
-        table.insert(vertices, self.x + math.cos(angle) * self.coreSize)
-        table.insert(vertices, self.y + math.sin(angle) * self.coreSize)
-    end
-    love.graphics.polygon("fill", vertices)
-    
-    -- Draw bright center
-    love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.circle("fill", self.x, self.y, self.coreSize * 0.5)
-    
-    -- Reset color
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setLineWidth(1)
-    
-    -- Debug: Show collision circle
+    -- Debug: Show collision circles
     if debugMode then
         love.graphics.setColor(0, 1, 0, 0.3)
         love.graphics.circle("fill", self.x, self.y, self.collisionRadius)
         love.graphics.setColor(0, 1, 0, 0.1)
         love.graphics.circle("line", self.x, self.y, self.magnetRadius)
+        love.graphics.setColor(1, 1, 1, 1)
     end
 end
 

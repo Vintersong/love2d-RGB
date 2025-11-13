@@ -3,6 +3,7 @@
 -- Extracted from Player.lua for better separation of concerns
 
 local PlayerRender = {}
+local ShapeLibrary = require("src.systems.ShapeLibrary")
 
 -- Draw the player sprite
 function PlayerRender.drawPlayer(player)
@@ -97,14 +98,9 @@ function PlayerRender.drawProjectiles(player)
         proj.size = baseSize * lensScale * abilityScale
         proj.age = proj.age or 0
 
-        -- Draw trail
+        -- Draw trail using ShapeLibrary
         if proj.trail then
-            for i, pos in ipairs(proj.trail) do
-                local alpha = (1 - i / #proj.trail) * 0.4
-                love.graphics.setColor(projColor[1], projColor[2], projColor[3], alpha)
-                local size = proj.size * (1 - i / #proj.trail)
-                love.graphics.circle("fill", pos.x, pos.y, size)
-            end
+            ShapeLibrary.trail(proj.trail, proj.size, projColor, {fadeAlpha = 0.4})
         end
 
         -- Draw projectile based on shape
@@ -114,132 +110,48 @@ end
 
 -- Draw a single projectile with its shape
 function PlayerRender.drawProjectileShape(proj, projColor, abilityCount)
-    love.graphics.push()
-    love.graphics.translate(proj.x, proj.y)
-
     local shape = proj.shape or "circle"
 
-    if shape == "atom" or shape == "atom_crescent" or shape == "atom_triangle" then
-        PlayerRender.drawAtomShape(proj, projColor)
-    elseif shape == "crescent" or shape == "triangle_crescent" then
-        PlayerRender.drawCrescentShape(proj, projColor)
-    elseif shape == "triangle" then
-        PlayerRender.drawTriangleShape(proj, projColor)
+    if shape == "atom" then
+        ShapeLibrary.atom(proj.x, proj.y, proj.size, projColor, {
+            age = proj.age,
+            orbitSpeed = 8,
+            uniqueSeed = proj.x + proj.y
+        })
+    elseif shape == "atom_crescent" then
+        local angle = math.atan(proj.vy, proj.vx)
+        ShapeLibrary.atom_crescent(proj.x, proj.y, proj.size, projColor, {
+            angle = angle,
+            age = proj.age,
+            orbitSpeed = 8,
+            uniqueSeed = proj.x + proj.y
+        })
+    elseif shape == "atom_arrow" then
+        local angle = math.atan(proj.vy, proj.vx)
+        ShapeLibrary.atom_arrow(proj.x, proj.y, proj.size, projColor, {
+            angle = angle,
+            age = proj.age,
+            orbitSpeed = 8,
+            uniqueSeed = proj.x + proj.y
+        })
+    elseif shape == "crescent" then
+        local angle = math.atan(proj.vy, proj.vx)
+        ShapeLibrary.crescent(proj.x, proj.y, proj.size, projColor, {
+            angle = angle
+        })
+    elseif shape == "triangle" or shape == "arrow" then
+        local angle = math.atan(proj.vy, proj.vx) + math.pi/2
+        ShapeLibrary.triangle(proj.x, proj.y, proj.size, projColor, {
+            rotation = angle,
+            outline = {1, 1, 1, 0.95},
+            outlineWidth = 3
+        })
     elseif shape == "prism" then
-        PlayerRender.drawPrismShape(proj, projColor)
+        ShapeLibrary.prism(proj.x, proj.y, proj.size, projColor, {
+            showRefraction = true
+        })
     else
         PlayerRender.drawCircleShape(proj, projColor, abilityCount)
-    end
-
-    love.graphics.pop()
-end
-
--- Atom shape (hydrogen atom with orbiting electron)
-function PlayerRender.drawAtomShape(proj, projColor)
-    -- White outline
-    love.graphics.setColor(1, 1, 1, 0.95)
-    love.graphics.setLineWidth(3)
-    love.graphics.circle("line", 0, 0, proj.size * 1.5)
-
-    -- Outer ring with color
-    love.graphics.setColor(projColor)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", 0, 0, proj.size * 1.5)
-
-    -- Inner core
-    love.graphics.setColor(projColor)
-    love.graphics.circle("fill", 0, 0, proj.size * 0.6)
-
-    -- Orbiting electron
-    local angle = proj.age * 8 + (proj.x + proj.y) * 0.1
-    local orbitRadius = proj.size * 1.5
-    local electronX = math.cos(angle) * orbitRadius
-    local electronY = math.sin(angle) * orbitRadius
-    love.graphics.circle("fill", electronX, electronY, proj.size * 0.3)
-
-    -- Bright white core
-    love.graphics.setColor(1, 1, 1, 0.9)
-    love.graphics.circle("fill", 0, 0, proj.size * 0.3)
-end
-
--- Crescent moon shape
-function PlayerRender.drawCrescentShape(proj, projColor)
-    local angle = math.atan(proj.vy, proj.vx)
-    love.graphics.rotate(angle)
-
-    -- White outline
-    love.graphics.setColor(1, 1, 1, 0.95)
-    love.graphics.setLineWidth(3)
-    love.graphics.arc("line", 0, 0, proj.size, -math.pi/2, math.pi/2)
-
-    -- Core color fill
-    love.graphics.setColor(projColor)
-    love.graphics.arc("fill", 0, 0, proj.size, -math.pi/2, math.pi/2)
-
-    -- Additional colored outline
-    love.graphics.setColor(projColor[1], projColor[2], projColor[3], 0.8)
-    love.graphics.setLineWidth(1)
-    love.graphics.arc("line", 0, 0, proj.size, -math.pi/2, math.pi/2)
-end
-
--- Triangle shape
-function PlayerRender.drawTriangleShape(proj, projColor)
-    local angle = math.atan(proj.vy, proj.vx) + math.pi/2
-    love.graphics.rotate(angle)
-
-    -- Triangle vertices (top points forward)
-    local vertices = {
-        0, -proj.size * 1.5,           -- Top
-        -proj.size, proj.size * 1.5,   -- Bottom-left
-        proj.size, proj.size * 1.5     -- Bottom-right
-    }
-
-    -- White outline
-    love.graphics.setColor(1, 1, 1, 0.95)
-    love.graphics.setLineWidth(3)
-    love.graphics.polygon("line", vertices)
-
-    -- Core color fill
-    love.graphics.setColor(projColor)
-    love.graphics.polygon("fill", vertices)
-
-    -- Additional colored outline
-    love.graphics.setColor(projColor[1], projColor[2], projColor[3], 0.9)
-    love.graphics.setLineWidth(1)
-    love.graphics.polygon("line", vertices)
-end
-
--- Prism shape (hexagon with refraction lines)
-function PlayerRender.drawPrismShape(proj, projColor)
-    -- Hexagon vertices
-    local vertices = {}
-    for i = 0, 5 do
-        local angle = (i / 6) * math.pi * 2
-        table.insert(vertices, math.cos(angle) * proj.size)
-        table.insert(vertices, math.sin(angle) * proj.size)
-    end
-
-    -- White outline
-    love.graphics.setColor(1, 1, 1, 0.95)
-    love.graphics.setLineWidth(3)
-    love.graphics.polygon("line", vertices)
-
-    -- Core color fill
-    love.graphics.setColor(projColor)
-    love.graphics.polygon("fill", vertices)
-
-    -- Bright core
-    love.graphics.setColor(1, 1, 1, 0.9)
-    love.graphics.circle("fill", 0, 0, proj.size * 0.4)
-
-    -- Refraction lines
-    love.graphics.setColor(1, 1, 1, 0.6)
-    love.graphics.setLineWidth(1)
-    for i = 0, 5 do
-        local angle = (i / 6) * math.pi * 2
-        local x = math.cos(angle) * proj.size
-        local y = math.sin(angle) * proj.size
-        love.graphics.line(0, 0, x, y)
     end
 end
 

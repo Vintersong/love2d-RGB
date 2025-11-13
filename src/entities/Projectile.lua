@@ -1,5 +1,6 @@
 local entity = require("src.entities.Entity")
 local Projectile = entity:derive("Projectile")
+local ShapeLibrary = require("src.systems.ShapeLibrary")
 
 function Projectile:new(x, y, vx, vy, damage, projType, owner)
     self.x = x
@@ -67,79 +68,41 @@ function Projectile:draw()
     local color = self.color or {1, 1, 1}
     local size = self.size or 4
     
-    -- Draw trail
-    for i, pos in ipairs(self.trail) do
-        local alpha = (1 - i / #self.trail) * 0.5
-        love.graphics.setColor(color[1], color[2], color[3], alpha)
-        local trailSize = size * (1 - i / #self.trail)
-        love.graphics.circle("fill", pos.x, pos.y, trailSize)
-    end
+    -- Draw trail using ShapeLibrary
+    ShapeLibrary.trail(self.trail, size, color, {fadeAlpha = 0.5})
     
-    -- Draw projectile based on type
-    love.graphics.push()
-    love.graphics.translate(self.x, self.y)
-    
+    -- Draw projectile based on type using ShapeLibrary
     if self.type == "spread" then
-        -- HYDROGEN ATOM: Outer ring + core + orbiting electron
-        love.graphics.setColor(color)
-        
-        -- Outer ring
-        love.graphics.circle("line", 0, 0, size * 1.5)
-        
-        -- Inner core
-        love.graphics.circle("fill", 0, 0, size * 0.6)
-        
-        -- Orbiting electron
-        local angle = (self.age or 0) * 8 + (self.x + self.y) * 0.1
-        local orbitRadius = size * 1.5
-        local electronX = math.cos(angle) * orbitRadius
-        local electronY = math.sin(angle) * orbitRadius
-        love.graphics.circle("fill", electronX, electronY, size * 0.3)
+        -- HYDROGEN ATOM
+        ShapeLibrary.atom(self.x, self.y, size, color, {
+            age = self.age,
+            orbitSpeed = 8,
+            uniqueSeed = self.x + self.y
+        })
         
     elseif self.type == "ricochet" then
-        -- CRESCENT MOON: 180° arc facing direction of travel
+        -- CRESCENT MOON
         local angle = math.atan(self.vy, self.vx)
-        love.graphics.rotate(angle)
-        
-        love.graphics.setColor(color)
-        love.graphics.arc("fill", 0, 0, size, -math.pi/2, math.pi/2)
-        
-        -- Outline for definition
-        love.graphics.setLineWidth(1)
-        love.graphics.arc("line", 0, 0, size, -math.pi/2, math.pi/2)
+        ShapeLibrary.crescent(self.x, self.y, size, color, {
+            angle = angle,
+            outlineWidth = 1
+        })
         
     elseif self.type == "pierce" then
-        -- ISOSCELES TRIANGLE: Points in direction of travel
-        local angle = math.atan(self.vy, self.vx) - math.pi/2
-        love.graphics.rotate(angle)
-        
-        love.graphics.setColor(color)
-        
-        -- Triangle vertices
-        local vertices = {
-            0, -size * 1.5,           -- Top
-            -size, size * 1.5,         -- Bottom-left
-            size, size * 1.5           -- Bottom-right
-        }
-        
-        -- Fill
-        love.graphics.polygon("fill", vertices)
-        
-        -- Outline
-        love.graphics.setLineWidth(1)
-        love.graphics.polygon("line", vertices)
+        -- ISOSCELES TRIANGLE
+        local angle = math.atan(self.vy, self.vx) + math.pi/2
+        ShapeLibrary.triangle(self.x, self.y, size, color, {
+            rotation = angle,
+            outline = {1, 1, 1, 0.5},
+            outlineWidth = 1
+        })
         
     else
-        -- DEFAULT: Simple circle
-        love.graphics.setColor(color)
-        love.graphics.circle("fill", 0, 0, size)
-        
-        -- Bright core
-        love.graphics.setColor(1, 1, 1, 0.8)
-        love.graphics.circle("fill", 0, 0, size * 0.5)
+        -- DEFAULT: Simple circle with bright core
+        ShapeLibrary.circle(self.x, self.y, size, color, {
+            core = {size = size * 0.5, color = {1, 1, 1}, alpha = 0.8}
+        })
     end
-    
-    love.graphics.pop()
 end
 
 function Projectile:bounce(normalX, normalY)

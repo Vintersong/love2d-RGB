@@ -1,5 +1,6 @@
 local entity = require("src.entities.Entity")
 local Enemy = entity:derive("Enemy")
+local ShapeLibrary = require("src.systems.ShapeLibrary")
 
 -- Helper function: Lerp between two colors
 local function lerpColor(color1, color2, t)
@@ -49,75 +50,28 @@ local function getRingCount(playerLevel)
     return math.min(math.floor((playerLevel - 1) / 40) + 1, 4)
 end
 
--- Draw outer rings for higher-level enemies
+-- Draw outer rings for higher-level enemies using ShapeLibrary
 -- Each ring represents the color progression for that prestige tier
-local function drawOuterRings(shape, width, height, ringCount, playerLevel)
+-- NOTE: x, y should be 0, 0 when drawing within a transformed coordinate system
+local function drawOuterRings(shape, width, ringCount, playerLevel)
     if ringCount < 1 then return end
     
-    local ringThickness = 3
-    local ringOffset = 6
-    
-    -- Draw rings from outermost to innermost
+    -- Build ring colors array
+    local ringColors = {}
     for ring = ringCount, 1, -1 do
-        -- Calculate the level for this ring's color
-        -- Ring 1 (innermost) = current prestige tier (player's actual level)
-        -- Ring 2 = one tier back (playerLevel - 40)
-        -- Ring 3 = two tiers back (playerLevel - 80), etc.
         local tierOffset = (ringCount - ring) * 40
         local ringLevel = playerLevel - tierOffset
         local ringColor = getEnemyColorByLevel(ringLevel)
-        
-        -- Make outer rings slightly more transparent
+        -- Add alpha to color
         local alpha = ring == 1 and 1.0 or 0.7
-        love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], alpha)
-        
-        -- Offset increases for each ring outward from the center
-        local offset = (ringCount - ring) * ringOffset
-        local size = (width / 2) + offset
-        
-        love.graphics.setLineWidth(ringThickness)
-        
-        if shape == "square" then
-            -- Square outer ring
-            local outerSize = width + (offset * 2)
-            love.graphics.rectangle("line", -(outerSize/2), -(outerSize/2), outerSize, outerSize)
-            
-        elseif shape == "hexagon" then
-            -- Hexagon outer ring
-            local vertices = {}
-            for i = 0, 5 do
-                local angle = (i / 6) * math.pi * 2 - math.pi / 2  -- Match rotation of filled shape
-                table.insert(vertices, math.cos(angle) * size)
-                table.insert(vertices, math.sin(angle) * size)
-            end
-            love.graphics.polygon("line", vertices)
-            
-        elseif shape == "triangle" then
-            -- Upward-pointing triangle ring
-            local vertices = {
-                0, -size * 1.2,           -- Top point
-                -size, size * 0.8,        -- Bottom left
-                size, size * 0.8          -- Bottom right
-            }
-            love.graphics.polygon("line", vertices)
-            
-        elseif shape == "circle" then
-            -- Circle ring
-            love.graphics.circle("line", 0, 0, size)
-            
-        elseif shape == "complex" then
-            -- Octagon ring for bosses
-            local vertices = {}
-            for i = 0, 7 do
-                local angle = (i / 8) * math.pi * 2
-                table.insert(vertices, math.cos(angle) * size)
-                table.insert(vertices, math.sin(angle) * size)
-            end
-            love.graphics.polygon("line", vertices)
-        end
-        
-        love.graphics.setLineWidth(1)
+        ringColors[ring] = {ringColor[1], ringColor[2], ringColor[3], alpha}
     end
+    
+    -- Use ShapeLibrary multiRing function at origin (already transformed)
+    ShapeLibrary.multiRing(0, 0, width / 2, ringCount, ringColors, shape, {
+        ringThickness = 3,
+        ringOffset = 6
+    })
 end
 
 function Enemy:new(x, y, enemyType, playerLevel, formationData)
@@ -326,7 +280,20 @@ function Enemy:followPlayer(dt, playerX, playerY)
 end
 
 function Enemy:updateFormationMovement(dt, playerX, playerY)
-    if self.pattern == "descend_straight" then
+    if self.pattern == "formation_hold" then
+        -- Hold position during formation tween (flux handles movement)
+        -- Do nothing, flux is moving the enemy
+        
+    elseif self.pattern == "formation_sway" then
+        -- Gentle swaying movement after formation arrives
+        if self.formationData then
+            local swaySpeed = 0.5
+            local swayAmount = 15
+            local targetX = self.formationData.centerX + self.formationData.offsetX + math.sin(self.age * swaySpeed) * swayAmount
+            self.x = self.x + (targetX - self.x) * 2 * dt
+        end
+        
+    elseif self.pattern == "descend_straight" then
         -- Straight downward
         self.y = self.y + self.speed * dt
         
@@ -388,96 +355,65 @@ end
 function Enemy:draw(musicReactor)
     if self.dead then return end
     
+    local centerX = self.x + self.width/2
+    local centerY = self.y + self.height/2
+    local size = self.width / 2
+    
     love.graphics.push()
-    love.graphics.translate(self.x + self.width/2, self.y + self.height/2)
+    love.graphics.translate(centerX, centerY)
     
     -- NEW: Solid vaporwave colored enemies
     if self.frequencyType then
-        local size = self.width / 2
-        
-        -- Draw outer rings (all enemies have at least 1 ring)
+        -- Draw outer rings using ShapeLibrary (at origin, already transformed)
         if self.ringCount then
-            drawOuterRings(self.shape, self.width, self.height, self.ringCount, self.playerLevel)
+            drawOuterRings(self.shape, self.width, self.ringCount, self.playerLevel)
         end
         
-        -- Draw solid colored shape (no white base, no overlay)
-        if self.overlayColor then
-            love.graphics.setColor(self.overlayColor[1], self.overlayColor[2], self.overlayColor[3], 1)
-        else
-            love.graphics.setColor(1, 1, 1, 1)
-        end
+        -- Get color
+        local color = self.overlayColor or {1, 1, 1}
         
+        -- Draw solid colored shape using ShapeLibrary
         if self.shape == "square" then
-            love.graphics.rectangle("fill", -size, -size, self.width, self.height)
+            ShapeLibrary.square(0, 0, self.width, color)
         elseif self.shape == "circle" then
-            love.graphics.circle("fill", 0, 0, size)
+            ShapeLibrary.circle(0, 0, size, color)
         elseif self.shape == "hexagon" then
-            -- Six-sided hexagon (MIDS)
-            local vertices = {}
-            for i = 0, 5 do
-                local angle = (i / 6) * math.pi * 2 - math.pi / 2  -- Rotate to point up
-                table.insert(vertices, math.cos(angle) * size)
-                table.insert(vertices, math.sin(angle) * size)
-            end
-            love.graphics.polygon("fill", vertices)
+            ShapeLibrary.hexagon(0, 0, size, color, {rotation = -math.pi/2})
         elseif self.shape == "triangle" then
-            -- Upward-pointing triangle (TREBLE - fast enemies)
-            local vertices = {
-                0, -size * 1.2,           -- Top point
-                -size, size * 0.8,        -- Bottom left
-                size, size * 0.8          -- Bottom right
-            }
-            love.graphics.polygon("fill", vertices)
+            ShapeLibrary.triangle(0, 0, size, color, {pointUp = true})
         elseif self.shape == "diamond" then
-            love.graphics.polygon("fill", {0, -size, size, 0, 0, size, -size, 0})
+            ShapeLibrary.diamond(0, 0, size, color)
         elseif self.shape == "complex" then
-            -- Boss: Large octagon with inner ring (rainbow cycling)
+            -- Boss: Rainbow octagon with inner ring
             local hueShift = (love.timer.getTime() * 0.5) % 1
             local r = 0.5 + 0.5 * math.sin(hueShift * math.pi * 2)
             local g = 0.5 + 0.5 * math.sin((hueShift + 0.33) * math.pi * 2)
             local b = 0.5 + 0.5 * math.sin((hueShift + 0.66) * math.pi * 2)
-            love.graphics.setColor(r, g, b, 1)
-            
-            local vertices = {}
-            for i = 0, 7 do
-                local angle = (i / 8) * math.pi * 2
-                table.insert(vertices, math.cos(angle) * size)
-                table.insert(vertices, math.sin(angle) * size)
-            end
-            love.graphics.polygon("fill", vertices)
-            love.graphics.circle("line", 0, 0, size * 0.6)
+            ShapeLibrary.octagon(0, 0, size, {r, g, b}, {
+                innerRing = {size = size * 0.6, color = {r, g, b}}
+            })
         end
         
     -- LEGACY: Old formation/flanker enemy types (now using level colors)
     elseif self.enemyType == "formation" then
         -- Draw outer rings
         if self.ringCount then
-            drawOuterRings(self.shape, self.width, self.height, self.ringCount, self.playerLevel)
+            drawOuterRings(self.shape, self.width, self.ringCount, self.playerLevel)
         end
         
         -- Use overlay color (level-based)
         local color = self.overlayColor or {0.8, 0.2, 0.2}
-        love.graphics.setColor(color)
         
         if self.shape == "square" then
-            -- Blocky square with antenna
-            love.graphics.rectangle("fill", -self.width/2, -self.height/2, self.width, self.height)
+            -- Blocky square with antenna using ShapeLibrary
+            ShapeLibrary.square(0, 0, self.width, color)
             
             -- Antenna detail
             love.graphics.setColor(color[1] * 0.7, color[2] * 0.7, color[3] * 0.7)
             love.graphics.rectangle("fill", -2, -self.height/2 - 4, 4, 4)
             
         elseif self.shape == "hexagon" then
-            -- Hexagonal formation enemy
-            local size = self.width / 2
-            local vertices = {}
-            for i = 0, 5 do
-                local angle = (i / 6) * math.pi * 2
-                table.insert(vertices, math.cos(angle) * size)
-                table.insert(vertices, math.sin(angle) * size)
-            end
-            love.graphics.setColor(color)
-            love.graphics.polygon("fill", vertices)
+            ShapeLibrary.hexagon(0, 0, size, color)
         end
         
     elseif self.enemyType == "flanker" then
@@ -489,45 +425,25 @@ function Enemy:draw(musicReactor)
             love.graphics.rotate(self.angle)
         end
         
-        -- Draw outer rings
+        -- Draw outer rings (at origin, already transformed)
         if self.ringCount then
-            drawOuterRings(self.shape, self.width, self.height, self.ringCount, self.playerLevel)
+            drawOuterRings(self.shape, self.width, self.ringCount, self.playerLevel)
         end
         
-        love.graphics.setColor(color)
-        
-        -- Triangle/arrow shape
-        local size = self.width / 2
-        local vertices = {
-            size * 1.2, 0,           -- Front point
-            -size * 0.6, -size * 0.8, -- Top wing
-            -size * 0.3, 0,          -- Body middle
-            -size * 0.6, size * 0.8   -- Bottom wing
-        }
-        love.graphics.polygon("fill", vertices)
-        
-        -- Wing details
-        love.graphics.setColor(color[1] * 0.6, color[2] * 0.6, color[3] * 0.6)
-        love.graphics.line(-size * 0.6, -size * 0.8, -size * 0.8, -size)
-        love.graphics.line(-size * 0.6, size * 0.8, -size * 0.8, size)
+        -- Draw arrow shape using ShapeLibrary
+        ShapeLibrary.arrow(0, 0, size, color, {
+            angle = 0,  -- Already rotated by love.graphics.rotate
+            showWingDetails = true
+        })
     end
     
     love.graphics.pop()
     
-    -- Debug: Draw collision circle
-    love.graphics.setColor(1, 1, 0, 0.3)  -- Yellow, semi-transparent
-    love.graphics.circle("line", self.x + self.width/2, self.y + self.height/2, math.max(self.width, self.height) / 2)
-    
-    -- Draw HP bar
-    local barWidth = self.width
-    local barHeight = 4
-    local hpPercent = self.hp / self.maxHp
-    
-    love.graphics.setColor(0.3, 0.3, 0.3)
-    love.graphics.rectangle("fill", self.x, self.y - 8, barWidth, barHeight)
-    
-    love.graphics.setColor(0.2, 0.8, 0.2)
-    love.graphics.rectangle("fill", self.x, self.y - 8, barWidth * hpPercent, barHeight)
+    -- Draw HP bar using ShapeLibrary
+    ShapeLibrary.progressBar(self.x, self.y - 8, self.width, 4, self.hp / self.maxHp, {
+        bgColor = {0.3, 0.3, 0.3},
+        fgColor = {0.2, 0.8, 0.2}
+    })
 end
 
 function Enemy:takeDamage(amount)

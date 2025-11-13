@@ -2,6 +2,7 @@
 -- Main gameplay state where the player fights enemies and collects XP
 
 local PlayingState = {}
+local flux = require("libs.flux-master.flux")
 
 -- Forward declarations for systems
 local MusicReactor, ColorSystem, EnemySpawner, World, HealthSystem
@@ -72,15 +73,17 @@ function PlayingState:update(dt)
     -- Update world background
     World.update(dt, self.musicReactor)
 
+    -- Update flux tweening library for smooth animations
+    flux.update(dt)
+
     -- Update floating text system
     FloatingTextSystem.update(dt)
 
     -- Update VFX particles
     VFXLibrary.update(dt)
     
-    -- Update VFXManager particles (impact bursts)
-    local VFXManager = require("src.systems.VFXManager")
-    VFXManager.update(dt)
+    -- Update impact burst particles
+    VFXLibrary.updateImpactBursts(dt)
 
     -- Update grid attack system (spawns marching enemies from edges)
     GridAttackSystem.update(dt, self.musicReactor, self.player, self.enemies)
@@ -672,8 +675,7 @@ function PlayingState:draw()
     VFXLibrary.draw()
     
     -- Draw impact burst particles
-    local VFXManager = require("src.systems.VFXManager")
-    VFXManager.draw()
+    VFXLibrary.drawImpactBursts()
 
     -- Draw floating text (on top of everything)
     FloatingTextSystem.draw()

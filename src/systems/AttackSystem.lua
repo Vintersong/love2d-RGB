@@ -11,9 +11,9 @@ function AttackSystem.projectileHit(projectile, target, onKillCallback)
     local died = HealthSystem.takeDamage(target, projectile.damage)
     
     -- Visual feedback: Impact VFX at hit location
-    local VFXManager = require("src.systems.VFXManager")
+    local VFXLibrary = require("src.systems.VFXLibrary")
     if projectile.color then
-        VFXManager.spawnImpactBurst(
+        VFXLibrary.spawnImpactBurst(
             target.x + target.width / 2,
             target.y + target.height / 2,
             projectile.color,

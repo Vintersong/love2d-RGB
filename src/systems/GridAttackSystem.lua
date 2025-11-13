@@ -128,46 +128,36 @@ function GridAttackSystem.spawnMarchingEnemies(intensity, enemies, playerLevel)
             -- Calculate spawn positions (from both edges)
             local spawnY = (spawnRow - 0.5) * GridAttackSystem.cellSize
 
-            -- Randomly choose left or right edge (or both!)
-            local sides = {}
-            if math.random() < 0.5 then table.insert(sides, "left") end
-            if math.random() < 0.5 then table.insert(sides, "right") end
+            -- Always spawn on BOTH sides (mirrored marching enemies)
+            local targetX = (GridAttackSystem.centerCol - 0.5) * GridAttackSystem.cellSize
 
-            -- Ensure at least one side
-            if #sides == 0 then
-                sides = {math.random() < 0.5 and "left" or "right"}
+            -- Cycle through enemy types in order (BASS -> MIDS -> TREBLE -> BASS...)
+            local enemyTypes = {"BASS", "MIDS", "TREBLE"}
+            local enemyType = enemyTypes[GridAttackSystem.enemyTypeIndex]
+            GridAttackSystem.enemyTypeIndex = (GridAttackSystem.enemyTypeIndex % 3) + 1  -- Cycle 1->2->3->1
+
+            -- Spawn LEFT enemy
+            local leftX = GridAttackSystem.edgeMargin * GridAttackSystem.cellSize
+            local leftEnemy = Enemy(leftX, spawnY, enemyType, playerLevel)
+            leftEnemy.marchTarget = {x = targetX, y = spawnY}
+            leftEnemy.isMarchingEnemy = true
+            leftEnemy.followDelay = 999
+            leftEnemy.isFollowing = false
+            table.insert(enemies, leftEnemy)
+            if not CollisionSystem.world:hasItem(leftEnemy) then
+                CollisionSystem.add(leftEnemy, "enemy")
             end
 
-            for _, side in ipairs(sides) do
-                local spawnX
-                local targetX = (GridAttackSystem.centerCol - 0.5) * GridAttackSystem.cellSize
-
-                if side == "left" then
-                    spawnX = GridAttackSystem.edgeMargin * GridAttackSystem.cellSize
-                else
-                    spawnX = (GridAttackSystem.cols - GridAttackSystem.edgeMargin) * GridAttackSystem.cellSize
-                end
-
-                -- Cycle through enemy types in order (BASS -> MIDS -> TREBLE -> BASS...)
-                local enemyTypes = {"BASS", "MIDS", "TREBLE"}
-                local enemyType = enemyTypes[GridAttackSystem.enemyTypeIndex]
-                GridAttackSystem.enemyTypeIndex = (GridAttackSystem.enemyTypeIndex % 3) + 1  -- Cycle 1->2->3->1
-
-                -- Create marching enemy with proper type and level-based color
-                local enemy = Enemy(spawnX, spawnY, enemyType, playerLevel)
-                enemy.marchTarget = {x = targetX, y = spawnY}  -- March toward center
-                enemy.isMarchingEnemy = true
-
-                -- Don't override the follow delay - let them march first
-                enemy.followDelay = 999  -- Very high so they only follow after reaching center
-                enemy.isFollowing = false
-
-                table.insert(enemies, enemy)
-
-                -- Register in collision system
-                if not CollisionSystem.world:hasItem(enemy) then
-                    CollisionSystem.add(enemy, "enemy")
-                end
+            -- Spawn RIGHT enemy (same type, mirrored position)
+            local rightX = (GridAttackSystem.cols - GridAttackSystem.edgeMargin) * GridAttackSystem.cellSize
+            local rightEnemy = Enemy(rightX, spawnY, enemyType, playerLevel)
+            rightEnemy.marchTarget = {x = targetX, y = spawnY}
+            rightEnemy.isMarchingEnemy = true
+            rightEnemy.followDelay = 999
+            rightEnemy.isFollowing = false
+            table.insert(enemies, rightEnemy)
+            if not CollisionSystem.world:hasItem(rightEnemy) then
+                CollisionSystem.add(rightEnemy, "enemy")
             end
         end
     end

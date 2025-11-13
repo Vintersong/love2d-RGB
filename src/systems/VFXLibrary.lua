@@ -1,10 +1,19 @@
 -- VFX Library - Centralized visual effects for artifact abilities
 -- Easy to tweak particle effects, colors, and behavior
 
+local ShapeLibrary = require("src.systems.ShapeLibrary")
+
 local VFXLibrary = {}
 
 -- Active particle systems
 VFXLibrary.activeEffects = {}
+
+-- Impact burst particles (from VFXManager)
+VFXLibrary.impactParticles = {}
+
+-- Formation spawn effects
+VFXLibrary.formationFlashes = {}  -- Flash effects when formations spawn
+VFXLibrary.formationWarnings = {}  -- Warning indicators before spawn
 
 -- ============================================================================
 -- ARTIFACT EFFECT DEFINITIONS
@@ -267,6 +276,9 @@ end
 
 -- Update all particles
 function VFXLibrary.update(dt)
+    -- Update formation effects
+    VFXLibrary.updateFormationEffects(dt)
+    
     for i = #VFXLibrary.activeEffects, 1, -1 do
         local particle = VFXLibrary.activeEffects[i]
         
@@ -342,6 +354,9 @@ end
 
 -- Draw all particles
 function VFXLibrary.draw()
+    -- Draw formation warning indicators first (behind everything)
+    VFXLibrary.drawFormationEffects()
+    
     for _, particle in ipairs(VFXLibrary.activeEffects) do
         love.graphics.push()
         love.graphics.translate(particle.x, particle.y)
@@ -414,11 +429,187 @@ end
 -- Clear all effects
 function VFXLibrary.clear()
     VFXLibrary.activeEffects = {}
+    VFXLibrary.impactParticles = {}
 end
 
 -- Get active effect count
 function VFXLibrary.getCount()
     return #VFXLibrary.activeEffects
+end
+
+-- ============================================================================
+-- IMPACT BURST EFFECTS (Consolidated from VFXManager)
+-- ============================================================================
+
+-- Spawn impact burst particles
+function VFXLibrary.spawnImpactBurst(x, y, color, count)
+    count = count or 8
+    color = color or {1, 1, 1}
+    
+    for i = 1, count do
+        local angle = (i / count) * math.pi * 2
+        local speed = 100 + math.random() * 100
+        
+        table.insert(VFXLibrary.impactParticles, {
+            x = x,
+            y = y,
+            vx = math.cos(angle) * speed,
+            vy = math.sin(angle) * speed,
+            color = color,
+            life = 0.3 + math.random() * 0.2,
+            maxLife = 0.5,
+            size = 2 + math.random() * 2
+        })
+    end
+end
+
+-- Update impact burst particles
+function VFXLibrary.updateImpactBursts(dt)
+    for i = #VFXLibrary.impactParticles, 1, -1 do
+        local p = VFXLibrary.impactParticles[i]
+        
+        -- Update position
+        p.x = p.x + p.vx * dt
+        p.y = p.y + p.vy * dt
+        
+        -- Apply drag
+        p.vx = p.vx * 0.95
+        p.vy = p.vy * 0.95
+        
+        -- Update lifetime
+        p.life = p.life - dt
+        
+        -- Remove dead particles
+        if p.life <= 0 then
+            table.remove(VFXLibrary.impactParticles, i)
+        end
+    end
+end
+
+-- Draw impact burst particles
+function VFXLibrary.drawImpactBursts()
+    for _, p in ipairs(VFXLibrary.impactParticles) do
+        local alpha = p.life / p.maxLife
+        local color = {p.color[1], p.color[2], p.color[3], alpha}
+        love.graphics.setColor(color[1], color[2], color[3], color[4])
+        love.graphics.circle("fill", p.x, p.y, p.size)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- ============================================================================
+-- FORMATION SPAWN EFFECTS
+-- ============================================================================
+
+-- Spawn formation warning effect
+function VFXLibrary.spawnFormationWarning(centerX, centerY, formationWidth, formationHeight, duration)
+    duration = duration or 1.0
+    
+    table.insert(VFXLibrary.formationWarnings, {
+        x = centerX,
+        y = centerY,
+        width = formationWidth,
+        height = formationHeight,
+        life = duration,
+        maxLife = duration,
+        pulsePhase = 0,
+        flashIntensity = 0
+    })
+end
+
+-- Spawn formation flash effect
+function VFXLibrary.spawnFormationFlash(centerX, centerY, color, intensity)
+    intensity = intensity or 1.0
+    color = color or {1, 1, 1}
+    
+    table.insert(VFXLibrary.formationFlashes, {
+        x = centerX,
+        y = centerY,
+        color = color,
+        intensity = intensity,
+        life = 0.3,
+        maxLife = 0.3,
+        radius = 20,
+        maxRadius = 200
+    })
+end
+
+-- Update formation effects
+function VFXLibrary.updateFormationEffects(dt)
+    -- Update warning indicators
+    for i = #VFXLibrary.formationWarnings, 1, -1 do
+        local w = VFXLibrary.formationWarnings[i]
+        w.life = w.life - dt
+        w.pulsePhase = w.pulsePhase + dt * 8  -- Pulse speed
+        w.flashIntensity = math.sin(w.pulsePhase) * 0.5 + 0.5
+        
+        if w.life <= 0 then
+            table.remove(VFXLibrary.formationWarnings, i)
+        end
+    end
+    
+    -- Update flash effects
+    for i = #VFXLibrary.formationFlashes, 1, -1 do
+        local f = VFXLibrary.formationFlashes[i]
+        f.life = f.life - dt
+        
+        -- Expand radius
+        local progress = 1 - (f.life / f.maxLife)
+        f.radius = f.maxRadius * progress
+        
+        if f.life <= 0 then
+            table.remove(VFXLibrary.formationFlashes, i)
+        end
+    end
+end
+
+-- Draw formation effects
+function VFXLibrary.drawFormationEffects()
+    -- Draw warning indicators (behind enemies)
+    for _, w in ipairs(VFXLibrary.formationWarnings) do
+        local alpha = w.life / w.maxLife
+        local pulseAlpha = w.flashIntensity * alpha * 0.3
+        
+        -- Draw warning rectangle
+        local x = w.x - w.width/2
+        local y = w.y - w.height/2
+        local color = {1, 0.3, 0.3, pulseAlpha}
+        love.graphics.setColor(color[1], color[2], color[3], color[4])
+        love.graphics.setLineWidth(3)
+        love.graphics.rectangle("line", x, y, w.width, w.height)
+        love.graphics.setLineWidth(1)
+        
+        -- Draw corner markers
+        local cornerSize = 15
+        love.graphics.setColor(1, 0.5, 0.3, alpha * 0.7)
+        -- Top-left
+        love.graphics.line(w.x - w.width/2, w.y - w.height/2, w.x - w.width/2 + cornerSize, w.y - w.height/2)
+        love.graphics.line(w.x - w.width/2, w.y - w.height/2, w.x - w.width/2, w.y - w.height/2 + cornerSize)
+        -- Top-right
+        love.graphics.line(w.x + w.width/2, w.y - w.height/2, w.x + w.width/2 - cornerSize, w.y - w.height/2)
+        love.graphics.line(w.x + w.width/2, w.y - w.height/2, w.x + w.width/2, w.y - w.height/2 + cornerSize)
+        -- Bottom-left
+        love.graphics.line(w.x - w.width/2, w.y + w.height/2, w.x - w.width/2 + cornerSize, w.y + w.height/2)
+        love.graphics.line(w.x - w.width/2, w.y + w.height/2, w.x - w.width/2, w.y + w.height/2 - cornerSize)
+        -- Bottom-right
+        love.graphics.line(w.x + w.width/2, w.y + w.height/2, w.x + w.width/2 - cornerSize, w.y + w.height/2)
+        love.graphics.line(w.x + w.width/2, w.y + w.height/2, w.x + w.width/2, w.y + w.height/2 - cornerSize)
+    end
+    
+    -- Draw flash effects (in front of enemies)
+    for _, f in ipairs(VFXLibrary.formationFlashes) do
+        local alpha = f.life / f.maxLife
+        
+        -- Expanding ring
+        love.graphics.setColor(f.color[1], f.color[2], f.color[3], alpha * f.intensity)
+        love.graphics.circle("line", f.x, f.y, f.radius, 32)
+        
+        -- Inner glow
+        love.graphics.setColor(f.color[1], f.color[2], f.color[3], alpha * f.intensity * 0.3)
+        love.graphics.circle("fill", f.x, f.y, f.radius * 0.5)
+    end
+    
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 return VFXLibrary

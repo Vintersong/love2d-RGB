@@ -29,7 +29,7 @@ RefractionArtifact.RED = {
                 speed = 400,
                 color = {1, 0.3, 0.3},
                 size = 6,
-                shape = "circle",
+                shape = "atom",
                 type = "spiral_center",
                 
                 -- Spiral data
@@ -92,7 +92,7 @@ RefractionArtifact.GREEN = {
                 speed = 350,
                 color = {0.3, 1, 0.3},
                 size = 8,
-                shape = "circle",
+                shape = "atom",
                 type = "orbital_core",
                 seeking = true,
                 seekingStrength = 200,
@@ -197,7 +197,7 @@ RefractionArtifact.BLUE = {
                 speed = 400,
                 color = {0.3, 0.3, 1},
                 size = 5,
-                shape = "circle",
+                shape = "triangle",
                 type = "accumulating",
                 piercing = true,
                 
@@ -255,7 +255,7 @@ RefractionArtifact.YELLOW = {
                 speed = 450,
                 color = {1, 1, 0.2},
                 size = 7,
-                shape = "circle",
+                shape = "atom",
                 type = "yellow_spiral_orbital",
                 
                 -- Spiral arms (RED trait)
@@ -382,7 +382,7 @@ RefractionArtifact.MAGENTA = {
                 speed = 400,
                 color = {1, 0.2, 0.8},
                 size = 6,
-                shape = "circle",
+                shape = "atom",
                 type = "magenta_accumulating_spiral",
                 
                 spiralArms = {},
@@ -458,7 +458,7 @@ RefractionArtifact.CYAN = {
                 speed = 350,
                 color = {0.2, 0.9, 0.9},
                 size = 7,
-                shape = "circle",
+                shape = "atom",
                 type = "cyan_synchronized",
                 seeking = true,
                 seekingStrength = 180,

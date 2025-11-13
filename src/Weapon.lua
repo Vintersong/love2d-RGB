@@ -106,7 +106,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
             vx = dx * self.projectileSpeed,
             vy = dy * self.projectileSpeed,
             color = {1, 1, 1},  -- White
-            shape = "circle",
+            shape = "atom",
             type = "basic"
         }}
     end
@@ -125,7 +125,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
             vx = math.cos(leftAngle) * self.projectileSpeed,
             vy = math.sin(leftAngle) * self.projectileSpeed,
             color = color,
-            shape = "circle",
+            shape = "atom_crescent",
             type = "projectile",
             canBounce = true,
             bouncesLeft = 3,
@@ -142,7 +142,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
             vx = math.cos(rightAngle) * self.projectileSpeed,
             vy = math.sin(rightAngle) * self.projectileSpeed,
             color = color,
-            shape = "circle",
+            shape = "atom_crescent",
             type = "projectile",
             canBounce = true,
             bouncesLeft = 3,
@@ -297,11 +297,30 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
             vx = dx * self.projectileSpeed,
             vy = dy * self.projectileSpeed,
             color = color,
-            shape = "circle",
+            shape = "atom",
             type = "basic"
         }
         
         applyAbilities(proj)
+        
+        -- Assign shape based on dominant color
+        if dominantColor == "RED" then
+            proj.shape = "atom"
+        elseif dominantColor == "GREEN" then
+            proj.shape = "crescent"
+        elseif dominantColor == "BLUE" then
+            proj.shape = "arrow"  -- Arrow/triangle pointing forward
+        elseif dominantColor == "YELLOW" then
+            proj.shape = "atom_crescent"  -- Crescent with atom inside
+        elseif dominantColor == "MAGENTA" then
+            proj.shape = "atom_arrow"  -- Atom with arrow attached
+        elseif dominantColor == "CYAN" then
+            proj.shape = "crescent"
+        else
+            -- No color chosen yet, default to atom
+            proj.shape = "atom"
+        end
+        
         table.insert(projectiles, proj)
         
     else
@@ -321,11 +340,29 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                     vx = math.cos(angle) * self.projectileSpeed,
                     vy = math.sin(angle) * self.projectileSpeed,
                     color = color,
-                    shape = "circle",
+                    shape = "atom",
                     type = "spread"
                 }
                 
                 applyAbilities(proj)
+                
+                -- Assign shape based on dominant color
+                if dominantColor == "RED" then
+                    proj.shape = "atom"
+                elseif dominantColor == "GREEN" then
+                    proj.shape = "crescent"
+                elseif dominantColor == "BLUE" then
+                    proj.shape = "arrow"
+                elseif dominantColor == "YELLOW" then
+                    proj.shape = "atom_crescent"
+                elseif dominantColor == "MAGENTA" then
+                    proj.shape = "atom_arrow"
+                elseif dominantColor == "CYAN" then
+                    proj.shape = "crescent"
+                else
+                    proj.shape = "atom"
+                end
+                
                 table.insert(projectiles, proj)
             end
         else
@@ -343,11 +380,29 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                         vx = math.cos(angle) * self.projectileSpeed,
                         vy = math.sin(angle) * self.projectileSpeed,
                         color = color,
-                        shape = "circle",
+                        shape = "atom",
                         type = "spread"
                     }
                     
                     applyAbilities(proj)
+                    
+                    -- Assign shape based on dominant color
+                    if dominantColor == "RED" then
+                        proj.shape = "atom"
+                    elseif dominantColor == "GREEN" then
+                        proj.shape = "crescent"
+                    elseif dominantColor == "BLUE" then
+                        proj.shape = "arrow"
+                    elseif dominantColor == "YELLOW" then
+                        proj.shape = "atom_crescent"
+                    elseif dominantColor == "MAGENTA" then
+                        proj.shape = "atom_arrow"
+                    elseif dominantColor == "CYAN" then
+                        proj.shape = "crescent"
+                    else
+                        proj.shape = "atom"
+                    end
+                    
                     table.insert(projectiles, proj)
                 end
             else
@@ -363,11 +418,29 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                         vx = math.cos(angle) * self.projectileSpeed,
                         vy = math.sin(angle) * self.projectileSpeed,
                         color = color,
-                        shape = "circle",
+                        shape = "atom",
                         type = "spread"
                     }
                     
                     applyAbilities(proj)
+                    
+                    -- Assign shape based on dominant color
+                    if dominantColor == "RED" then
+                        proj.shape = "atom"
+                    elseif dominantColor == "GREEN" then
+                        proj.shape = "crescent"
+                    elseif dominantColor == "BLUE" then
+                        proj.shape = "arrow"
+                    elseif dominantColor == "YELLOW" then
+                        proj.shape = "atom_crescent"
+                    elseif dominantColor == "MAGENTA" then
+                        proj.shape = "atom_arrow"
+                    elseif dominantColor == "CYAN" then
+                        proj.shape = "crescent"
+                    else
+                        proj.shape = "atom"
+                    end
+                    
                     table.insert(projectiles, proj)
                 end
             end

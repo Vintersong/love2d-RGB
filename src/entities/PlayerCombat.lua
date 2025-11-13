@@ -260,7 +260,7 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
     -- Create split projectiles in a spread pattern
     local splitCount = parentProj.splitCount or 2
     local angleStep = (math.pi / 6) / (splitCount - 1)  -- ±15° spread
-    local baseAngle = math.atan2(parentProj.vy, parentProj.vx)
+    local baseAngle = math.atan(parentProj.vy, parentProj.vx)
 
     for i = 1, splitCount do
         local offset = (i - 1) / (splitCount - 1) - 0.5  -- -0.5 to 0.5

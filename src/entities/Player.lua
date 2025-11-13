@@ -247,7 +247,7 @@ function Player:levelUp()
         self.level = self.level + 1
         self.exp = 0
         -- XP requirement increases by 5% per level
-        self.expToNext = math.floor(100 * math.pow(1.05, self.level - 1))
+        self.expToNext = math.floor(100 * (1.05^(self.level - 1)))
         -- Trigger color choice UI
         return true -- Signals that player should choose a color
     end

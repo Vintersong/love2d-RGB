@@ -164,7 +164,7 @@ end
 
 -- Crescent moon shape
 function PlayerRender.drawCrescentShape(proj, projColor)
-    local angle = math.atan2(proj.vy, proj.vx)
+    local angle = math.atan(proj.vy, proj.vx)
     love.graphics.rotate(angle)
 
     -- White outline
@@ -184,7 +184,7 @@ end
 
 -- Triangle shape
 function PlayerRender.drawTriangleShape(proj, projColor)
-    local angle = math.atan2(proj.vy, proj.vx) + math.pi/2
+    local angle = math.atan(proj.vy, proj.vx) + math.pi/2
     love.graphics.rotate(angle)
 
     -- Triangle vertices (top points forward)
@@ -273,7 +273,7 @@ end
 
 -- Pierce projectile shape
 function PlayerRender.drawPierceShape(proj, projColor)
-    local angle = math.atan2(proj.vy, proj.vx)
+    local angle = math.atan(proj.vy, proj.vx)
     love.graphics.push()
     love.graphics.rotate(angle)
 
@@ -410,7 +410,7 @@ function PlayerRender.drawMultiAbilityShape(proj, projColor)
 
     -- Draw indicators for each ability (stacked)
     if proj.canPierce then
-        local angle = math.atan2(proj.vy, proj.vx)
+        local angle = math.atan(proj.vy, proj.vx)
         love.graphics.push()
         love.graphics.rotate(angle)
 

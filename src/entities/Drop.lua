@@ -56,7 +56,7 @@ function Drop:update(dt, player)
 
         -- Move toward player if magnetized
         if self.magnetized and distance > 5 then
-            local angle = math.atan2(dy, dx)
+            local angle = math.atan(dy, dx)
             self.vx = math.cos(angle) * self.magnetSpeed
             self.vy = math.sin(angle) * self.magnetSpeed
         elseif self.magnetized and distance <= 5 then

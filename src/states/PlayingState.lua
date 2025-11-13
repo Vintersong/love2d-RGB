@@ -738,7 +738,7 @@ function PlayingState:keypressed(key)
         while tempLevel < 20 do
             xpNeeded = xpNeeded + tempExpToNext
             tempLevel = tempLevel + 1
-            tempExpToNext = math.floor(baseXP * math.pow(scaleFactor, tempLevel - 1))
+            tempExpToNext = math.floor(baseXP * (scaleFactor ^ (tempLevel - 1)))
         end
 
         self.player:addExp(xpNeeded)

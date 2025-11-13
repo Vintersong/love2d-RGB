@@ -141,7 +141,7 @@ function MusicReactor:analyzeAudio()
     
     -- Bass: slow, heavy oscillation (mimics kick drum patterns)
     local bassWave = math.abs(math.sin(time * self.bpm / 60 * 2 * math.pi))
-    bassWave = math.pow(bassWave, 2)  -- Square it for sharper peaks
+    bassWave = bassWave^2  -- Square it for sharper peaks
     self.bass = bassWave * 0.8 + 0.2  -- Keep some baseline
     
     -- Mid: medium frequency content

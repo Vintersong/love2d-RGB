@@ -159,7 +159,7 @@ EffectLibrary.duplicateProjectile = {
                 end
                 -- Slight angle offset
                 local angleOffset = (i / duplicates) * 0.2 - 0.1
-                local angle = math.atan2(dupe.vy, dupe.vx) + angleOffset
+                local angle = math.atan(dupe.vy, dupe.vx) + angleOffset
                 local speed = math.sqrt(dupe.vx * dupe.vx + dupe.vy * dupe.vy)
                 dupe.vx = math.cos(angle) * speed
                 dupe.vy = math.sin(angle) * speed
@@ -195,7 +195,7 @@ EffectLibrary.homingProjectile = {
 
                 -- Adjust trajectory toward nearest
                 if nearest then
-                    local angle = math.atan2(nearest.y - proj.y, nearest.x - proj.x)
+                    local angle = math.atan(nearest.y - proj.y, nearest.x - proj.x)
                     local speed = math.sqrt(proj.vx * proj.vx + proj.vy * proj.vy)
                     local turnRate = params.turnRate or 2.0
 

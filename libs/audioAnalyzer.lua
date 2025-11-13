@@ -44,13 +44,13 @@ function complex.to(num)
                     imag = _retminusone
                 end
             elseif sign == "+" then
-                imag = loadstring("return tonumber("..imag..")")
+                imag = tonumber(imag)
             else
-                imag = loadstring("return tonumber("..sign..imag..")")
+                imag = tonumber(sign .. imag)
             end
-            real = loadstring("return tonumber("..real..")")
+            real = tonumber(real)
             if real and imag then
-                return setmetatable({real(), imag()}, complex_meta)
+                return setmetatable({real, imag}, complex_meta)
             end
             return
         end
@@ -63,9 +63,9 @@ function complex.to(num)
                 return setmetatable({0, -1}, complex_meta)
             end
             if string.lower(string.sub(imag, 1, 1)) ~= "e" then
-                imag = loadstring("return tonumber("..imag..")")
+                imag = tonumber(imag)
                 if imag then
-                    return setmetatable({0, imag()}, complex_meta)
+                    return setmetatable({0, imag}, complex_meta)
                 end
             end
             return
@@ -73,9 +73,9 @@ function complex.to(num)
         -- should be real
         local real = string.match(num, "^(%-*[%d%.][%-%+%*%^%d%./Ee]*)$")
         if real then
-            real = loadstring("return tonumber("..real..")")
+            real = tonumber(real)
             if real then
-                return setmetatable({real(), 0}, complex_meta)
+                return setmetatable({real, 0}, complex_meta)
             end
         end
     end
@@ -125,7 +125,7 @@ function complex.tostring(cx, formatstr)
 end
 
 function complex.polar(cx)
-    return math.sqrt(cx[1]^2 + cx[2]^2), math.atan2(cx[2], cx[1])
+    return math.sqrt(cx[1]^2 + cx[2]^2), math.atan(cx[2]/cx[1])
 end
 
 function complex.abs(cx)
@@ -179,7 +179,7 @@ function complex.exp(cx)
 end
 
 function complex.ln(cx)
-    return setmetatable({math.log(math.sqrt(cx[1]^2 + cx[2]^2)), math.atan2(cx[2], cx[1])}, complex_meta)
+    return setmetatable({math.log(math.sqrt(cx[1]^2 + cx[2]^2)), math.atan(cx[2]/cx[1])}, complex_meta)
 end
 
 function complex.sqrt(cx)
@@ -201,7 +201,7 @@ function complex.pow(cx, num)
         end
         return setmetatable({real, imag}, complex_meta)
     end
-    local length, phi = math.sqrt(cx[1]^2 + cx[2]^2)^num, math.atan2(cx[2], cx[1]) * num
+    local length, phi = math.sqrt(cx[1]^2 + cx[2]^2)^num, math.atan(cx[2]/cx[1]) * num
     return setmetatable({length * math.cos(phi), length * math.sin(phi)}, complex_meta)
 end
 
@@ -641,124 +641,6 @@ function audioAnalyzer.getFrequencyBins(fftSize, sampleRate)
 end
 
 -- Remove the duplicate getFrequencyBands function and keep only this one
-function audioAnalyzer.getFrequencyBands(spectrum)
-    local bands = {
-        bass = { range = "20-250 Hz", energy = 0, peak = 0 },
-        midLow = { range = "250-500 Hz", energy = 0, peak = 0 },
-        midHigh = { range = "500-2000 Hz", energy = 0, peak = 0 },
-        treble = { range = "2000-4000 Hz", energy = 0, peak = 0 },
-        presence = { range = "4000-20000 Hz", energy = 0, peak = 0 }
-    }
-    
-    -- Check if spectrum has frequencies array (new format) or use magnitudes with calculated frequencies (old format)
-    if spectrum.frequencies then
-        -- New format with frequencies array
-        for i = 1, #spectrum.frequencies do
-            local frequency = spectrum.frequencies[i]
-            local magnitude = spectrum.magnitudes[i]
-            local energy = magnitude * magnitude
-            
-            if frequency >= 20 and frequency < 250 then
-                bands.bass.energy = bands.bass.energy + energy
-                bands.bass.peak = math.max(bands.bass.peak, magnitude)
-            elseif frequency >= 250 and frequency < 500 then
-                bands.midLow.energy = bands.midLow.energy + energy
-                bands.midLow.peak = math.max(bands.midLow.peak, magnitude)
-            elseif frequency >= 500 and frequency < 2000 then
-                bands.midHigh.energy = bands.midHigh.energy + energy
-                bands.midHigh.peak = math.max(bands.midHigh.peak, magnitude)
-            elseif frequency >= 2000 and frequency < 4000 then
-                bands.treble.energy = bands.treble.energy + energy
-                bands.treble.peak = math.max(bands.treble.peak, magnitude)
-            elseif frequency >= 4000 and frequency <= 20000 then
-                bands.presence.energy = bands.presence.energy + energy
-                bands.presence.peak = math.max(bands.presence.peak, magnitude)
-            end
-        end
-    else
-        -- Old format - calculate frequencies from magnitudes array
-        local sampleRate = 44100 -- Default sample rate
-        local fftSize = #spectrum.magnitudes * 2
-        
-        for i, magnitude in ipairs(spectrum.magnitudes) do
-            local frequency = (i - 1) * sampleRate / fftSize
-            local energy = magnitude * magnitude
-            
-            if frequency >= 20 and frequency < 250 then
-                bands.bass.energy = bands.bass.energy + energy
-                bands.bass.peak = math.max(bands.bass.peak, magnitude)
-            elseif frequency >= 250 and frequency < 500 then
-                bands.midLow.energy = bands.midLow.energy + energy
-                bands.midLow.peak = math.max(bands.midLow.peak, magnitude)
-            elseif frequency >= 500 and frequency < 2000 then
-                bands.midHigh.energy = bands.midHigh.energy + energy
-                bands.midHigh.peak = math.max(bands.midHigh.peak, magnitude)
-            elseif frequency >= 2000 and frequency < 4000 then
-                bands.treble.energy = bands.treble.energy + energy
-                bands.treble.peak = math.max(bands.treble.peak, magnitude)
-            elseif frequency >= 4000 and frequency <= 20000 then
-                bands.presence.energy = bands.presence.energy + energy
-                bands.presence.peak = math.max(bands.presence.peak, magnitude)
-            end
-        end
-    end
-    
-    return bands
-end
-
-function audioAnalyzer.findSpectralPeaks(spectrum, threshold, maxPeaks)
-    local peaks = {}
-    threshold = threshold or 0.1
-    maxPeaks = maxPeaks or 10
-    
-    -- Check if spectrum has frequencies array
-    if spectrum.frequencies then
-        -- New format with frequencies array
-        for i = 2, #spectrum.magnitudes - 1 do
-            local magnitude = spectrum.magnitudes[i]
-            local prevMag = spectrum.magnitudes[i - 1]
-            local nextMag = spectrum.magnitudes[i + 1]
-            
-            if magnitude > threshold and magnitude > prevMag and magnitude > nextMag then
-                table.insert(peaks, {
-                    frequency = spectrum.frequencies[i],
-                    magnitude = magnitude,
-                    binIndex = i
-                })
-            end
-        end
-    else
-        -- Old format - calculate frequencies
-        local sampleRate = 44100 -- Default sample rate
-        local fftSize = #spectrum.magnitudes * 2
-        
-        for i = 2, #spectrum.magnitudes - 1 do
-            local magnitude = spectrum.magnitudes[i]
-            local prevMag = spectrum.magnitudes[i - 1]
-            local nextMag = spectrum.magnitudes[i + 1]
-            
-            if magnitude > threshold and magnitude > prevMag and magnitude > nextMag then
-                local frequency = (i - 1) * sampleRate / fftSize
-                table.insert(peaks, {
-                    frequency = frequency,
-                    magnitude = magnitude,
-                    binIndex = i
-                })
-            end
-        end
-    end
-    
-    -- Sort by magnitude (descending)
-    table.sort(peaks, function(a, b) return a.magnitude > b.magnitude end)
-    
-    -- Return only the top peaks
-    local result = {}
-    for i = 1, math.min(maxPeaks, #peaks) do
-        result[i] = peaks[i]
-    end
-    
-    return result
-end
 
 -- Track class from lovebpm with added spectral analysis capabilities
 local Track = {}
@@ -995,87 +877,10 @@ end
 audioAnalyzer.Track = {}
 audioAnalyzer.Track.__index = audioAnalyzer.Track
 
-function audioAnalyzer.Track.new(name, bpm)
-    local track = {
-        name = name or "Unnamed Track",
-        bpm = bpm or 120,
-        beatHistory = {},
-        startTime = 0,
-        isPlaying = false,
-        currentTime = 0,
-        lastBeatTime = 0
-    }
-    setmetatable(track, audioAnalyzer.Track)
-    return track
-end
-
-function audioAnalyzer.Track:onBeat(time, intensity)
-    local beatEvent = {
-        time = time,
-        intensity = intensity or 1.0,
-        timestamp = love.timer and love.timer.getTime() or 0
-    }
-    table.insert(self.beatHistory, beatEvent)
-    self.lastBeatTime = time
-end
-
-function audioAnalyzer.Track:update(dt)
-    if self.isPlaying then
-        self.currentTime = self.currentTime + dt
-    end
-end
-
-function audioAnalyzer.Track:play()
-    self.isPlaying = true
-    self.startTime = love.timer and love.timer.getTime() or 0
-    self.currentTime = 0
-end
-
-function audioAnalyzer.Track:stop()
-    self.isPlaying = false
-end
-
-function audioAnalyzer.Track:pause()
-    self.isPlaying = false
-end
-
-function audioAnalyzer.Track:resume()
-    self.isPlaying = true
-end
-
-function audioAnalyzer.Track:seek(time)
-    self.currentTime = time
-end
-
-function audioAnalyzer.Track:isBeat(time)
-    local beatInterval = 60 / self.bpm  -- seconds per beat
-    local phase = (time % beatInterval) / beatInterval
-    -- Beat occurs in first 10% of beat interval
-    return phase < 0.1
-end
-
-function audioAnalyzer.Track:getBeatPhase(time)
-    local beatInterval = 60 / self.bpm  -- seconds per beat
-    return (time % beatInterval) / beatInterval
-end
-
-function audioAnalyzer.Track:getNextBeatTime(currentTime)
-    local beatInterval = 60 / self.bpm
-    local currentBeat = math.floor(currentTime / beatInterval)
-    return (currentBeat + 1) * beatInterval
-end
-
-function audioAnalyzer.Track:getPreviousBeatTime(currentTime)
-    local beatInterval = 60 / self.bpm
-    local currentBeat = math.floor(currentTime / beatInterval)
-    return currentBeat * beatInterval
-end
-
 function audioAnalyzer.Track:getAverageIntensity()
     if #self.beatHistory == 0 then
         return 0
     end
-    
     local sum = 0
     for _, beat in ipairs(self.beatHistory) do
         sum = sum + beat.intensity

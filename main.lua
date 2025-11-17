@@ -28,6 +28,7 @@ local Player = require("src.entities.Player")
 local Weapon = require("src.Weapon")
 
 -- Game states
+local SplashScreen = require("src.states.SplashScreen")
 local PlayingState = require("src.states.PlayingState")
 local LevelUpState = require("src.states.LevelUpState")
 local GameOverState = require("src.states.GameOverState")
@@ -95,21 +96,17 @@ function love.load()
         print("[Game] Could not load music, continuing without audio")
     end
 
-    -- Initialize PlayingState with player and game data
-    PlayingState.player = Player(512, 360, Weapon())
-    PlayingState.enemies = {}
-    PlayingState.xpOrbs = {}
-    PlayingState.powerups = {}
-    PlayingState.explosions = {}
-    PlayingState.bossProjectiles = {}
-    PlayingState.gameTime = 0
-    PlayingState.enemyKillCount = 0
-    PlayingState.musicReactor = musicReactor
-    PlayingState.screenWidth = screenWidth
-    PlayingState.screenHeight = screenHeight
+    -- Store music reactor and screen dimensions globally for later use
+    _G.gameMusicReactor = musicReactor
+    _G.gameScreenWidth = screenWidth
+    _G.gameScreenHeight = screenHeight
 
     -- Initialize StateManager and register all states
     StateManager.init()
+    StateManager.register("Splash", SplashScreen, {
+        description = "Initial splash screen",
+        tags = {"menu", "start"}
+    })
     StateManager.register("Playing", PlayingState, {
         description = "Main gameplay state",
         systems = {"ColorSystem", "World", "CollisionSystem", "MusicReactor"},
@@ -133,15 +130,15 @@ function love.load()
     StateManager.validateAll()
     StateManager.printReport()
 
-    -- Register gamestate events and start with PlayingState
+    -- Register gamestate events and start with SplashScreen
     Gamestate.registerEvents()
 
     -- Use StateManager to track current state
-    if StateManager.canSwitchTo("Playing") then
-        StateManager.setCurrent("Playing")
-        Gamestate.switch(PlayingState)
+    if StateManager.canSwitchTo("Splash") then
+        StateManager.setCurrent("Splash")
+        Gamestate.switch(SplashScreen)
     else
-        error("[StateManager] Cannot start game - Playing state is disabled!")
+        error("[StateManager] Cannot start game - Splash state is disabled!")
     end
 end
 

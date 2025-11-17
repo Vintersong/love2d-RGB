@@ -44,11 +44,11 @@ function Player:new(x, y, weapon)
     -- Dash ability (permanent, always available)
     self.isDashing = false
     self.dashTimer = 0
-    self.dashDuration = 0.2  -- 0.2 second dash
-    self.dashSpeed = 800  -- Very fast movement during dash
+    self.dashDuration = 0.2                     -- 0.2 second dash
+    self.dashSpeed = 800                        -- Very fast movement during dash
     self.dashDirection = {x = 0, y = 0}
-    self.dashCooldown = 0  -- Current cooldown
-    self.dashMaxCooldown = 3.0  -- 3 second cooldown
+    self.dashCooldown = 0                       -- Current cooldown
+    self.dashMaxCooldown = 1.5                  -- 3 second cooldown
 
     -- Active artifact ability system (for future active artifacts)
     self.activeAbility = nil  -- Current active artifact ability

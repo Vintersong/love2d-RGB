@@ -7,9 +7,9 @@ function Weapon:new(weaponType)
     self.colors = {r = 0, g = 0, b = 0}
     self.fireRate = 0.25
     self.fireTimer = 0
-    self.damage = 10
+    self.damage = 10                                        -- Base weapon damage - Meta progression influence - 10% increments 
     self.bulletCount = 1
-    self.projectileSpeed = 300
+    self.projectileSpeed = 300                              -- Base projectile speed - Meta progression influence - 5% increments
     self.spread = 0
     
     -- Primary color chance attributes

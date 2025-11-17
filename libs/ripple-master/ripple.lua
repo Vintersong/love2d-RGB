@@ -27,7 +27,7 @@ local ripple = {
 	]]
 }
 
-local unpack = unpack or table.unpack -- luacheck: ignore
+local unpack = table.unpack -- luacheck: ignore
 
 --[[
 	Represents an object that:

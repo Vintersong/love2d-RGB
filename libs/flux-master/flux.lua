@@ -26,7 +26,7 @@ local easing = {
 }
 
 local makefunc = function(str, expr)
-  local load = loadstring or load
+  local load = load
   return load("return function(p) " .. str:gsub("%$e", expr) .. " end")()
 end
 
@@ -175,9 +175,11 @@ end
 
 
 function flux:clear(obj, vars)
-  for t in pairs(self[obj]) do
-    if t.inited then
-      for k in pairs(vars) do t.vars[k] = nil end
+  if self[obj] then
+    for t in pairs(self[obj]) do
+      if t.inited then
+        for k in pairs(vars) do t.vars[k] = nil end
+      end
     end
   end
 end

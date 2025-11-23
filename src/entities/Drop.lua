@@ -2,10 +2,11 @@
 -- Base class for collectible items (XP orbs, powerups, etc.)
 -- Uses inheritance to reduce code duplication
 
-local entity = require("src.entities.Entity")
-local Drop = entity:derive("Drop")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Drop = class{__includes = Entity}
 
-function Drop:new(x, y, value, type)
+function Drop:init(x, y, value, type)
     self.x = x
     self.y = y
     self.value = value or 1  -- XP amount or powerup type

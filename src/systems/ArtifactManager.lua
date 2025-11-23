@@ -280,40 +280,7 @@ function ArtifactManager.collect(artifactType, weapon, player)
     currentLevel = currentLevel + 1
     ArtifactManager.artifacts[artifactType] = currentLevel
 
-    -- Check if this is an active ability artifact
-    local ArtifactDefs = require("src.data.ArtifactDefinitions")
-    local artifactDef = ArtifactDefs[artifactType]
-
-    if artifactDef and artifactDef.abilityType == "active" then
-        -- Set as active ability with cooldown
-        local cooldown = artifactDef.cooldown
-        if artifactDef.levels and artifactDef.levels[currentLevel] then
-            cooldown = artifactDef.levels[currentLevel].cooldown
-        end
-
-        player:setActiveAbility(artifactType, cooldown)
-
-        local message = string.format("%s Level %d (Cooldown: %.1fs)",
-            definition.name,
-            currentLevel,
-            cooldown)
-
-        print(string.format("[ARTIFACT] Active ability %s collected (Level %d/%d, Cooldown: %.1fs)",
-            definition.name, currentLevel, definition.maxLevel, cooldown))
-
-        return {
-            success = true,
-            message = message,
-            artifactName = definition.name,
-            level = currentLevel,
-            maxLevel = definition.maxLevel,
-            isMaxLevel = currentLevel >= definition.maxLevel,
-            type = artifactType,
-            isActive = true
-        }
-    end
-
-    -- Apply the level effect (passive artifacts)
+    -- Apply the level effect (all artifacts are passive)
     local levelEffect = definition.levelEffects[currentLevel]
     if levelEffect then
         levelEffect.effect(weapon, player)

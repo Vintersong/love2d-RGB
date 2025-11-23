@@ -1,8 +1,9 @@
-local entity = require("src.entities.Entity")
-local Projectile = entity:derive("Projectile")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Projectile = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
 
-function Projectile:new(x, y, vx, vy, damage, projType, owner)
+function Projectile:init(x, y, vx, vy, damage, projType, owner)
     self.x = x
     self.y = y
     self.vx = vx or 0

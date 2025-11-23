@@ -1,6 +1,7 @@
 -- Artifact drops from enemies - Physical/Optical Phenomena
-local entity = require("src.entities.Entity")
-local Powerup = entity:derive("Powerup")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Powerup = class{__includes = Entity}
 
 -- Artifact types based on physical/optical phenomena
 Powerup.Types = {
@@ -104,7 +105,7 @@ Powerup.Types = {
     }
 }
 
-function Powerup:new(x, y, powerupType)
+function Powerup:init(x, y, powerupType)
     self.x = x or 0
     self.y = y or 0
     self.width = 20

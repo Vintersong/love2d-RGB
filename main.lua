@@ -28,7 +28,7 @@ local Player = require("src.entities.Player")
 local Weapon = require("src.Weapon")
 
 -- Game states
-local SplashScreen = require("src.states.SplashScreen")
+local SplashScreen = require("src.states.SplashScreenState")
 local PlayingState = require("src.states.PlayingState")
 local LevelUpState = require("src.states.LevelUpState")
 local GameOverState = require("src.states.GameOverState")

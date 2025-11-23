@@ -1,7 +1,7 @@
-local class = require("class")
-local Weapon = class:derive("Weapon")
+local class = require("libs.hump-master.class")
+local Weapon = class{}
 
-function Weapon:new(weaponType)
+function Weapon:init(weaponType)
     self.weaponType = weaponType or "basic"
     self.name = weaponType or "Basic Weapon"
     self.colors = {r = 0, g = 0, b = 0}

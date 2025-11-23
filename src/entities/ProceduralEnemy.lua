@@ -1,9 +1,10 @@
 -- ProceduralEnemy: Enemy with randomized abilities and affinity
-local entity = require("src.entities.Entity")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
 local EnemyAbilities = require("src.components.EnemyAbilities")
-local ProceduralEnemy = entity:derive("ProceduralEnemy")
+local ProceduralEnemy = class{__includes = Entity}
 
-function ProceduralEnemy:new(x, y, level, config)
+function ProceduralEnemy:init(x, y, level, config)
     self.x = x or 0
     self.y = y or 0
     self.width = 24

@@ -7,15 +7,30 @@ local PlayerCombat = {}
 -- Constants
 local SCREEN_WIDTH = 1920
 local SCREEN_HEIGHT = 1080
+local BOSS_PRIORITY_RANGE = 1000  -- Auto-target boss if within this range (covers most of screen)
 
 -- Find nearest enemy to player (for auto-targeting)
-function PlayerCombat.findNearestEnemy(player, enemies)
+-- Prioritizes boss enemies if player is within BOSS_PRIORITY_RANGE
+-- bosses: optional, can be a single boss entity or nil
+function PlayerCombat.findNearestEnemy(player, enemies, boss)
     local centerX = player.x + player.width / 2
     local centerY = player.y + player.height / 2
 
     local nearestEnemy = nil
     local nearestDistance = math.huge
+    local bossEnemy = nil
+    local bossDistance = math.huge
 
+    -- Check standalone boss (from BossSystem.activeBoss)
+    -- BossSystem boss has: alive, x, y, size (radius), no width/height/dead
+    if boss and boss.alive then
+        local dx = boss.x - centerX
+        local dy = boss.y - centerY
+        bossDistance = math.sqrt(dx * dx + dy * dy)
+        bossEnemy = boss
+    end
+
+    -- Check enemies array
     if enemies then
         for _, enemy in ipairs(enemies) do
             if not enemy.dead then
@@ -23,6 +38,15 @@ function PlayerCombat.findNearestEnemy(player, enemies)
                 local dy = enemy.y + enemy.height / 2 - centerY
                 local distance = math.sqrt(dx * dx + dy * dy)
 
+                -- Check if this is a boss in the enemies array
+                if enemy.enemyType == "boss" then
+                    if distance < bossDistance then
+                        bossDistance = distance
+                        bossEnemy = enemy
+                    end
+                end
+
+                -- Track nearest regular enemy
                 if distance < nearestDistance then
                     nearestDistance = distance
                     nearestEnemy = enemy
@@ -31,17 +55,24 @@ function PlayerCombat.findNearestEnemy(player, enemies)
         end
     end
 
+    -- Prioritize boss if within range
+    if bossEnemy and bossDistance <= BOSS_PRIORITY_RANGE then
+        return bossEnemy
+    end
+
+    -- Otherwise return nearest enemy
     return nearestEnemy
 end
 
 -- Auto-fire at nearest enemy (Vampire Survivors style)
-function PlayerCombat.autoFire(player, enemies)
+-- boss: optional, single boss entity from BossSystem.activeBoss
+function PlayerCombat.autoFire(player, enemies, boss)
     if not player.weapon then
         return
     end
 
-    -- Find nearest enemy
-    local nearestEnemy = PlayerCombat.findNearestEnemy(player, enemies)
+    -- Find nearest enemy (including boss if provided)
+    local nearestEnemy = PlayerCombat.findNearestEnemy(player, enemies, boss)
 
     -- Store for visual indicator
     player.nearestEnemy = nearestEnemy
@@ -50,8 +81,18 @@ function PlayerCombat.autoFire(player, enemies)
     if nearestEnemy then
         local centerX = player.x + player.width / 2
         local centerY = player.y + player.height / 2
-        local targetX = nearestEnemy.x + nearestEnemy.width / 2
-        local targetY = nearestEnemy.y + nearestEnemy.height / 2
+
+        -- BossSystem bosses use center x,y; regular enemies use x,y + width/height
+        local targetX, targetY
+        if nearestEnemy.width and nearestEnemy.height then
+            -- Regular enemy or Boss entity
+            targetX = nearestEnemy.x + nearestEnemy.width / 2
+            targetY = nearestEnemy.y + nearestEnemy.height / 2
+        else
+            -- BossSystem boss (x,y is center)
+            targetX = nearestEnemy.x
+            targetY = nearestEnemy.y
+        end
 
         local projectiles = player.weapon:fire(centerX, centerY, targetX, targetY)
         if projectiles then

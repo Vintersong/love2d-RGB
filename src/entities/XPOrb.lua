@@ -1,10 +1,10 @@
 -- XP Orb that drops from enemies and floats toward player when nearby
-local class = require("class")
+local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 
-local XPOrb = Entity:derive("XPOrb")
+local XPOrb = class{__includes = Entity}
 
-function XPOrb:new(x, y, value, orbType, color)
+function XPOrb:init(x, y, value, orbType, color)
     self.x = x
     self.y = y
     self.width = 8

@@ -100,7 +100,8 @@ function PlayingState:update(dt)
     self.player:checkDashCollisions(self.enemies)
 
     -- Auto-fire at nearest enemy (Vampire Survivors style)
-    self.player:autoFire(self.enemies)
+    -- Pass boss from BossSystem if active
+    self.player:autoFire(self.enemies, BossSystem.activeBoss)
 
     -- Use EnemySpawner system for procedural enemy waves
     local enemyCountBefore = #self.enemies
@@ -700,7 +701,23 @@ function PlayingState:keypressed(key)
         return
     end
 
-    -- Left Shift: Use active artifact ability
+    -- E key: Blink (teleport ability)
+    if key == "e" then
+        if self.player:useBlink() then
+            print("[Input] Blink activated!")
+        end
+        return
+    end
+
+    -- Q key: Shield (invulnerability ability)
+    if key == "q" then
+        if self.player:useShield() then
+            print("[Input] Shield activated!")
+        end
+        return
+    end
+
+    -- Left Shift: Use active artifact ability (for future)
     if key == "lshift" then
         if self.player:useActiveAbility() then
             print("[Input] Active artifact ability used!")

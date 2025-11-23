@@ -1,8 +1,6 @@
 -- BossSystem.lua
 -- Boss encounter every 20 waves
 
-local palette = require("utils.palette")
-
 local BossSystem = {}
 BossSystem.__index = BossSystem
 
@@ -11,9 +9,13 @@ BossSystem.SPAWN_INTERVAL = 20
 BossSystem.currentWave = 0
 BossSystem.activeBoss = nil
 
+-- Boss colors (replaced palette dependency)
+local BOSS_COLOR = {1, 0.2, 0.8}  -- Neon pink
+local WHITE_COLOR = {1, 1, 1}
+
 function BossSystem.init()
     -- Setup boss ship color
-    _G.currentShipColor = palette.neonPink -- Boss color
+    _G.currentShipColor = BOSS_COLOR
 end
 
 function BossSystem.checkSpawn(waveNumber)
@@ -143,7 +145,7 @@ function BossSystem:takeDamage(amount)
     self.health = self.health - amount
     
     -- Visual feedback - simplified (no VFX system integration yet)
-    -- VFX:spawnHitEffect(self.x, self.y, palette.white)
+    -- VFX:spawnHitEffect(self.x, self.y, WHITE_COLOR)
     
     -- Screen shake on hit - commented out (no Camera system)
     -- Camera:shake(0.1, 5)
@@ -189,8 +191,7 @@ function BossSystem:draw()
     end
     
     -- Draw boss as large diamond/star shape
-    local bossColor = palette.neonPink
-    love.graphics.setColor(bossColor)
+    love.graphics.setColor(BOSS_COLOR)
     
     -- Draw diamond body
     local points = {

@@ -1,5 +1,6 @@
-local entity = require("src.entities.Entity")
-local Enemy = entity:derive("Enemy")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Enemy = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
 
 -- Helper function: Lerp between two colors
@@ -74,7 +75,7 @@ local function drawOuterRings(shape, width, ringCount, playerLevel)
     })
 end
 
-function Enemy:new(x, y, enemyType, playerLevel, formationData)
+function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.x = x or 0
     self.y = y or 0
     self.width = 24

@@ -6,8 +6,9 @@
 -- Abilities -> AbilitySystem.lua + AbilityLibrary.lua
 -- Artifacts -> individual artifact modules
 
-local entity = require("src.entities.Entity")
-local Player = entity:derive("Player")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Player = class{__includes = Entity}
 
 -- Load delegated modules
 local PlayerInput = require("src.entities.PlayerInput")
@@ -16,7 +17,7 @@ local PlayerRender = require("src.entities.PlayerRender")
 local AbilitySystem = require("src.systems.AbilitySystem")
 local AbilityLibrary = require("src.data.AbilityLibrary")
 
-function Player:new(x, y, weapon)
+function Player:init(x, y, weapon)
     self.x = x or 400
     self.y = y or 500
     self.width = 32
@@ -45,7 +46,7 @@ function Player:new(x, y, weapon)
     self.damageFlashTime = 0
 
     -- Register player abilities with AbilitySystem
-    AbilitySystem.register(self, {"DASH"})
+    AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD"})
 
     -- Active artifact ability system (for future active artifacts)
     self.activeAbility = nil  -- Current active artifact ability
@@ -200,8 +201,8 @@ function Player:addColorToWeapon(color)
 end
 
 -- Auto-fire at nearest enemy (delegated to PlayerCombat)
-function Player:autoFire(enemies)
-    PlayerCombat.autoFire(self, enemies)
+function Player:autoFire(enemies, boss)
+    PlayerCombat.autoFire(self, enemies, boss)
 end
 
 -- Get aim angle to nearest enemy (delegated to PlayerCombat)
@@ -232,21 +233,31 @@ function Player:setActiveAbility(abilityName, cooldown)
     print(string.format("[Player] Active ability set: %s (cooldown: %.1fs)", abilityName, cooldown))
 end
 
--- Use active ability (called on spacebar press)
+-- Use active ability (called on left shift - for future artifact abilities)
 function Player:useActiveAbility()
     if not self.activeAbility then return false end
     if self.abilityCooldown > 0 then return false end
 
-    if self.activeAbility == "DASH" then
-        return self:activateDash()
-    end
-
+    -- Future: activate artifact-based abilities here
+    print("[Player] Active artifact ability not implemented yet")
     return false
 end
 
 -- Use dash (SPACE key - permanent ability)
 function Player:useDash()
     local success = AbilitySystem.activate(self, "DASH", AbilityLibrary.DASH, {})
+    return success
+end
+
+-- Use blink (E key - teleport ability)
+function Player:useBlink()
+    local success = AbilitySystem.activate(self, "BLINK", AbilityLibrary.BLINK, {})
+    return success
+end
+
+-- Use shield (Q key - invulnerability ability)
+function Player:useShield()
+    local success = AbilitySystem.activate(self, "SHIELD", AbilityLibrary.SHIELD, {})
     return success
 end
 

@@ -1,7 +1,8 @@
-local entity = require("src.entities.Entity")
-local Boss = entity:derive("Boss")
+local class = require("libs.hump-master.class")
+local Entity = require("src.entities.Entity")
+local Boss = class{__includes = Entity}
 
-function Boss:new(x, y)
+function Boss:init(x, y)
     local SCREEN_WIDTH = 1920
     local SCREEN_HEIGHT = 1080
     self.x = x or SCREEN_WIDTH / 2 - 50

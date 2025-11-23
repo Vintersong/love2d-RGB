@@ -13,9 +13,16 @@ function PlayerRender.drawPlayer(player)
 
     -- Calculate direction to nearest enemy
     local targetX, targetY
-    if player.nearestEnemy and not player.nearestEnemy.dead then
-        targetX = player.nearestEnemy.x + player.nearestEnemy.width / 2
-        targetY = player.nearestEnemy.y + player.nearestEnemy.height / 2
+    if player.nearestEnemy and (not player.nearestEnemy.dead or player.nearestEnemy.alive) then
+        -- BossSystem bosses use center x,y; regular enemies use x,y + width/height
+        if player.nearestEnemy.width and player.nearestEnemy.height then
+            targetX = player.nearestEnemy.x + player.nearestEnemy.width / 2
+            targetY = player.nearestEnemy.y + player.nearestEnemy.height / 2
+        else
+            -- BossSystem boss (x,y is center)
+            targetX = player.nearestEnemy.x
+            targetY = player.nearestEnemy.y
+        end
     else
         -- Default direction (up)
         targetX = centerX
@@ -58,16 +65,34 @@ function PlayerRender.drawPlayer(player)
     love.graphics.setColor(1, 1, 1)
     love.graphics.circle("fill", centerX, centerY, 2)
 
-    -- Draw line to nearest enemy (if exists) - GREEN for player targeting
-    if player.nearestEnemy and not player.nearestEnemy.dead then
-        love.graphics.setColor(0.2, 1, 0.2, 0.4)  -- Green, semi-transparent
-        love.graphics.setLineWidth(2)
+    -- Draw line to nearest enemy (if exists)
+    -- BLUE for boss targeting, GREEN for regular enemy
+    if player.nearestEnemy and (not player.nearestEnemy.dead or player.nearestEnemy.alive) then
+        -- Detect boss: either enemyType="boss" (Boss entity) or has phase property (BossSystem)
+        local isBoss = player.nearestEnemy.enemyType == "boss" or player.nearestEnemy.phase ~= nil
+
+        if isBoss then
+            -- BLUE line for boss targeting
+            love.graphics.setColor(0.3, 0.6, 1, 0.7)  -- Blue, semi-transparent
+        else
+            -- GREEN line for regular enemy targeting
+            love.graphics.setColor(0.2, 1, 0.2, 0.4)  -- Green, semi-transparent
+        end
+
+        love.graphics.setLineWidth(3)
         love.graphics.line(centerX, centerY, targetX, targetY)
 
         -- Draw target indicator on nearest enemy
-        love.graphics.setColor(0.2, 1, 0.2, 0.8)  -- Green
-        love.graphics.circle("line", targetX, targetY, 15)
-        love.graphics.circle("line", targetX, targetY, 12)
+        if isBoss then
+            love.graphics.setColor(0.3, 0.6, 1, 0.9)  -- Blue for boss
+            love.graphics.circle("line", targetX, targetY, 20)
+            love.graphics.circle("line", targetX, targetY, 16)
+            love.graphics.circle("line", targetX, targetY, 12)
+        else
+            love.graphics.setColor(0.2, 1, 0.2, 0.8)  -- Green for regular
+            love.graphics.circle("line", targetX, targetY, 15)
+            love.graphics.circle("line", targetX, targetY, 12)
+        end
     end
 end
 

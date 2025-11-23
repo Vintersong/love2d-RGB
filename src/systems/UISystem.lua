@@ -100,8 +100,13 @@ function UISystem.drawPlayerHUD(player)
     local titleWidth = font:getWidth(titleText) * 1.5
     love.graphics.print(titleText, dashX + (barWidth - titleWidth) / 2, dashY - 5, 0, 1.5, 1.5)
 
-    -- Cooldown bar
-    local dashCdPercent = 1 - (player.dashCooldown / player.dashMaxCooldown)
+    -- Cooldown bar (using AbilitySystem)
+    local AbilitySystem = require("src.systems.AbilitySystem")
+    local AbilityLibrary = require("src.data.AbilityLibrary")
+
+    local dashCdPercent = AbilitySystem.getCooldownProgress(player, "DASH", AbilityLibrary.DASH)
+    local dashState = AbilitySystem.getState(player, "DASH")
+    local dashCooldown = dashState and dashState.cooldown or 0
 
     love.graphics.setColor(0.2, 0.2, 0.3)
     love.graphics.rectangle("fill", dashX, dashY + 30, barWidth, barHeight)
@@ -118,7 +123,7 @@ function UISystem.drawPlayerHUD(player)
         love.graphics.setColor(0.2, 0.8, 1)
         love.graphics.rectangle("fill", dashX, dashY + 30, barWidth * dashCdPercent, barHeight)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print(string.format("%.1fs", player.dashCooldown), dashX + (barWidth / 2) - 20, dashY + 32, 0, 1.3, 1.3)
+        love.graphics.print(string.format("%.1fs", dashCooldown), dashX + (barWidth / 2) - 20, dashY + 32, 0, 1.3, 1.3)
     end
 
     -- Border

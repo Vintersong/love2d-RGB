@@ -3,6 +3,7 @@
 -- Movement -> PlayerInput.lua
 -- Combat -> PlayerCombat.lua
 -- Rendering -> PlayerRender.lua
+-- Abilities -> AbilitySystem.lua + AbilityLibrary.lua
 -- Artifacts -> individual artifact modules
 
 local entity = require("src.entities.Entity")
@@ -12,6 +13,8 @@ local Player = entity:derive("Player")
 local PlayerInput = require("src.entities.PlayerInput")
 local PlayerCombat = require("src.entities.PlayerCombat")
 local PlayerRender = require("src.entities.PlayerRender")
+local AbilitySystem = require("src.systems.AbilitySystem")
+local AbilityLibrary = require("src.data.AbilityLibrary")
 
 function Player:new(x, y, weapon)
     self.x = x or 400
@@ -41,14 +44,8 @@ function Player:new(x, y, weapon)
     self.invulnerableDuration = 1.0  -- 1 second invulnerability after hit
     self.damageFlashTime = 0
 
-    -- Dash ability (permanent, always available)
-    self.isDashing = false
-    self.dashTimer = 0
-    self.dashDuration = 0.2                     -- 0.2 second dash
-    self.dashSpeed = 800                        -- Very fast movement during dash
-    self.dashDirection = {x = 0, y = 0}
-    self.dashCooldown = 0                       -- Current cooldown
-    self.dashMaxCooldown = 1.5                  -- 3 second cooldown
+    -- Register player abilities with AbilitySystem
+    AbilitySystem.register(self, {"DASH"})
 
     -- Active artifact ability system (for future active artifacts)
     self.activeAbility = nil  -- Current active artifact ability
@@ -72,14 +69,6 @@ function Player:update(dt, enemies)
         self.damageFlashTime = self.damageFlashTime - dt
     end
 
-    -- Update dash cooldown
-    if self.dashCooldown > 0 then
-        self.dashCooldown = self.dashCooldown - dt
-        if self.dashCooldown < 0 then
-            self.dashCooldown = 0
-        end
-    end
-
     -- Update active artifact ability cooldown
     if self.abilityCooldown > 0 then
         self.abilityCooldown = self.abilityCooldown - dt
@@ -88,58 +77,8 @@ function Player:update(dt, enemies)
         end
     end
 
-    -- Update dash state
-    if self.isDashing then
-        self.dashTimer = self.dashTimer + dt
-        
-        -- Spawn continuous dash trail particles
-        local VFXLibrary = require("src.systems.VFXLibrary")
-        local ColorSystem = require("src.systems.ColorSystem")
-        local centerX = self.x + self.width / 2
-        local centerY = self.y + self.height / 2
-        
-        if self.dashColor then
-            local trailColor = ColorSystem.getColorRGB(self.dashColor)
-            -- Spawn 2 trail particles per frame
-            VFXLibrary.spawnImpactBurst(centerX, centerY, trailColor, 2)
-        end
-        
-        -- Spawn continuous dash trail VFX (color-specific)
-        if self.dashColor then
-            self.dashTrailTimer = (self.dashTrailTimer or 0) + dt
-            if self.dashTrailTimer >= 0.05 then  -- Spawn trail every 0.05 seconds
-                self.dashTrailTimer = 0
-                
-                local VFXLibrary = require("src.systems.VFXLibrary")
-                
-                -- Map colors to VFX with reduced particle count for trail
-                local colorVFXMap = {
-                    RED = "SUPERNOVA",
-                    GREEN = "AURORA",
-                    BLUE = "LENS",
-                    YELLOW = "REFRACTION",
-                    MAGENTA = "PRISM",
-                    CYAN = "DIFFRACTION"
-                }
-                
-                local vfxType = colorVFXMap[self.dashColor]
-                if vfxType then
-                    -- Spawn small trail particles
-                    VFXLibrary.spawnArtifactEffect(vfxType, centerX, centerY, 
-                                                   centerX - self.dashDirection.x * 20, 
-                                                   centerY - self.dashDirection.y * 20)
-                end
-            end
-        end
-        
-        if self.dashTimer >= self.dashDuration then
-            -- Dash ended - apply color-based effects
-            self:onDashEnd()
-            self.isDashing = false
-            self.dashTimer = 0
-            self.dashTrailTimer = 0
-        end
-    end
+    -- Update all abilities via AbilitySystem
+    AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
 
     -- Spawn continuous VFX for active artifacts
     self.vfxTimer = (self.vfxTimer or 0) + dt
@@ -307,213 +246,16 @@ end
 
 -- Use dash (SPACE key - permanent ability)
 function Player:useDash()
-    if self.dashCooldown > 0 then return false end
-    if self.isDashing then return false end
-
-    return self:activateDash()
-end
-
--- Activate dash ability
-function Player:activateDash()
-    -- Get current movement direction
-    local dx, dy = 0, 0
-    if love.keyboard.isDown("a") or love.keyboard.isDown("left") then dx = dx - 1 end
-    if love.keyboard.isDown("d") or love.keyboard.isDown("right") then dx = dx + 1 end
-    if love.keyboard.isDown("w") or love.keyboard.isDown("up") then dy = dy - 1 end
-    if love.keyboard.isDown("s") or love.keyboard.isDown("down") then dy = dy + 1 end
-
-    -- If no direction, dash in last movement direction or forward
-    if dx == 0 and dy == 0 then
-        dy = -1  -- Default dash up
-    end
-
-    -- Normalize direction
-    local length = math.sqrt(dx * dx + dy * dy)
-    if length > 0 then
-        dx = dx / length
-        dy = dy / length
-    end
-
-    -- Get dominant color for dash effects
-    local ColorSystem = require("src.systems.ColorSystem")
-    local dominantColor = ColorSystem.getDominantColor()
-
-    -- Set dash state
-    self.isDashing = true
-    self.dashTimer = 0
-    self.dashDirection = {x = dx, y = dy}
-    self.dashColor = dominantColor  -- Store color for dash effects
-    self.dashPiercedEnemies = {}  -- Track enemies hit during dash
-    self.invulnerable = true  -- Invulnerable during dash
-    self.invulnerableTime = self.dashDuration
-
-    -- Start dash cooldown
-    self.dashCooldown = self.dashMaxCooldown
-
-    -- Spawn color-specific dash VFX
-    local VFXLibrary = require("src.systems.VFXLibrary")
-    local centerX = self.x + self.width / 2
-    local centerY = self.y + self.height / 2
-    
-    -- Only spawn VFX if we have a color
-    if dominantColor then
-        -- Map colors to VFX artifact types for color-specific effects
-        local colorVFXMap = {
-            RED = "SUPERNOVA",      -- Red explosive trail
-            GREEN = "AURORA",       -- Green healing waves
-            BLUE = "LENS",          -- Blue focused beam
-            YELLOW = "REFRACTION",  -- Yellow speed trails
-            MAGENTA = "PRISM",      -- Magenta rainbow refraction
-            CYAN = "DIFFRACTION"    -- Cyan sparkle/magnet effect
-        }
-        
-        local vfxType = colorVFXMap[dominantColor] or "DASH"
-        VFXLibrary.spawnArtifactEffect(vfxType, centerX, centerY, 
-                                       centerX + dx * 50, centerY + dy * 50)
-    end
-    -- No VFX for neutral dash (no color selected)
-
-    print(string.format("[Player] %s Dash activated!", dominantColor or "NEUTRAL"))
-    return true
-end
-
--- Get dash movement (called from PlayerInput during dash)
-function Player:getDashMovement(dt)
-    if not self.isDashing then return 0, 0 end
-
-    local moveX = self.dashDirection.x * self.dashSpeed * dt
-    local moveY = self.dashDirection.y * self.dashSpeed * dt
-
-    return moveX, moveY
+    local success = AbilitySystem.activate(self, "DASH", AbilityLibrary.DASH, {})
+    return success
 end
 
 -- Check collision with enemies during dash (called from PlayingState)
 function Player:checkDashCollisions(enemies)
-    if not self.isDashing then return end
-    if not self.dashColor then return end  -- Neutral dash has no pierce
-
-    for _, enemy in ipairs(enemies) do
-        if not enemy.dead and not self.dashPiercedEnemies[enemy] then
-            -- Check if player hitbox overlaps enemy
-            if self.x < enemy.x + enemy.width and
-               self.x + self.width > enemy.x and
-               self.y < enemy.y + enemy.height and
-               self.y + self.height > enemy.y then
-
-                -- Mark as pierced
-                self.dashPiercedEnemies[enemy] = true
-
-                -- Apply color-based pierce effects
-                self:applyDashPierceEffect(enemy)
-            end
-        end
-    end
-end
-
--- Apply effect when dashing through an enemy
-function Player:applyDashPierceEffect(enemy)
-    local damage = 20  -- Base dash damage
-
-    if self.dashColor == "BLUE" or self.dashColor == "YELLOW" or
-       self.dashColor == "PURPLE" or self.dashColor == "CYAN" then
-
-        -- Deal damage to pierced enemy
-        enemy.hp = enemy.hp - damage
-
-        -- Visual feedback: Floating text
-        local FloatingTextSystem = require("src.systems.FloatingTextSystem")
-        FloatingTextSystem.add(
-            string.format("-%d DASH", damage),
-            enemy.x + enemy.width / 2,
-            enemy.y,
-            "DAMAGE"
-        )
-        
-        -- Visual feedback: Impact VFX at enemy position
-        local VFXLibrary = require("src.systems.VFXLibrary")
-        local ColorSystem = require("src.systems.ColorSystem")
-        local impactColor = ColorSystem.getColorRGB(self.dashColor)
-        VFXLibrary.spawnImpactBurst(
-            enemy.x + enemy.width / 2,
-            enemy.y + enemy.height / 2,
-            impactColor,
-            10  -- particle count
-        )
-
-        -- PURPLE: Apply DoT
-        if self.dashColor == "PURPLE" then
-            enemy.dotDamage = (enemy.dotDamage or 0) + 5
-            enemy.dotDuration = 3.0
-        end
-
-        -- CYAN: Life steal
-        if self.dashColor == "CYAN" then
-            local healAmount = damage * 0.5  -- 50% life steal
-            self.hp = math.min(self.maxHp, self.hp + healAmount)
-            FloatingTextSystem.add(
-                string.format("+%d HP", math.floor(healAmount)),
-                self.x + self.width / 2,
-                self.y,
-                "HEAL"
-            )
-        end
-    end
-end
-
--- Called when dash ends - apply post-dash effects
-function Player:onDashEnd()
-    if not self.dashColor then return end
-
-    -- RED: Speed boost after dash
-    if self.dashColor == "RED" then
-        self.speedBoost = 1.5  -- 50% speed boost
-        self.speedBoostDuration = 2.0  -- 2 seconds
-        print("[Player] RED dash: Speed boost applied!")
-    end
-
-    -- GREEN: Heal on dash
-    if self.dashColor == "GREEN" then
-        local healAmount = self.maxHp * 0.1  -- 10% max HP
-        self.hp = math.min(self.maxHp, self.hp + healAmount)
-
-        local FloatingTextSystem = require("src.systems.FloatingTextSystem")
-        FloatingTextSystem.add(
-            string.format("+%d HP", math.floor(healAmount)),
-            self.x + self.width / 2,
-            self.y,
-            "HEAL"
-        )
-        print(string.format("[Player] GREEN dash: Healed %d HP", math.floor(healAmount)))
-    end
-
-    -- YELLOW: Heal + Speed boost (combination)
-    if self.dashColor == "YELLOW" then
-        -- Heal (smaller than green)
-        local healAmount = self.maxHp * 0.05  -- 5% max HP
-        self.hp = math.min(self.maxHp, self.hp + healAmount)
-
-        -- Speed boost (smaller than red)
-        self.speedBoost = 1.3  -- 30% speed boost
-        self.speedBoostDuration = 1.5  -- 1.5 seconds
-
-        local FloatingTextSystem = require("src.systems.FloatingTextSystem")
-        FloatingTextSystem.add(
-            string.format("+%d HP +SPEED", math.floor(healAmount)),
-            self.x + self.width / 2,
-            self.y,
-            "HEAL"
-        )
-        print(string.format("[Player] YELLOW dash: Healed %d HP + Speed boost", math.floor(healAmount)))
-    end
-
-    -- Count pierced enemies for feedback
-    local piercedCount = 0
-    for _ in pairs(self.dashPiercedEnemies) do
-        piercedCount = piercedCount + 1
-    end
-
-    if piercedCount > 0 and (self.dashColor == "BLUE" or self.dashColor == "PURPLE" or self.dashColor == "CYAN") then
-        print(string.format("[Player] %s dash: Pierced %d enemies", self.dashColor, piercedCount))
+    -- Delegate to ability library's dash collision checker
+    local dashState = AbilitySystem.getState(self, "DASH")
+    if dashState and dashState.isActive then
+        AbilityLibrary.DASH.checkCollisions(self, dashState.state, enemies)
     end
 end
 

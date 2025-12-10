@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ]]--
 
-local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
+local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan
 
 local function str(x,y)
 	return "("..tonumber(x)..","..tonumber(y)..")"

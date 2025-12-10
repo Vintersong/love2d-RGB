@@ -25,7 +25,7 @@ THE SOFTWARE.
 ]]--
 
 local assert = assert
-local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
+local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan
 
 local vector = {}
 vector.__index = vector

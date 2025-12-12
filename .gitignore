@@ -1,5 +1,7 @@
 .claude/settings.local.json
 .vscode/settings.json
+
+# Internal design documents (exclude from repo)
 ARCHITECTURE.md
 CURRENT_IMPLEMENTATION_STATUS.md
 DATA_DRIVEN_REFACTOR.md
@@ -11,4 +13,5 @@ PHASE_4_COMPLETE.md
 QUICK_STATUS.md
 STATE_MANAGER_GUIDE.md
 CLEANUP_COMPLETE.md
-*.md
+
+# Note: README.md, Feedback.md, and CODE_QUALITY_ANALYSIS.md are intentionally tracked

@@ -5,7 +5,6 @@ function love.conf(t)
     t.window.fullscreen = true
     t.window.fullscreentype = "exclusive"  -- Use exclusive fullscreen to prevent scaling issues
     t.window.highdpi = false  -- Disable high DPI scaling
-    -- Console
-    t.window.resizable = false  -- Disabled to maintain constant UI scale
-    t.console = true
+    -- Console (set to false for production builds)
+    t.console = true  -- Enable console for debug output
 end

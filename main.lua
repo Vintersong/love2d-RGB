@@ -7,6 +7,7 @@ local BootLoader = require("src.systems.BootLoader")
 -- State management systems
 local Gamestate = require("libs.hump-master.gamestate")
 local StateManager = require("src.systems.StateManager")
+local GameConfig = require("src.systems.GameConfig")
 
 -- Game systems (initialized once)
 local MusicReactor = require("src.systems.MusicReactor")
@@ -96,10 +97,8 @@ function love.load()
         print("[Game] Could not load music, continuing without audio")
     end
 
-    -- Store music reactor and screen dimensions globally for later use
-    _G.gameMusicReactor = musicReactor
-    _G.gameScreenWidth = screenWidth
-    _G.gameScreenHeight = screenHeight
+    -- Initialize GameConfig with music reactor and screen dimensions
+    GameConfig.init(musicReactor, screenWidth, screenHeight)
 
     -- Initialize StateManager and register all states
     StateManager.init()

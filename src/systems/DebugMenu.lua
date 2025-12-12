@@ -1,17 +1,27 @@
 -- Debug Menu System
 -- Hierarchical menu system (like phone menus)
+-- Controlled by GameConfig.debugMode
 
 local DebugMenu = {}
 
-DebugMenu.enabled = true
+-- Get debug mode from GameConfig
+local GameConfig = require("src.systems.GameConfig")
+DebugMenu.enabled = GameConfig.isDebugMode()
 DebugMenu.musicPaused = false
 DebugMenu.currentMenu = nil  -- nil = main menu, "color", "artifact", "enemy", "player"
 DebugMenu.helpVisible = false
 
 -- Initialize debug system
 function DebugMenu.init()
-    print("=== DEBUG MENU ENABLED ===")
-    print("Press H to toggle help | Press 1-9 for menus")
+    -- Update enabled state from GameConfig
+    DebugMenu.enabled = GameConfig.isDebugMode()
+    
+    if DebugMenu.enabled then
+        print("=== DEBUG MENU ENABLED ===")
+        print("Press H to toggle help | Press 1-9 for menus")
+    else
+        print("[DebugMenu] Debug mode disabled")
+    end
 end
 
 -- Show debug help overlay

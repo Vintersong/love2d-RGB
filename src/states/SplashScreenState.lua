@@ -70,6 +70,7 @@ function SplashScreen:update(dt)
             local Player = require("src.entities.Player")
             local Weapon = require("src.Weapon")
             local PlayingState = require("src.states.PlayingState")
+            local GameConfig = require("src.systems.GameConfig")
 
             PlayingState.player = Player(512, 360, Weapon())
             PlayingState.enemies = {}
@@ -79,9 +80,8 @@ function SplashScreen:update(dt)
             PlayingState.bossProjectiles = {}
             PlayingState.gameTime = 0
             PlayingState.enemyKillCount = 0
-            PlayingState.musicReactor = _G.gameMusicReactor
-            PlayingState.screenWidth = _G.gameScreenWidth
-            PlayingState.screenHeight = _G.gameScreenHeight
+            PlayingState.musicReactor = GameConfig.getMusicReactor()
+            PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
 
             -- Switch to PlayingState
             local Gamestate = require("libs.hump-master.gamestate")

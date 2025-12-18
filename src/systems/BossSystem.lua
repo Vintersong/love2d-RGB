@@ -14,8 +14,9 @@ local BOSS_COLOR = {1, 0.2, 0.8}  -- Neon pink
 local WHITE_COLOR = {1, 1, 1}
 
 function BossSystem.init()
-    -- Setup boss ship color
-    _G.currentShipColor = BOSS_COLOR
+    -- Setup boss ship color via GameConfig
+    local GameConfig = require("src.systems.GameConfig")
+    GameConfig.currentShipColor = BOSS_COLOR
 end
 
 function BossSystem.checkSpawn(waveNumber)

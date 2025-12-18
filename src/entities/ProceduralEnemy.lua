@@ -169,8 +169,13 @@ function ProceduralEnemy:draw()
     
     -- Draw projectiles
     for _, proj in ipairs(self.projectiles) do
-        love.graphics.setColor(proj.color)
+        -- Draw white outer ring
+        love.graphics.setColor(1, 1, 1)
         love.graphics.circle("fill", proj.x, proj.y, proj.radius)
+
+        -- Draw colored inner circle
+        love.graphics.setColor(proj.color)
+        love.graphics.circle("fill", proj.x, proj.y, proj.radius * 0.5)
     end
     
     -- Reset color

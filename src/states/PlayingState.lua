@@ -7,7 +7,7 @@ local flux = require("libs.flux-master.flux")
 -- Forward declarations for systems
 local MusicReactor, ColorSystem, EnemySpawner, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
-local XPParticleSystem, BossSystem, Powerup, CollisionSystem, GridAttackSystem, BackgroundShader
+local XPParticleSystem, BossSystem, Powerup, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
 
 -- Shared game data (will be set by main.lua)
 PlayingState.player = nil
@@ -40,6 +40,7 @@ function PlayingState:enter(previous, data)
         CollisionSystem = require("src.systems.CollisionSystem")
         GridAttackSystem = require("src.systems.GridAttackSystem")
         BackgroundShader = require("src.systems.BackgroundShader")
+        SimpleGrid = require("src.systems.SimpleGrid")
     end
 
     -- Register player in collision world
@@ -70,6 +71,9 @@ function PlayingState:update(dt)
     -- Update background shader with music data and player level
     BackgroundShader.update(dt, self.musicReactor, self.player)
 
+    -- Update simple grid with music data
+    SimpleGrid.update(dt, self.musicReactor)
+
     -- Update world background
     World.update(dt, self.musicReactor)
 
@@ -86,7 +90,8 @@ function PlayingState:update(dt)
     VFXLibrary.updateImpactBursts(dt)
 
     -- Update grid attack system (spawns marching enemies from edges)
-    GridAttackSystem.update(dt, self.musicReactor, self.player, self.enemies)
+    -- DISABLED FOR TESTING
+    -- GridAttackSystem.update(dt, self.musicReactor, self.player, self.enemies)
 
     -- Track game time
     self.gameTime = self.gameTime + dt
@@ -104,6 +109,8 @@ function PlayingState:update(dt)
     self.player:autoFire(self.enemies, BossSystem.activeBoss)
 
     -- Use EnemySpawner system for procedural enemy waves
+    -- DISABLED FOR TESTING
+    --[[
     local enemyCountBefore = #self.enemies
     EnemySpawner.update(dt, self.musicReactor, self.enemies, self.player.level)
 
@@ -114,6 +121,7 @@ function PlayingState:update(dt)
             CollisionSystem.add(enemy, "enemy")
         end
     end
+    --]]
 
     -- Update enemies
     self:updateEnemies(dt, centerX, centerY)
@@ -615,11 +623,16 @@ function PlayingState:draw()
     -- Draw music-reactive shader background
     BackgroundShader.draw()
 
+    -- Draw simple grid (replaces shader for testing)
+    SimpleGrid.draw()
+
     -- Draw vaporwave background (stars/particles on top of shader)
-    World.draw()
+    -- DISABLED FOR TESTING
+    -- World.draw()
 
     -- Draw grid attack system (under entities)
-    GridAttackSystem.draw(false)  -- Set to true for debug grid
+    -- DISABLED FOR TESTING
+    -- GridAttackSystem.draw(false)  -- Set to true for debug grid
 
     self.player:draw()
 
@@ -699,6 +712,12 @@ function PlayingState:keypressed(key)
             print("[Input] Dash activated!")
         end
         return
+    end
+
+    -- TEST: Trigger grid wave animations (for development)
+    if key == "t" then
+        SimpleGrid.triggerWave("all", {1, 1, 1}, "expand")  -- White wave in all quadrants
+        print("[Test] Triggered white wave in all quadrants")
     end
 
     -- E key: Blink (teleport ability)

@@ -22,6 +22,7 @@ local CollisionSystem = require("src.systems.CollisionSystem")
 local GridAttackSystem = require("src.systems.GridAttackSystem")
 local SongLibrary = require("src.systems.SongLibrary")
 local BackgroundShader = require("src.systems.BackgroundShader")
+local SimpleGrid = require("src.systems.SimpleGrid")
 
 -- Entities
 local Player = require("src.entities.Player")
@@ -51,6 +52,7 @@ function love.load()
     BootLoader.registerSystem("CollisionSystem", CollisionSystem, {"init", "add", "update", "remove"})
     BootLoader.registerSystem("GridAttackSystem", GridAttackSystem, {"init", "update", "draw"})
     BootLoader.registerSystem("BackgroundShader", BackgroundShader, {"init", "update", "draw"})
+    BootLoader.registerSystem("SimpleGrid", SimpleGrid, {"init", "update", "draw"})
 
     -- Validate all systems loaded correctly
     if not BootLoader.validateAll() then
@@ -79,6 +81,7 @@ function love.load()
     BootLoader.initializeSystem("CollisionSystem", CollisionSystem.init, 128) -- 128-pixel cell size
     BootLoader.initializeSystem("GridAttackSystem", GridAttackSystem.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("BackgroundShader", BackgroundShader.init, screenWidth, screenHeight)
+    BootLoader.initializeSystem("SimpleGrid", SimpleGrid.init, screenWidth, screenHeight)
 
     -- Initialize music with random song selection
     local musicReactor = MusicReactor:new()

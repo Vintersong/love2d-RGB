@@ -26,16 +26,32 @@ function BackgroundShader.init(screenWidth, screenHeight)
         return false
     end
 
-    -- Create canvas for rendering
-    BackgroundShader.canvas = love.graphics.newCanvas(screenWidth, screenHeight)
-    
-    -- Initialize moonshine glow effect for entire grid
-    BackgroundShader.effect = moonshine(screenWidth, screenHeight, moonshine.effects.glow)
+    -- Fixed grid dimensions (number of cells)
+    -- Make canvas match screen exactly
+    local gridCols = 40
+    local gridRows = 23  -- Changed from 22 to 23 to fill 1080 height (23 * 48 = 1104, but we'll scale)
+    local cellSize = 48  -- Fixed cell size in pixels
+
+    -- Use screen dimensions directly to avoid offset issues
+    local canvasWidth = screenWidth    -- 1920
+    local canvasHeight = screenHeight  -- 1080
+
+    -- Store for later use
+    BackgroundShader.canvasWidth = canvasWidth
+    BackgroundShader.canvasHeight = canvasHeight
+    BackgroundShader.screenWidth = screenWidth
+    BackgroundShader.screenHeight = screenHeight
+
+    -- Create canvas for rendering with exact cell dimensions
+    BackgroundShader.canvas = love.graphics.newCanvas(canvasWidth, canvasHeight)
+
+    -- Initialize moonshine glow effect for grid canvas
+    BackgroundShader.effect = moonshine(canvasWidth, canvasHeight, moonshine.effects.glow)
     BackgroundShader.effect.glow.strength = 5  -- Strong glow for psychedelic effect
     BackgroundShader.effect.glow.min_luma = 0.2  -- Glow most of the grid (lower threshold)
 
-    -- Set initial uniforms
-    BackgroundShader.shader:send("resolution", {screenWidth, screenHeight})
+    -- Set initial uniforms using canvas dimensions
+    BackgroundShader.shader:send("resolution", {canvasWidth, canvasHeight})
     BackgroundShader.shader:send("time", 0)
     BackgroundShader.shader:send("bass", 0)
     BackgroundShader.shader:send("mids", 0)
@@ -43,7 +59,8 @@ function BackgroundShader.init(screenWidth, screenHeight)
     BackgroundShader.shader:send("intensity", 0)
     BackgroundShader.shader:send("playerLevel", 1)  -- Start at level 1
 
-    print(string.format("[BackgroundShader] Initialized %dx%d with glow effect", screenWidth, screenHeight))
+    print(string.format("[BackgroundShader] Initialized grid canvas %dx%d (%d x %d cells) on screen %dx%d",
+        canvasWidth, canvasHeight, gridCols, gridRows, screenWidth, screenHeight))
     return true
 end
 
@@ -77,21 +94,36 @@ end
 
 -- Draw the shader background with glow effect
 function BackgroundShader.draw()
+    -- DISABLED FOR TESTING - Drawing simple dark background instead
+    love.graphics.setColor(0.08, 0.05, 0.12, 1)  -- Dark purple
+    love.graphics.rectangle("fill", 0, 0, BackgroundShader.screenWidth or 1920, BackgroundShader.screenHeight or 1080)
+    love.graphics.setColor(1, 1, 1, 1)
+
+    -- Original shader code (disabled)
+    --[[
     if not BackgroundShader.shader or not BackgroundShader.effect then return end
 
     -- Save previous shader
     local previousShader = love.graphics.getShader()
 
-    -- Draw shader to moonshine effect
+    -- Render shader to our canvas first
+    love.graphics.setCanvas(BackgroundShader.canvas)
+    love.graphics.clear()
+    love.graphics.setShader(BackgroundShader.shader)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", 0, 0, BackgroundShader.canvasWidth, BackgroundShader.canvasHeight)
+    love.graphics.setShader()
+    love.graphics.setCanvas()
+
+    -- Draw the canvas through moonshine effect at 0,0 (fills entire screen)
     BackgroundShader.effect(function()
-        love.graphics.setShader(BackgroundShader.shader)
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
-        love.graphics.setShader()
+        love.graphics.draw(BackgroundShader.canvas, 0, 0)
     end)
 
     -- Restore previous shader
     love.graphics.setShader(previousShader)
+    --]]
 end
 
 -- Reset shader time (useful for testing)

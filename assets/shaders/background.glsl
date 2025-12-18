@@ -103,29 +103,50 @@ float getMandalaPattern(vec2 cellId, float time, vec2 screenCenter, float bass, 
     return clamp(pattern, 0.0, 1.0);
 }
 
+// Hash function for pseudo-random cell selection
+float hash21(vec2 p) {
+    p = fract(p * vec2(234.34, 435.345));
+    p += dot(p, p + 34.23);
+    return fract(p.x * p.y);
+}
+
+// Check if a cell should be filled based on symmetrical pattern
+float getSymmetricalFill(vec2 cellId, vec2 screenCenter) {
+    // Get distance from center (in cell coordinates)
+    vec2 fromCenter = cellId - screenCenter;
+
+    // Create 4-way symmetry by taking absolute values
+    vec2 symmetricPos = abs(fromCenter);
+
+    // Use hash function on the symmetric position
+    // This ensures that all 4 quadrants have the same pattern
+    float randomValue = hash21(symmetricPos);
+
+    // Only fill ~15% of cells (adjust 0.15 to change density)
+    return (randomValue < 0.15) ? 1.0 : 0.0;
+}
+
 // Get mandala color for this cell
 vec3 getMandalaColor(vec2 cellId, float time, vec2 screenCenter, float level, float bass, float mids, float treble) {
     // Get mandala pattern intensity
     float pattern = getMandalaPattern(cellId, time, screenCenter, bass, mids, treble);
-    
+
     if (pattern > 0.1) {
         // Get vaporwave color based on player level
         vec3 color = getGridColorByLevel(level);
-        
+
         // Apply pattern intensity at very low alpha for subtlety
         return color * pattern * 0.15;  // Reduced from 0.5 to 0.15
     }
-    
+
     return vec3(0.0);  // No pattern
 }
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
-    // Simple fixed cell size
+    // Fixed grid dimensions - canvas matches screen resolution
     float cellSize = 48.0;
-    
-    // Calculate grid dimensions
-    float gridWidth = resolution.x / cellSize;
-    float gridHeight = resolution.y / cellSize;
+    float gridWidth = resolution.x / cellSize;   // 1920 / 48 = 40.0
+    float gridHeight = resolution.y / cellSize;  // 1080 / 48 = 22.5
     
     // Screen center in grid coordinates
     vec2 screenCenter = vec2(gridWidth * 0.5, gridHeight * 0.5);
@@ -144,15 +165,22 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     
     // Start with background color
     vec3 finalColor = bgColor;
-    
+
+    // Check if this cell should be filled with symmetrical pattern
+    float fillCell = getSymmetricalFill(cellId, screenCenter);
+
     // Get mandala pattern color for this cell
     vec3 patternColor = getMandalaColor(cellId, time, screenCenter, level, bass, mids, treble);
-    
-    // Apply subtle pattern color (only slightly brighter than background)
-    if (length(patternColor) > 0.0) {
+
+    // Apply patterns - filled cells take priority over mandala
+    if (fillCell > 0.5) {
+        // Fill the cell with a dimmed version of the grid color
+        finalColor = gridColor * 0.3;  // Increased from 0.25 for better visibility
+    } else if (length(patternColor) > 0.0) {
+        // Apply subtle mandala pattern only if cell is not filled
         finalColor = bgColor + patternColor * 0.3;  // Very subtle addition
     }
-    
+
     // Add grid lines with full opacity - this should make pink lines visible
     finalColor = mix(finalColor, gridColor, grid);
     

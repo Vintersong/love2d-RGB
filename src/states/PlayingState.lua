@@ -5,7 +5,7 @@ local PlayingState = {}
 local flux = require("libs.flux-master.flux")
 
 -- Forward declarations for systems
-local MusicReactor, ColorSystem, EnemySpawner, World, HealthSystem
+local MusicReactor, ColorSystem, SpawnController, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
 local XPParticleSystem, BossSystem, Powerup, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
 
@@ -17,7 +17,7 @@ PlayingState.powerups = {}
 PlayingState.explosions = {}
 PlayingState.bossProjectiles = {}
 PlayingState.gameTime = 0
-PlayingState.enemyKillCount = 0
+-- enemyKillCount moved to SpawnController
 PlayingState.musicReactor = nil
 PlayingState.screenWidth = 1920
 PlayingState.screenHeight = 1080
@@ -27,7 +27,7 @@ function PlayingState:enter(previous, data)
     if not MusicReactor then
         MusicReactor = require("src.systems.MusicReactor")
         ColorSystem = require("src.systems.ColorSystem")
-        EnemySpawner = require("src.systems.EnemySpawner")
+        SpawnController = require("src.systems.SpawnController") -- Replaced separate EnemySpawner
         World = require("src.systems.World")
         HealthSystem = require("src.systems.HealthSystem")
         AttackSystem = require("src.systems.AttackSystem")
@@ -41,6 +41,9 @@ function PlayingState:enter(previous, data)
         GridAttackSystem = require("src.systems.GridAttackSystem")
         BackgroundShader = require("src.systems.BackgroundShader")
         SimpleGrid = require("src.systems.SimpleGrid")
+        
+        -- Initialize controller
+        SpawnController.init(self.screenWidth, self.screenHeight)
     end
 
     -- Register player in collision world
@@ -57,7 +60,7 @@ function PlayingState:enter(previous, data)
         self.explosions = data.explosions or {}
         self.bossProjectiles = data.bossProjectiles or {}
         self.gameTime = data.gameTime or 0
-        self.enemyKillCount = data.enemyKillCount or 0
+        SpawnController.enemyKillCount = data.enemyKillCount or 0 -- Restore kill count to controller
         self.musicReactor = data.musicReactor
     end
 end
@@ -108,20 +111,8 @@ function PlayingState:update(dt)
     -- Pass boss from BossSystem if active
     self.player:autoFire(self.enemies, BossSystem.activeBoss)
 
-    -- Use EnemySpawner system for procedural enemy waves
-    -- DISABLED FOR TESTING
-    --[[
-    local enemyCountBefore = #self.enemies
-    EnemySpawner.update(dt, self.musicReactor, self.enemies, self.player.level)
-
-    -- Register newly spawned enemies in collision system
-    for i = enemyCountBefore + 1, #self.enemies do
-        local enemy = self.enemies[i]
-        if not CollisionSystem.world:hasItem(enemy) then
-            CollisionSystem.add(enemy, "enemy")
-        end
-    end
-    --]]
+    -- Use SpawnController for procedural enemy waves
+    SpawnController.update(dt, self.player.level, self.musicReactor, self.enemies)
 
     -- Update enemies
     self:updateEnemies(dt, centerX, centerY)
@@ -155,7 +146,7 @@ function PlayingState:update(dt)
             explosions = self.explosions,
             bossProjectiles = self.bossProjectiles,
             gameTime = self.gameTime,
-            enemyKillCount = self.enemyKillCount,
+            enemyKillCount = SpawnController.enemyKillCount, -- Persist via controller
             musicReactor = self.musicReactor
         })
         return
@@ -183,10 +174,8 @@ function PlayingState:updateEnemies(dt, centerX, centerY)
             -- Delegate to HaloArtifact module
             local HaloArtifact = require("src.artifacts.HaloArtifact")
             HaloArtifact.processEffects(enemy, self.player, function(killedEnemy)
-                local newOrbs = self:spawnOrbsForEnemy(killedEnemy)
-                for _, orb in ipairs(newOrbs) do
-                    table.insert(self.xpOrbs, orb)
-                end
+                -- Use Controller to handle death rewards
+                SpawnController.handleEnemyDeath(killedEnemy, self.player, self.xpOrbs, self.powerups)
             end)
         end
 
@@ -256,40 +245,8 @@ function PlayingState:updateProjectileCollisions()
 
         -- Callback for spawning XP orbs and powerups when enemy dies
         local onKillCallback = function(target)
-            -- Increment kill counter for boss spawning
-            self.enemyKillCount = self.enemyKillCount + 1
-
-            -- Check if boss should spawn (every 100 kills)
-            if self.enemyKillCount % 100 == 0 and not BossSystem.activeBoss then
-                local boss = BossSystem.spawnBoss()
-                if boss then
-                    FloatingTextSystem.add("⚠ BOSS WAVE ⚠", self.screenWidth/2, self.screenHeight/2, "BOSS")
-                end
-            end
-
-            local newOrbs = self:spawnOrbsForEnemy(target)
-            for _, orb in ipairs(newOrbs) do
-                table.insert(self.xpOrbs, orb)
-            end
-
-            -- Chance to drop powerup
-            if Powerup.shouldDrop() then
-                local powerupType = Powerup.getRandomType()
-                local powerupX = target.x + target.width/2
-                local powerupY = target.y + target.height/2
-
-                -- Clamp powerup spawn to inner 70% of screen
-                local playWidth = self.screenWidth * 0.7
-                local playHeight = self.screenHeight * 0.7
-                local leftBound = (self.screenWidth - playWidth) / 2
-                local topBound = (self.screenHeight - playHeight) / 2
-
-                powerupX = math.max(leftBound, math.min(leftBound + playWidth, powerupX))
-                powerupY = math.max(topBound, math.min(topBound + playHeight, powerupY))
-
-                local powerup = Powerup(powerupX, powerupY, powerupType)
-                table.insert(self.powerups, powerup)
-            end
+            -- Delegate to Controller
+            SpawnController.handleEnemyDeath(target, self.player, self.xpOrbs, self.powerups)
         end
 
         -- Use CollisionSystem for spatial query (much faster than checking all enemies)
@@ -391,28 +348,7 @@ function PlayingState:updateExplosions(dt)
         -- Process explosion damage
         if not explosion.processed then
             local explosionKillCallback = function(target)
-                local newOrbs = self:spawnOrbsForEnemy(target)
-                for _, orb in ipairs(newOrbs) do
-                    table.insert(self.xpOrbs, orb)
-                end
-
-                -- Chance to drop powerup
-                if Powerup.shouldDrop() then
-                    local powerupType = Powerup.getRandomType()
-                    local powerupX = target.x + target.width/2
-                    local powerupY = target.y + target.height/2
-
-                    local playWidth = self.screenWidth * 0.7
-                    local playHeight = self.screenHeight * 0.7
-                    local leftBound = (self.screenWidth - playWidth) / 2
-                    local topBound = (self.screenHeight - playHeight) / 2
-
-                    powerupX = math.max(leftBound, math.min(leftBound + playWidth, powerupX))
-                    powerupY = math.max(topBound, math.min(topBound + playHeight, powerupY))
-
-                    local powerup = Powerup(powerupX, powerupY, powerupType)
-                    table.insert(self.powerups, powerup)
-                end
+                SpawnController.handleEnemyDeath(target, self.player, self.xpOrbs, self.powerups)
             end
 
             AttackSystem.processExplosion(explosion, self.enemies, explosionKillCallback)

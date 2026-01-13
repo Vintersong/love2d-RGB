@@ -1,10 +1,14 @@
 function love.conf(t)
     -- Window
-    t.window.width = 1920
-    t.window.height = 1080
-    t.window.fullscreen = true
+    local Config = require("src.Config")
+    
+    -- Window
+    t.window.width = Config.screen.width
+    t.window.height = Config.screen.height
+    t.window.fullscreen = Config.screen.fullscreen
     t.window.fullscreentype = "exclusive"  -- Use exclusive fullscreen to prevent scaling issues
-    t.window.highdpi = false  -- Disable high DPI scaling
+    t.window.highdpi = Config.screen.highDpi
+    
     -- Console (set to false for production builds)
-    t.console = true  -- Enable console for debug output
+    t.console = Config.debug.enabled
 end

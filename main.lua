@@ -37,8 +37,10 @@ local GameOverState = require("src.states.GameOverState")
 local VictoryState = require("src.states.VictoryState")
 
 -- Constants
-local screenWidth = 1920
-local screenHeight = 1080
+-- Constants
+local Config = require("src.Config")
+local screenWidth = Config.screen.width
+local screenHeight = Config.screen.height
 
 function love.load()
     -- Register systems for validation

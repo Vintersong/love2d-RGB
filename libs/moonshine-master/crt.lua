@@ -45,7 +45,7 @@ return function(moonshine)
 
   setters.distortionFactor = function(v)
     assert(type(v) == "table" and #v == 2, "Invalid value for `distortionFactor'")
-    distortionFactor = {unpack(v)}
+    distortionFactor = {table.unpack(v)}
     shader:send("distortionFactor", v)
   end
 

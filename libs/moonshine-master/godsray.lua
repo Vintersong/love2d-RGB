@@ -71,7 +71,7 @@ return function(moonshine)
   end
 
   setters.light_position = function(v)
-    light_position = {unpack(v)}
+    light_position = {table.unpack(v)}
     shader:send("light_position", v)
   end
 

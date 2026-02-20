@@ -35,6 +35,7 @@ local PlayingState = require("src.states.PlayingState")
 local LevelUpState = require("src.states.LevelUpState")
 local GameOverState = require("src.states.GameOverState")
 local VictoryState = require("src.states.VictoryState")
+local UISandboxState = require("src.states.UISandboxState")
 
 -- Constants
 -- Constants

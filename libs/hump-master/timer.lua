@@ -160,11 +160,11 @@ __call = function(tween, self, len, subject, target, method, after, ...)
 	local last_s = 0
 	return self:during(len, function(dt)
 		t = t + dt
-		local s = method(math.min(1, t/len), unpack(args))
+		local s = method(math.min(1, t/len), table.unpack(args))
 		local ds = s - last_s
 		last_s = s
 		for _, info in ipairs(payload) do
-			local ref, key, delta = unpack(info)
+			local ref, key, delta = table.unpack(info)
 			ref[key] = ref[key] + delta * ds
 		end
 	end, after)

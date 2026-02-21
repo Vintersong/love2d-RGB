@@ -30,7 +30,7 @@ jobs:
         run: npm install -g love.js@11.4.1
 
       - name: Build web version
-        run: love.js . web --title "RGB Bullet Hell" --memory 268435456
+        run: love.js . web --title "RGB Bullet Hell" --memory 268435456 --compatibility
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -94,13 +94,6 @@ end
 
 -- Draw the shader background with glow effect
 function BackgroundShader.draw()
-    -- DISABLED FOR TESTING - Drawing simple dark background instead
-    love.graphics.setColor(0.08, 0.05, 0.12, 1)  -- Dark purple
-    love.graphics.rectangle("fill", 0, 0, BackgroundShader.screenWidth or 1920, BackgroundShader.screenHeight or 1080)
-    love.graphics.setColor(1, 1, 1, 1)
-
-    -- Original shader code (disabled)
-    --[[
     if not BackgroundShader.shader or not BackgroundShader.effect then return end
 
     -- Save previous shader
@@ -123,7 +116,6 @@ function BackgroundShader.draw()
 
     -- Restore previous shader
     love.graphics.setShader(previousShader)
-    --]]
 end
 
 -- Reset shader time (useful for testing)

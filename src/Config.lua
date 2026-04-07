@@ -8,7 +8,7 @@ local Config = {
         width = 1920,
         height = 1080,
         title = "Love2D Bullet Hell Survivor",
-        fullscreen = true,
+        fullscreen = false,
         highDpi = false,
         vsync = true
     },

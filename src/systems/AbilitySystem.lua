@@ -96,7 +96,8 @@ function AbilitySystem.activate(entity, abilityName, abilityDef, context)
     end
 
     -- Set ability state
-    state.isActive = true
+    -- Instant abilities (no onUpdate) are not "active" beyond the activation frame
+    state.isActive = (abilityDef.onUpdate ~= nil)
     state.cooldown = abilityDef.cooldown or 0
 
     print(string.format("[AbilitySystem] %s activated (cooldown: %.1fs)", abilityName, state.cooldown))

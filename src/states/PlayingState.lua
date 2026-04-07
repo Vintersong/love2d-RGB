@@ -559,9 +559,6 @@ function PlayingState:draw()
     -- Draw music-reactive shader background
     BackgroundShader.draw()
 
-    -- Draw simple grid (replaces shader for testing)
-    SimpleGrid.draw()
-
     -- Draw vaporwave background (stars/particles on top of shader)
     -- DISABLED FOR TESTING
     -- World.draw()
@@ -578,16 +575,6 @@ function PlayingState:draw()
 
         -- Draw enemy info (HP, DoT, Root indicators)
         UISystem.drawEnemyInfo(enemy)
-
-        -- Debug trace line from enemy to player
-        local enemyCenterX = enemy.x + enemy.width / 2
-        local enemyCenterY = enemy.y + enemy.height / 2
-        local playerCenterX = self.player.x + self.player.width / 2
-        local playerCenterY = self.player.y + self.player.height / 2
-
-        love.graphics.setColor(1, 0, 0, 0.3)
-        love.graphics.setLineWidth(1)
-        love.graphics.line(enemyCenterX, enemyCenterY, playerCenterX, playerCenterY)
     end
 
     -- Draw boss if active

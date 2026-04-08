@@ -197,5 +197,5 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     float vignette = 1.0 - length(uv) * 0.3;
     finalColor *= vignette;
     
-    return vec4(finalColor, 0.5);
+    return vec4(finalColor, 1.0);
 }

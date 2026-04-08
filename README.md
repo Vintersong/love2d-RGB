@@ -14,7 +14,7 @@ Resolution: 1920×1080.
 | Space | Dash (1.5s cooldown) |
 | E | Blink — teleport to mouse position (5s cooldown) |
 | Q | Shield — temporary invulnerability (10s cooldown, 3s duration) |
-| Left Shift | Active artifact ability |
+| Left Shift | Active artifact ability | ( currently not implemented )
 
 Debug hotkeys (development only):
 

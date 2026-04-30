@@ -14,6 +14,15 @@ ColorSystem.primary = {
     BLUE = {level = 0, locked = false}
 }
 
+ColorSystem.CODES ={
+    RED = "r",
+    GREEN = "g",
+    BLUE = "b",
+    YELLOW = "y",
+    MAGENTA = "m",
+    CYAN = "c"
+}
+
 -- Secondary color tracking
 ColorSystem.secondary = {
     YELLOW = {level = 0, unlocked = false, requires = {"RED", "GREEN"}},
@@ -176,6 +185,7 @@ function ColorSystem.applyEffects(weapon)
     weapon.pierceChance = 0
     weapon.bounceCount = 1
     weapon.pierceCount = 1
+    weapon.spreadAngle = 0
     
     weapon.secondarySpreadChance = 0
     weapon.secondaryBounceChance = 0
@@ -214,7 +224,8 @@ function ColorSystem.applyEffects(weapon)
         if greenLevel <= 10 then
             weapon.bounceChance = greenLevel * 0.1
         else
-            weapon.bounceChance = 1.0 + ((greenLevel - 10) * 0.05)  -- Over 100%
+            weapon.bounceChance = 1.0
+            weapon.bounceChance = weapon.bounceCount + math.floor((greenLevel - 10)/10)
         end
         
         weapon.damage = weapon.damage + (greenLevel * 3)
@@ -321,11 +332,14 @@ function ColorSystem.getDominantColor()
     end
     
     -- Check secondaries (they override if active)
+    local bestSec, bestLevel = nill, 0
     for color, data in pairs(ColorSystem.secondary) do
-        if data.unlocked and data.level > 0 then
-            return color  -- Secondary always takes priority
+        if data.unlocked and data.level > bestLevel then
+            bestSec = color
+            bestLevel = data.level
         end
     end
+    if bestSec then return bestSec end
     
     return dominant
 end

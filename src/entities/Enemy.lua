@@ -119,7 +119,7 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         -- Mids enemies: Standard balanced
         self.width = 18
         self.height = 18
-        self.speed = 120
+        self.speed = 140
         self.hp = 60
         self.maxHp = 60
         self.damage = 25
@@ -132,8 +132,8 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         -- Treble enemies: Small, fast, fragile (IMPROVED VISIBILITY)
         self.width = 18  -- Increased from 10
         self.height = 18  -- Increased from 10
-        self.speed = 200  -- Slowed from 100
-        self.hp = 10  -- Increased from 25
+        self.speed = 180  -- Slowed from 100
+        self.hp = 40  -- Increased from 25
         self.maxHp = 40
         self.damage = 15
         self.expReward = 20
@@ -168,9 +168,9 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         
     elseif self.enemyType == "flanker" then
         -- Legacy flanking enemies: arrow, faster, weaker
-        self.speed = 80
-        self.hp = 25
-        self.maxHp = 25
+        self.speed = 120
+        self.hp = 45
+        self.maxHp = 45
         self.damage = 20
         self.expReward = 20
         self.baseColor = {1, 1, 1}  -- White base
@@ -184,8 +184,13 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     -- Prestige 0 (level 1-40): 1.0x stats
     -- Prestige 1 (level 41-80): 1.15x stats
     -- Prestige 2 (level 81-120): 1.30x stats, etc.
+
+    local waveScaling = 1 +((playerLevel - 1)*0.04)
+    self.hp = math.floor(self.hp * waveScaling)
+    self.maxHp = self.hp
+
     local prestigeTier = math.floor((playerLevel - 1) / 40)
-    if prestigeTier > 0 then
+    if prestigeTier > 0 then        
         local statMultiplier = 1 + (prestigeTier * 0.15)
         self.hp = math.floor(self.hp * statMultiplier)
         self.maxHp = math.floor(self.maxHp * statMultiplier)

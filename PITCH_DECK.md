@@ -89,9 +89,13 @@ Chase all three? **White Light** — the Transcendence path. All effects. Maximu
 | Active Color | Dash Bonus |
 |-------------|------------|
 | RED | +50% move speed for 2s |
-| GREEN | Heal 10% HP |
-| CYAN | Life-steal from enemies passed through |
-| YELLOW | Heal + speed burst |
+| GREEN | Heal 10% max HP |
+| YELLOW | Heal + speed burst combo |
+| CYAN | Life-steal off dash-contact damage |
+| BLUE | Dash through foes for chip damage |
+| MAGENTA | Dash through foes for chip damage |
+
+*(BLUE / MAGENTA / CYAN path damage shares one dash-hit rule in code — CYAN layering also applies lifesteal.)*
 
 ---
 
@@ -120,7 +124,7 @@ When you hold an artifact that matches your active colors, a named synergy trigg
 - **Diffraction + YELLOW** → *Gravity Well* — rooted enemies pull others toward them
 - **Supernova + MAGENTA** → *Chain Reaction* — 50% chance each explosion cascades
 
-The build space is: 6 active colors × 8 artifacts × 5 levels = **240 distinct artifact states**, with 15+ named synergies layered on top.
+The build space is: 6 active colors × 8 artifacts × 5 levels = **240 distinct artifact states**, layered with **18 named synergies** defined in `SynergySystem.lua` *(see design doc §5 for the full roster; some pickup type keys like `AURORA` differentiate HALO-aligned synergies in data)*.
 
 ---
 
@@ -128,6 +132,7 @@ The build space is: 6 active colors × 8 artifacts × 5 levels = **240 distinct 
 
 The game's enemy spawning is **driven by the soundtrack**.
 
+- **Two soundtrack candidates** rotate in via `SongLibrary` — whichever loads at boot informs that run unless you swap sources.
 - BPM is detected automatically on song load.
 - Frequency bands (bass, mids, treble) are analyzed in real time.
 - Enemy type weights shift to match the dominant frequency:
@@ -147,8 +152,8 @@ This means every song produces a different encounter rhythm. Swapping the soundt
 
 **Vaporwave / synth-punk.**
 
-- Custom GLSL shader renders a retro perspective grid background with glow post-processing.
-- The player's dominant color saturates the entire visual layer — particles, trails, aura, and UI all shift hue together.
+- Custom GLSL shader renders the perspective grid canvas; moonshine bloom runs as part of **`BackgroundShader`**, while supplemental **`SimpleGrid`** accents can pulse with the beat (**`T`** hotkey demos the wave ripple in-engine).
+- The player's dominant color saturates particles, trails, aura, and much of HUD chrome.
 - Each color has its own particle VFX type for dash trails, impacts, and ability effects.
 - Floating damage numbers and heal text keep tactical information legible against the neon background.
 
@@ -162,7 +167,7 @@ The aesthetic goal: a game that **looks like the music it reacts to**.
 
 - Full color tree: primaries, secondaries, pure paths, advanced paths, White Light
 - 3 active abilities (Dash, Blink, Shield) with color-reactive behavior
-- 8 artifacts with level scaling and 15+ defined synergies
+- 8 artifacts with level scaling and **18** scripted synergies (`SynergySystem`)
 - 7 procedural formation patterns for enemy spawning
 - Music-reactive spawning with BPM detection
 - Boss encounter every 100 kills
@@ -173,12 +178,12 @@ The aesthetic goal: a game that **looks like the music it reacts to**.
 
 ### What's next
 
-- Wire the active artifact ability (Left Shift) to the artifact system
+- Wire the active artifact ability (Left Shift stub today — `Player:setActiveAbility` never invoked)
 - Post-level-up input delay (UX)
 - Visual clarity improvements for Dash cooldown state
-- Tune boss HP (currently effectively invincible — needs a kill condition)
-- Expand synergy coverage across all 8 artifacts × 6 colors
-- Victory condition / run-end flow
+- Enemy/boss balance pass (BossSystem bosses are **already killable** at 2000 HP — pacing tuning remains)
+- Broader synergy coverage (e.g. artifacts like **Diffusion** still lack scripted pairs)
+- **Victory run-end condition** hooked into existing `VictoryState`
 
 ---
 
@@ -186,10 +191,10 @@ The aesthetic goal: a game that **looks like the music it reacts to**.
 
 **Near term (prototype → vertical slice)**
 - Active artifact ability fully implemented
-- 2–3 hand-crafted songs with authored song structure (tagged sections to escalate difficulty)
-- Synergy coverage: all 8 artifacts × all 6 colors
-- Victory state with run summary screen
-- Polish pass: post-dash delay, dash cooldown clarity, level-up transition
+- Expand **SongLibrary** (already at 2 WAV + authored structure tables) toward 3–4 curated tracks / stronger section tagging
+- Synergy coverage: fill remaining artifact × color matrix gaps (beyond the current **18**)
+- Victory state **hooked from gameplay** with run summary (screen exists — needs triggers)
+- Polish pass: post-dash delay, dash cooldown clarity, level-up transition (backdrop parity shader vs overlay)
 
 **Medium term (vertical slice → beta)**
 - Persistent meta-progression (unlocking artifact types across runs)
@@ -225,7 +230,7 @@ It has a functional game loop, a deep build system, music reactivity, and browse
 
 **What it needs:**
 - Playtesting feedback on color commitment balance
-- A second song to prove the music-reactivity generalizes
+- More authored songs + richer structure tags beyond the baseline **dual-track** RNG pick
 - A path to a public demo release
 
 **What makes RGB worth betting on:**

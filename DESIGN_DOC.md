@@ -23,8 +23,8 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 - The player auto-fires at the nearest enemy (Vampire Survivors–style targeting).
 - Enemies approach from off-screen; contact with enemies deals damage over time.
 - XP orbs drop on kills and are picked up automatically on proximity.
-- Every boss kill (every 100 enemy kills) is a major milestone.
-- A run ends on player death or after clearing a victory condition.
+- A boss encounter triggers every **100 enemy kills**.
+- Runs **currently end only on player death**. `VictoryState` UI exists but **no gameplay path switches to victory** yet (win condition wiring is a gap).
 
 ---
 
@@ -36,7 +36,25 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 | Space | Dash — color-reactive burst | 1.5s |
 | E | Blink — teleport to mouse cursor | 5s |
 | Q | Shield — 3s invulnerability | 10s |
-| Left Shift | Active artifact ability | *(not yet implemented)* |
+| Left Shift | Active artifact ability | *(wired to keydown; [`Player:useActiveAbility`](src/entities/Player.lua) is a stub — no effect; [`setActiveAbility`](src/entities/Player.lua) is never called, so HUD block for `[L-SHIFT]` stays hidden)* |
+
+**Developer debug (PlayingState)**
+
+| Input | Action |
+|-------|--------|
+| F1 | Instant level up |
+| F2 | Spawn 10 enemies in a ring |
+| F3 | Print `ColorSystem` state to console |
+| F4 | Add XP sufficient to jump toward level 20 |
+| F5 | Full heal |
+| F8 | Spawn small XP particle orb |
+| F9 | Spawn medium XP particle orb |
+| F10 | Spawn large XP particle orb |
+| F11 | Print drop-chance diagnostics |
+| T | Trigger `SimpleGrid` wave pulse (dev) |
+| L | Grant +50 EXP |
+
+Separate **Debug menu** overlays and hotkeys remain active via [`DebugMenu`](src/systems/DebugMenu.lua).
 
 ---
 
@@ -111,27 +129,32 @@ Artifacts are passive collectibles dropped during play. There are 8 distinct art
 
 When the player holds an artifact and has matching active colors, the **SynergySystem** triggers a unique named synergy — a bonus effect that stacks on top of the artifact's base behavior.
 
-Each synergy activates exactly once per run (no double-triggers).
+Each synergy activates exactly once per run (no double-triggers). **Eighteen named synergies** are defined in [`SynergySystem.lua`](src/systems/SynergySystem.lua). Artifact **type strings** passed into `SynergySystem.checkAndActivate` may use internal keys (`AURORA` vs `HALO`) that do not rename the player-facing Halo / Diffusion artifacts in the roster — confirm against pickup types in [`Powerup.lua`](src/entities/Powerup.lua) when auditing balance.
 
-**Selected synergies:**
+**Full synergy roster (artifact type × color)**
 
-| Artifact | Color | Synergy Name | Effect |
-|----------|-------|--------------|--------|
-| Prism | RED | Rainbow Cascade | Spread projectiles split again on hit |
-| Prism | YELLOW | Crystal Prison | Rooted enemies grow prismatic crystals (+30 root radius) |
-| Lens | RED | Focal Burst | +30% focus damage, converging projectiles burst |
-| Lens | BLUE | Laser Focus | Pierce damage accumulates per enemy hit |
-| Lens | MAGENTA | Focused Detonation | Explosions deal +50% damage in a cone |
-| Mirror | GREEN | Kaleidoscope | Bounces create mirror reflections (+1 bounce count) |
-| Mirror | CYAN | Reflected Suffering | DoT chains to nearest enemy on death (150 range) |
-| Halo | BLUE | Orbital Pierce | Shield fires piercing orbital beams every 2s |
-| Diffraction | GREEN | Wave Echo | Bounces pull enemies (force 50, radius 100) |
-| Diffraction | YELLOW | Gravity Well | Rooted enemies become black holes (force 80, radius 120) |
-| Diffraction | CYAN | Poison Bloom | DoT enemies explode into toxin on death |
-| Refraction | BLUE | Light Ray | Bending pierce hits up to +2 additional times |
-| Refraction | MAGENTA | Shockwave | Explosions emit expanding energy rings |
-| Supernova | RED | Solar Flare | Screen clear spawns 12 fire projectiles |
-| Supernova | MAGENTA | Chain Reaction | Explosions have 50% chance to cascade |
+| Artifact type key | Color | Synergy name | Summary |
+|-------------------|-------|----------------|----------|
+| PRISM | RED | Rainbow Cascade | Extra split on spread projectiles |
+| PRISM | YELLOW | Crystal Prison | Rooted enemies widen prismatic crystals |
+| LENS | RED | Focal Burst | +Damage, converging then burst |
+| LENS | BLUE | Laser Focus | Pierce accumulates damage per hit |
+| LENS | MAGENTA | Focused Detonation | Cone explosions (+50%) |
+| MIRROR | GREEN | Kaleidoscope | +Reflective bounces |
+| MIRROR | CYAN | Reflected Suffering | DoT chains on death |
+| HALO | BLUE | Orbital Pierce | Shield orbital beams (~2s cadence) |
+| AURORA | GREEN | Chain Lightning | Electric trails on bounces |
+| AURORA | YELLOW | Static Field | Rooted enemies pulse electricity |
+| AURORA | CYAN | Corrosive Cloud | DoT spreads as fog |
+| DIFFRACTION | GREEN | Wave Echo | Bouncing pulls enemies |
+| DIFFRACTION | YELLOW | Gravity Well | Rooted enemies pull others |
+| DIFFRACTION | CYAN | Poison Bloom | DoT deaths bloom toxin |
+| REFRACTION | BLUE | Light Ray | Bending pierce, extra pierce tiers |
+| REFRACTION | MAGENTA | Shockwave | Radial explosion rings |
+| SUPERNOVA | RED | Solar Flare | Screen clear spawns fire projectiles |
+| SUPERNOVA | MAGENTA | Chain Reaction | Chaining explosions (~50%) |
+
+*(No synergy entries currently exist under `DIFFUSION`.)*
 
 ---
 
@@ -163,10 +186,11 @@ Enemies spawn in coordinated geometric formations rather than solo or random clu
 
 ### 6.3 Boss Encounters
 
-- Spawns every 100 enemy kills.
-- Descends from off-screen, moves to screen center, then slowly tracks the player.
-- Fires a cone projectile attack.
-- Extremely high HP — intended as a sustained pressure encounter rather than a burst DPS check.
+Gameplay uses **`BossSystem.activeBoss`**, spawned from [`SpawnController`](src/systems/SpawnController.lua) when `enemyKillCount` is divisible by **100** (tracked on enemy deaths — not the dormant `BossSystem.checkSpawn`/wave-interval path).
+
+- **HP:** **2000** (`BossSystem.spawnBoss`): killable sustained fight with cone projectile pressure.
+- **Flow:** Drops in from above, phases `entering` → `combat` → falling `defeated`; projectiles originate from BossSystem helpers.
+- **Legacy note:** [`Boss.lua`](src/entities/Boss.lua) entity (**9999** HP arc) persists for **debug / tooling** (e.g. [`DebugMenu`](src/systems/DebugMenu.lua)); it is **not** the BossSystem arena boss.
 
 ---
 
@@ -175,6 +199,8 @@ Enemies spawn in coordinated geometric formations rather than solo or random clu
 The **MusicReactor** system drives gameplay dynamically from the soundtrack.
 
 ### 7.1 Analysis
+
+Boot picks a **`SongLibrary` entry at random** (currently **two** WAV + structure modules: `song1` / `song2`) and passes it to `MusicReactor:loadSong`.
 
 - Loads audio via LÖVE2D's audio API.
 - Performs automatic BPM detection on load.
@@ -224,8 +250,9 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 
 - Health bar and XP bar rendered during play.
 - Floating text system for damage numbers and heal feedback.
-- Level-up overlay renders over the live game world (game does not pause).
+- Level-up is a **pushed Gamestate** ([`Gamestate.push`](libs/hump-master/gamestate.lua)): **enemy simulation freezes** while HUD cards show, but **`LevelUpState` still ticks music / lightweight effects**. Backdrop differs from gameplay: **`World.draw`** is largely disabled and **`BackgroundShader` is not drawn** there (Shader background only in [`PlayingState:draw`](src/states/PlayingState.lua)).
 - Ability cooldown indicators.
+- Artifact ability hint text may cite **Left Shift**, but HUD block renders only once `player.activeAbility` becomes non-nil (**stub today** — see Controls).
 
 ---
 
@@ -247,40 +274,42 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 ### 9.2 Module Structure
 
 ```
-main.lua                      — Boot entry point
+main.lua                      — Boot: SongLibrary RNG, BootLoader sanity checks, registers core states via StateManager
 src/
   data/                       — Static data tables
     ColorTree.lua             — Full RGB color upgrade tree
     AbilityLibrary.lua        — Data-driven ability definitions
+  Weapon.lua                  — Projectile / weapon facade used by Player
   entities/                   — Game objects
-    Player.lua                — Thin coordinator; delegates to sub-modules
-    PlayerInput.lua           — Movement, ability key handling
-    PlayerCombat.lua          — Auto-fire, projectile logic
-    PlayerRender.lua          — Draw calls
+    Player.lua + PlayerInput.lua / PlayerCombat.lua / PlayerRender.lua
     Enemy.lua / ProceduralEnemy.lua
-    Boss.lua
+    Boss.lua                  — Legacy debug boss entity (not BossSystem arena boss)
     Projectile.lua / Drop.lua / XPOrb.lua / Powerup.lua
   artifacts/                  — Per-artifact modules (BaseArtifact + 8 concrete types)
-  systems/                    — Core game systems
-    ColorSystem.lua           — Active color tracking, stat application
-    AbilitySystem.lua         — Cooldown/state machine for DASH/BLINK/SHIELD
-    ArtifactManager.lua       — Artifact collection and level tracking
-    SynergySystem.lua         — Artifact × color bonus definitions
-    EnemySpawner.lua          — Music-reactive formation spawning
-    MusicReactor.lua          — BPM detection, frequency analysis
-    BossSystem.lua            — Boss phase management
-    AttackSystem.lua          — Projectile firing, auto-aim
+  systems/
+    BootLoader.lua            — Validates & initializes singleton systems printed at startup
+    GameConfig.lua / StateManager.lua / SongLibrary.lua
+    ColorSystem.lua           — Primary commitment tracking + projectile stats
+    AbilitySystem.lua         — Cooldown/state for DASH / BLINK / SHIELD (+ future actives)
+    ArtifactManager.lua / SynergySystem.lua
+    SpawnController.lua       — Kill counts, orb drops — wraps EnemySpawner.update
+    EnemySpawner.lua          — Music formations + procedural waves (called by SpawnController)
+    GridAttackSystem.lua      — Alternate grid wave attackers (currently disabled in PlayingState)
+    SimpleGrid.lua            — Quadrant visuals & dev wave pulses synced to MusicReactor
+    MusicReactor.lua          — BPM estimation + synthesized band envelopes
+    BossSystem.lua            — Active arena boss singleton + projectile cone
+    AttackSystem.lua          — DoTs + combat helpers layered with PlayerCombat
     CollisionSystem.lua       — bump.lua wrapper
-    VFXLibrary.lua            — Particle and visual effects
-    BackgroundShader.lua      — GLSL grid shader + moonshine glow
-    UISystem.lua              — HUD rendering
-    FloatingTextSystem.lua    — Damage/heal floating text
+    VFXLibrary.lua / FloatingTextSystem.lua / XPParticleSystem.lua
+    BackgroundShader.lua      — Canvas + moonshine glow (primary playfield backdrop)
+    World.lua                 — Perspective grid scaffolding (drawing disabled — shader replaces it)
+    UISystem.lua / DebugMenu.lua / ShapeLibrary.lua / HealthSystem.lua
   states/
-    SplashScreenState.lua
-    PlayingState.lua
-    LevelUpState.lua
-    GameOverState.lua / VictoryState.lua
-    UISandboxState.lua        — Developer UI layout tool
+    SplashScreenState.lua     — Menu: SPACE start, optional U → UISandbox
+    PlayingState.lua          — Primary loop orchestrator
+    LevelUpState.lua          — Card stack atop frozen playfield snapshot
+    GameOverState.lua / VictoryState.lua (Victory presently unwired from play)
+    UISandboxState.lua        — HUD layout prototyping
 ```
 
 ### 9.3 Platform Support
@@ -294,25 +323,28 @@ src/
 
 ### Implemented
 
-- Full color progression tree: primaries, secondaries, pure paths, advanced paths, white light.
-- Color-reactive Dash with post-dash effects per color.
-- Blink (teleport) and Shield abilities.
-- 8 artifacts with level scaling (active artifact ability unimplemented).
-- Full synergy system definitions.
-- Music-reactive enemy spawning with 7 formation patterns.
-- Boss encounter every 100 kills.
-- GLSL vaporwave background shader (loaded; render enabled).
-- Particle VFX library with artifact and color variants.
-- Floating text damage/heal feedback.
-- Web export compatibility.
+- Full color progression data in [`ColorTree`](src/data/ColorTree.lua): primaries, secondaries, triple primaries (“White Light” path expressed in tree data).
+- Color-reactive Dash, Blink (`E`), Shield (`Q`) via [`AbilityLibrary`](src/data/AbilityLibrary.lua).
+- Eight artifacts leveling to 5 (`ArtifactManager`); passive behaviors across modules (`src/artifacts/*`).
+- **18** scripted synergies triggered through [`SynergySystem.checkAndActivate`](src/systems/SynergySystem.lua) on artifact pickups (`Powerup` types aligned with synergy keys — see HUD note for `HALO` vs `AURORA`).
+- Spawn pipeline: **`SpawnController` → `EnemySpawner`**, formations listed in §6.2, BPM / band multipliers hooked to music.
+- **BossSystem** bosses every **100** kills at **2000 HP** until defeated animation completes.
+- **BackgroundShader**: GLSL fill pass + moonshine bloom drawn every [`PlayingState:draw`](src/states/PlayingState.lua).
+- Auxiliary **SimpleGrid** animations (music keyed + **`T`** dev pulse).
+- **SongLibrary**: two authored tracks randomized at startup.
+- **BootLoader** startup validation banner + deterministic init sequencing.
+- Particle / impact VFX stacks, FloatingText, HUD via `UISystem`.
+- Splash flow can jump to **UI Sandbox (`U`)** without registering that state inside `StateManager` (pure `gamestate.switch` shortcut).
 
 ### Known Gaps / In Progress
 
-- Active artifact ability (Left Shift) — defined but not wired.
-- Post-dash delay UX (noted in Feedback.md).
-- Dash cooldown visual clarity (noted in Feedback.md).
-- Debug overlays are active (F1–F3, T hotkeys).
-- Boss HP in code (9999) differs from README (2000); README is outdated.
+- **Active artifact ability** — Left Shift calls [`useActiveAbility`](src/entities/Player.lua) stub (`setActiveAbility` unused).
+- **`GridAttackSystem.update/draw`** remain commented (**disabled**) inside [`PlayingState`](src/states/PlayingState.lua) “for testing”.
+- **Victory flow** — `VictoryState` assets exist yet **Gameplay never calls `switch(VictoryState)`**.
+- UX polish backlog: **post-upgrade input delay**, **dash cooldown clarity** (`Feedback.md`).
+- **Contributor trap:** Legacy [`Boss.lua`](src/entities/Boss.lua) (9999 HP) vs production **BossSystem** boss — differentiate when editing AI.
+- **Level-up layering:** Missing shader/grid backdrop parity while overlay is modal.
+- Debug surfaces (`DebugMenu`, extended F-keys) still compiled in prototype builds (`Config.debug`/console flags per [`conf.lua`](conf.lua)).
 
 ---
 

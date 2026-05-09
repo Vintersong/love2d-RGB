@@ -8,6 +8,9 @@ local VFXLibrary = require("src.systems.VFXLibrary")
 
 local EnemySpawner = {}
 
+-- Enemy object pool for recycling
+EnemySpawner.enemyPool = {}
+
 -- Formation patterns with mixed shapes
 EnemySpawner.formations = {
     -- Square with triangles on corners
@@ -414,8 +417,8 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
             -- Determine shape (override if specified, otherwise use type default)
             local shapeOverride = formation.shapeOverride and formation.shapeOverride[i + 1] or nil
             
-            -- Create enemy
-            local enemy = Enemy(x, y, enemyType, playerLevel, {
+            -- Create or recycle enemy from pool
+            local formData = {
                 formation = formationName,
                 formationID = formationID,
                 formationIndex = i,
@@ -423,7 +426,13 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 offsetY = offsetY,
                 centerX = direction.targetX,
                 spawnDirection = direction.name
-            })
+            }
+            local enemy = table.remove(EnemySpawner.enemyPool)
+            if enemy then
+                enemy:reset(x, y, enemyType, playerLevel, formData)
+            else
+                enemy = Enemy(x, y, enemyType, playerLevel, formData)
+            end
             
             if enemy then
                 -- Apply shape override if specified
@@ -459,6 +468,11 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
     
     -- Store formation reference
     table.insert(EnemySpawner.activeFormations, formationData)
+end
+
+-- Return a dead enemy to the pool for recycling
+function EnemySpawner.returnToPool(enemy)
+    table.insert(EnemySpawner.enemyPool, enemy)
 end
 
 return EnemySpawner

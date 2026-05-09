@@ -471,4 +471,9 @@ function Enemy:checkCollision(projectile)
            projectile.y < self.y + self.height
 end
 
+-- Reset enemy for object pooling (re-init without allocating a new table)
+function Enemy:reset(x, y, enemyType, playerLevel, formationData)
+    self:init(x, y, enemyType, playerLevel, formationData)
+end
+
 return Enemy

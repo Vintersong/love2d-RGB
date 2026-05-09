@@ -45,10 +45,28 @@ function BackgroundShader.init(screenWidth, screenHeight)
     -- Create canvas for rendering with exact cell dimensions
     BackgroundShader.canvas = love.graphics.newCanvas(canvasWidth, canvasHeight)
 
-    -- Initialize moonshine glow effect for grid canvas
+    -- Initialize moonshine post-FX chain
     BackgroundShader.effect = moonshine(canvasWidth, canvasHeight, moonshine.effects.glow)
-    BackgroundShader.effect.glow.strength = 5  -- Strong glow for psychedelic effect
-    BackgroundShader.effect.glow.min_luma = 0.2  -- Glow most of the grid (lower threshold)
+        .chain(moonshine.effects.chromasep)
+        .chain(moonshine.effects.filmgrain)
+        .chain(moonshine.effects.vignette)
+
+    -- Configure glow
+    BackgroundShader.effect.glow.strength = 5
+    BackgroundShader.effect.glow.min_luma = 0.2
+
+    -- Configure chromatic separation
+    BackgroundShader.effect.chromasep.angle = 0.15
+    BackgroundShader.effect.chromasep.radius = 1.5
+
+    -- Configure film grain
+    BackgroundShader.effect.filmgrain.opacity = 0.15
+    BackgroundShader.effect.filmgrain.size = 1
+
+    -- Configure vignette
+    BackgroundShader.effect.vignette.radius = 0.85
+    BackgroundShader.effect.vignette.opacity = 0.5
+    BackgroundShader.effect.vignette.softness = 0.5
 
     -- Set initial uniforms using canvas dimensions
     BackgroundShader.shader:send("resolution", {canvasWidth, canvasHeight})
@@ -121,6 +139,16 @@ end
 -- Reset shader time (useful for testing)
 function BackgroundShader.reset()
     BackgroundShader.time = 0
+end
+
+-- Toggle a post-FX effect on/off
+function BackgroundShader.toggleEffect(effectName, enabled)
+    if not BackgroundShader.effect then return end
+    if enabled then
+        BackgroundShader.effect.enable(effectName)
+    else
+        BackgroundShader.effect.disable(effectName)
+    end
 end
 
 return BackgroundShader

@@ -7,7 +7,7 @@ function Weapon:init(weaponType)
     self.colors = {r = 0, g = 0, b = 0}
     self.fireRate = 0.25
     self.fireTimer = 0
-    self.damage = 10                                        -- Base weapon damage - Meta progression influence - 10% increments 
+    self.damage = 10                                        -- Base weapon damage - Meta progression influence - 10% increments
     self.bulletCount = 1
     self.projectileSpeed = 300                              -- Base projectile speed - Meta progression influence - 5% increments
     self.spread = 0
@@ -325,7 +325,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
         
     else
         -- Multiple projectiles: spread them based on spreadAngle
-        local spreadAngle = self.spreadAngle or (math.pi / 3)  -- Default 60 degrees
+        local spreadAngle = (self.spreadAngle and self.spreadAngle > 0) and self.spreadAngle or (math.pi / 6)  -- Default 30 degrees
         local is360 = (spreadAngle >= math.pi * 2)  -- Full circle?
         
         if is360 then

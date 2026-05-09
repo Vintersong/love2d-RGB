@@ -32,6 +32,30 @@ local Config = {
         cellSize = 128 -- Spatial hash cell size
     },
 
+    -- Lightning bolt ability
+    lightning = {
+        cooldown = 3.0,
+        duration = 0.22,
+        damageMultiplier = 3.0,
+        chainCount = 3,
+        chainRange = 150,
+        maxDisplacement = 96,
+        segments = 15,
+    },
+
+    -- Bullet pattern settings
+    patterns = {
+        patternCooldown = 0.6,
+        schedulerMaxQueue = 256,
+    },
+
+    -- Post-FX shader settings
+    postFX = {
+        chromasep = { enabled = true, angle = 0.15, radius = 1.5 },
+        filmgrain = { enabled = true, opacity = 0.15, size = 1 },
+        vignette  = { enabled = true, radius = 0.85, opacity = 0.5, softness = 0.5 },
+    },
+
     -- Debug settings
     debug = {
         enabled = true,

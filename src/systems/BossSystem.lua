@@ -3,6 +3,7 @@
 
 local BossSystem = {}
 BossSystem.__index = BossSystem
+local BossArchetypes = require("src.data.BossArchetypes")
 
 -- Boss spawns every 20 waves
 BossSystem.SPAWN_INTERVAL = 20
@@ -53,7 +54,28 @@ function BossSystem.spawnBoss()
     boss.phase = "entering" -- entering, combat, defeated
     boss.alive = true
     boss.invulnerable = true -- Invuln during entrance
-    
+
+    -- Archetype behavior AI
+    boss.archetypeName = BossArchetypes.randomArchetype()
+    boss.behaviorState = "idle" -- idle, attacking
+    boss.behaviorTimer = 0
+    boss.behaviorCooldowns = {}
+    boss.dashVx = 0
+    boss.dashVy = 0
+    boss.dashTimer = 0
+    boss.combatTime = 0
+
+    -- Delayed projectile scheduler for boss patterns (spiral, cross, etc.)
+    boss._scheduledProjectiles = {}
+    boss._scheduler = {
+        schedule = function(delay, projData)
+            table.insert(boss._scheduledProjectiles, {
+                delay = delay,
+                data = projData,
+            })
+        end,
+    }
+
     -- Appearance
     boss.scale = 0.4 -- Scale of ship sprite
     boss.glowIntensity = 0
@@ -77,30 +99,85 @@ function BossSystem:update(dt, playerX, playerY)
         end
         
     elseif self.phase == "combat" then
-        -- Follow player horizontally (slowly)
-        local dx = playerX - self.x
-        if math.abs(dx) > 50 then
-            self.x = self.x + math.sign(dx) * self.speed * dt
+        self.combatTime = (self.combatTime or 0) + dt
+
+        -- Horizontal oscillation + follow player
+        local oscillation = math.sin(self.combatTime * 0.8) * 220
+        local targetX = love.graphics.getWidth() / 2 + oscillation
+        local dx = targetX - self.x
+        self.x = self.x + dx * 2 * dt
+
+        -- Dash movement override
+        if self.dashTimer and self.dashTimer > 0 then
+            self.x = self.x + self.dashVx * dt
+            self.y = self.y + self.dashVy * dt
+            self.dashTimer = self.dashTimer - dt
         end
-        
+
         -- Stay in bounds
         local margin = 100
-        if self.x < margin then self.x = margin end
-        if self.x > love.graphics.getWidth() - margin then 
-            self.x = love.graphics.getWidth() - margin 
+        self.x = math.max(margin, math.min(love.graphics.getWidth() - margin, self.x))
+        self.y = math.max(50, math.min(love.graphics.getHeight() / 2, self.y))
+
+        -- Decrement behavior cooldowns
+        for key, cd in pairs(self.behaviorCooldowns) do
+            self.behaviorCooldowns[key] = cd - dt
+            if self.behaviorCooldowns[key] <= 0 then
+                self.behaviorCooldowns[key] = nil
+            end
         end
-        
-        -- Attack pattern: Cone shots toward player
-        self.attackCooldown = self.attackCooldown - dt
-        if self.attackCooldown <= 0 then
-            local newProjectiles = self:fireCone(playerX, playerY)
-            self.attackCooldown = self.attackRate
-            return newProjectiles  -- Return projectiles to be added to game
+
+        -- Behavior AI
+        self.behaviorTimer = self.behaviorTimer - dt
+        if self.behaviorTimer <= 0 then
+            local distToPlayer = math.sqrt(
+                (playerX - self.x) * (playerX - self.x) +
+                (playerY - self.y) * (playerY - self.y)
+            )
+            local category, behaviorName = BossArchetypes.selectBehavior(
+                self.archetypeName, distToPlayer
+            )
+            if category and behaviorName then
+                local cdKey = category .. "_" .. behaviorName
+                if not self.behaviorCooldowns[cdKey] then
+                    local behavior = BossArchetypes[category][behaviorName]
+                    if behavior then
+                        -- We need a reference to player and bossProjectiles
+                        -- Pass them via a temporary table stored on boss
+                        local projectiles = self._bossProjectiles or {}
+                        local player = self._playerRef
+                        if player then
+                            local duration = behavior.execute(self, player, projectiles)
+                            self.behaviorTimer = duration or 0.5
+                            self.behaviorCooldowns[cdKey] = behavior.cooldown
+                            return nil -- projectiles were added directly to bossProjectiles
+                        end
+                    end
+                end
+            end
+            self.behaviorTimer = 0.3 -- retry soon
         end
-        
+
+        -- Process delayed pattern projectiles (spiral/cross staggered spawns)
+        if self._scheduledProjectiles and #self._scheduledProjectiles > 0 then
+            local Projectile = require("src.entities.Projectile")
+            local projectiles = self._bossProjectiles or {}
+            for i = #self._scheduledProjectiles, 1, -1 do
+                local entry = self._scheduledProjectiles[i]
+                entry.delay = entry.delay - dt
+                if entry.delay <= 0 then
+                    local p = entry.data
+                    local proj = Projectile(p.x, p.y, p.vx, p.vy, p.damage or 10, "spread", "boss")
+                    proj.color = p.color or {1.0, 0.4, 0.8}
+                    table.insert(projectiles, proj)
+                    table.remove(self._scheduledProjectiles, i)
+                end
+            end
+        end
+
         -- Pulse glow
         self.glowIntensity = (math.sin(love.timer.getTime() * 3) + 1) / 2
-        
+
         -- Check death
         if self.health <= 0 then
             self.phase = "defeated"

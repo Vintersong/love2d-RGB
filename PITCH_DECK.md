@@ -1,19 +1,15 @@
-# RGB — Pitch Deck
-
 ---
 
-## Slide 1 — Title
 
-**RGB**
+**CHROMATIC**
 *A bullet-hell roguelite where your color is your build.*
 
-Built in LÖVE2D · Playable in browser · Solo dev prototype
+Built in LÖVE2D - Solo dev prototype
 
 ---
 
-## Slide 2 — The Hook
 
-> "Every bullet-hell gives you a loadout. RGB gives you a **commitment**."
+> "Every bullet-hell gives you a loadout. CHROMATIC gives you a **commitment**."
 
 At level-up, you don't choose a weapon or a skill — you choose a **color**.
 
@@ -23,7 +19,6 @@ That one constraint is what makes every run feel different.
 
 ---
 
-## Slide 3 — Genre & Positioning
 
 | | RGB | Vampire Survivors | Hades |
 |--|-----|-------------------|-------|
@@ -33,11 +28,9 @@ That one constraint is what makes every run feel different.
 | Music integration | Reactive spawning | Passive soundtrack | Passive soundtrack |
 | Platform | Desktop + Web | Desktop + Console | Desktop + Console |
 
-**The gap RGB fills:** A mechanically expressive bullet-hell where the build system has a *concept* — light physics and color theory — not just stat multipliers.
+**The gap RGB fills:** A bullet-hell where the build system has a *concept* — light physics and color theory — not just stat multipliers.
 
 ---
-
-## Slide 4 — Core Gameplay Loop
 
 ```
 Move → Survive → Kill → Collect XP orbs → Level up → Pick a color
@@ -50,11 +43,9 @@ Move → Survive → Kill → Collect XP orbs → Level up → Pick a color
 - 1920×1080 arena. Enemies approach from off-screen in formation.
 - Boss appears every 100 kills.
 
-**The loop is fast.** A session can be meaningful in under 15 minutes, or push longer as the player explores deeper color paths.
-
 ---
 
-## Slide 5 — The Color System
+
 
 This is the game's core identity.
 
@@ -62,27 +53,20 @@ This is the game's core identity.
 
 | Primary | Path | What it does |
 |---------|------|--------------|
-| RED | Damage | More damage. Crits. Explosions. |
-| GREEN | Speed | More bullets. Faster firing. Overwhelming volume. |
-| BLUE | Control | Pierce. Ricochet. Tactical manipulation. |
+| RED | Damage | Crits and split projectiles.|
+| GREEN | Bounce | Bounces to enemies. |
+| BLUE | Control | Pierce through enemies.|
 
 Once you pick your second primary, the third is **locked out**. Permanently.
 
 ### Two primaries unlock one secondary.
 
-| Mix | Secondary | Flavor |
-|-----|-----------|--------|
-| RED + GREEN | YELLOW | Explosive AoE bursts |
-| RED + BLUE | MAGENTA | Homing projectiles |
-| GREEN + BLUE | CYAN | Slowing, piercing, life-stealing |
+| Mix | Secondary |
+|-----|-----------|
+| RED + GREEN | YELLOW |
+| RED + BLUE | MAGENTA |
+| GREEN + BLUE | CYAN |
 
-### Go deep or go wide.
-
-Double a primary (RED→RED) for a **pure path** (Crimson, Emerald, Sapphire) — raw power, but no secondary.
-
-Triple a primary (RED→RED→RED) for an **advanced path** (Blood Red, Forest Green, Deep Blue) — devastation, but the narrowest build possible.
-
-Chase all three? **White Light** — the Transcendence path. All effects. Maximum chaos.
 
 ### Color even changes your dash.
 
@@ -114,22 +98,7 @@ Chase all three? **White Light** — the Transcendence path. All effects. Maximu
 | Refraction | Bends projectile paths |
 | Supernova | Explosive orbital bombs |
 
-**The synergy system is what makes this combinatorial.**
-
-When you hold an artifact that matches your active colors, a named synergy triggers:
-
-- **Prism + RED** → *Rainbow Cascade* — spread projectiles split again on hit
-- **Lens + BLUE** → *Laser Focus* — pierce damage accumulates per enemy hit
-- **Mirror + CYAN** → *Reflected Suffering* — DoT chains to the next enemy on death
-- **Diffraction + YELLOW** → *Gravity Well* — rooted enemies pull others toward them
-- **Supernova + MAGENTA** → *Chain Reaction* — 50% chance each explosion cascades
-
-The build space is: 6 active colors × 8 artifacts × 5 levels = **240 distinct artifact states**, layered with **18 named synergies** defined in `SynergySystem.lua` *(see design doc §5 for the full roster; some pickup type keys like `AURORA` differentiate HALO-aligned synergies in data)*.
-
 ---
-
-## Slide 7 — Music Reactivity
-
 The game's enemy spawning is **driven by the soundtrack**.
 
 - **Two soundtrack candidates** rotate in via `SongLibrary` — whichever loads at boot informs that run unless you swap sources.
@@ -148,8 +117,6 @@ This means every song produces a different encounter rhythm. Swapping the soundt
 
 ---
 
-## Slide 8 — Visual Identity
-
 **Vaporwave / synth-punk.**
 
 - Custom GLSL shader renders the perspective grid canvas; moonshine bloom runs as part of **`BackgroundShader`**, while supplemental **`SimpleGrid`** accents can pulse with the beat (**`T`** hotkey demos the wave ripple in-engine).
@@ -161,11 +128,9 @@ The aesthetic goal: a game that **looks like the music it reacts to**.
 
 ---
 
-## Slide 9 — Current State
-
 ### What's working today
 
-- Full color tree: primaries, secondaries, pure paths, advanced paths, White Light
+- Full color tree: primaries, secondaries
 - 3 active abilities (Dash, Blink, Shield) with color-reactive behavior
 - 8 artifacts with level scaling and **18** scripted synergies (`SynergySystem`)
 - 7 procedural formation patterns for enemy spawning
@@ -174,66 +139,8 @@ The aesthetic goal: a game that **looks like the music it reacts to**.
 - GLSL vaporwave background shader
 - Full particle VFX system
 - Floating text damage/heal feedback
-- Playable in browser via love.js
-
-### What's next
-
-- Wire the active artifact ability (Left Shift stub today — `Player:setActiveAbility` never invoked)
-- Post-level-up input delay (UX)
-- Visual clarity improvements for Dash cooldown state
-- Enemy/boss balance pass (BossSystem bosses are **already killable** at 2000 HP — pacing tuning remains)
-- Broader synergy coverage (e.g. artifacts like **Diffusion** still lack scripted pairs)
-- **Victory run-end condition** hooked into existing `VictoryState`
-
----
-
-## Slide 10 — Roadmap
-
-**Near term (prototype → vertical slice)**
-- Active artifact ability fully implemented
-- Expand **SongLibrary** (already at 2 WAV + authored structure tables) toward 3–4 curated tracks / stronger section tagging
-- Synergy coverage: fill remaining artifact × color matrix gaps (beyond the current **18**)
-- Victory state **hooked from gameplay** with run summary (screen exists — needs triggers)
-- Polish pass: post-dash delay, dash cooldown clarity, level-up transition (backdrop parity shader vs overlay)
-
-**Medium term (vertical slice → beta)**
-- Persistent meta-progression (unlocking artifact types across runs)
-- Additional color paths or artifact slots
-- Controller support
-- Sound effects tied to synergy activations
-- Steam / itch.io release candidate
-
-**Long term**
-- Console port (Switch is a natural fit for the visual style)
-- Modding support via song + structure authoring tools
-- Leaderboards by color path
-
----
-
-## Slide 11 — Why This Works
-
-**The core loop is proven.** Auto-fire roguelites are a validated genre. RGB doesn't reinvent the loop — it installs a genuinely novel identity layer on top.
-
-**The constraint is the fun.** Locking out a primary color is the same design instinct as deck-building restrictions in deckbuilders or spec trees in ARPGs — commitment creates meaningful choices, and meaningful choices create runs worth talking about.
-
-**The music integration is underexplored.** Most roguelites have good soundtracks. RGB has a soundtrack that *plays the game for you* — wave difficulty is never scripted, it's composed.
-
-**The aesthetic is consistent.** Color-as-identity works visually. A RED player looks different from a CYAN player. Players can read their own build at a glance.
-
----
-
-## Slide 12 — Ask
 
 This is a working prototype.
 
-It has a functional game loop, a deep build system, music reactivity, and browser playability. The core design is validated and the architecture is clean.
+It has a functional game loop, a deep build system and music reactivity. The core design is validated and the architecture is clean-ish.
 
-**What it needs:**
-- Playtesting feedback on color commitment balance
-- More authored songs + richer structure tags beyond the baseline **dual-track** RNG pick
-- A path to a public demo release
-
-**What makes RGB worth betting on:**
-The color system is a genuinely original mechanic sitting inside a genre players already understand and love. The ceiling is high. The scope is controlled.
-
-*The game runs today. The question is how far it goes.*

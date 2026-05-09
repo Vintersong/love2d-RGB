@@ -46,7 +46,7 @@ function Player:init(x, y, weapon)
     self.damageFlashTime = 0
 
     -- Register player abilities with AbilitySystem
-    AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD"})
+    AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD", "LIGHTNING_BOLT"})
 
     -- Active artifact ability system (for future active artifacts)
     self.activeAbility = nil  -- Current active artifact ability
@@ -56,6 +56,7 @@ end
 
 function Player:update(dt, enemies)
     enemies = enemies or {}  -- Default to empty table if not provided
+    self._lastEnemies = enemies  -- Cache for lightning bolt ability
 
     -- Update invulnerability timer
     if self.invulnerable then
@@ -238,9 +239,14 @@ function Player:useActiveAbility()
     if not self.activeAbility then return false end
     if self.abilityCooldown > 0 then return false end
 
-    -- Future: activate artifact-based abilities here
-    print("[Player] Active artifact ability not implemented yet")
-    return false
+    return self:useLightningBolt()
+end
+
+-- Use lightning bolt (L-Shift key)
+function Player:useLightningBolt()
+    local enemies = self._lastEnemies or {}
+    local success = AbilitySystem.activate(self, "LIGHTNING_BOLT", AbilityLibrary.LIGHTNING_BOLT, {enemies = enemies})
+    return success
 end
 
 -- Use dash (SPACE key - permanent ability)

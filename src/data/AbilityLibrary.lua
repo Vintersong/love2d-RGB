@@ -295,15 +295,42 @@ AbilityLibrary.BLINK = {
     end
 }
 
--- Example: Shield (temporary invulnerability)
+-- Shield (temporary invulnerability with gradient radial visual)
 AbilityLibrary.SHIELD = {
     name = "Shield",
     cooldown = 10.0,
     duration = 3.0,
 
     onActivate = function(entity, state, context)
+        local ShieldEffect = require("src.systems.ShieldEffect")
+        local ColorSystem = getColorSystem()
+
         state.timer = 0
         entity.invulnerable = true
+
+        local centerX = entity.x + entity.width / 2
+        local centerY = entity.y + entity.height / 2
+
+        local innerColor = {0.8, 0.8, 0.8, 0.7}
+        local outerColor = {0.1, 0.1, 0.1, 0.0}
+        local dominant = ColorSystem.getDominantColor()
+        if dominant then
+            local rgb = ColorSystem.getColorRGB(dominant)
+            if rgb then
+                innerColor = {rgb[1], rgb[2], rgb[3], 0.7}
+                outerColor = {rgb[1] * 0.2, rgb[2] * 0.2, rgb[3] * 0.2, 0.0}
+            end
+        end
+
+        ShieldEffect.trigger(centerX, centerY, {
+            maxRadius = 64,
+            expandSpeed = 500,
+            rotateSpeed = 1.5,
+            fadeSpeed = 3,
+            innerColor = innerColor,
+            outerColor = outerColor,
+        })
+
         print("[Shield] Shield activated!")
         return true
     end,
@@ -311,19 +338,79 @@ AbilityLibrary.SHIELD = {
     onUpdate = function(entity, state, dt, context)
         state.timer = state.timer + dt
 
-        -- Spawn shield VFX
-        local VFXLibrary = getVFXLibrary()
-        VFXLibrary.spawnArtifactEffect("HALO", entity.x + entity.width/2, entity.y + entity.height/2)
+        local ShieldEffect = require("src.systems.ShieldEffect")
+        local centerX = entity.x + entity.width / 2
+        local centerY = entity.y + entity.height / 2
+        ShieldEffect.setPosition(centerX, centerY)
 
         if state.timer >= AbilityLibrary.SHIELD.duration then
-            return false  -- End shield
+            return false
         end
         return true
     end,
 
     onDeactivate = function(entity, state, context)
         entity.invulnerable = false
+        local ShieldEffect = require("src.systems.ShieldEffect")
+        ShieldEffect.despawn()
         print("[Shield] Shield ended")
+    end
+}
+
+-- ============================================================================
+-- LIGHTNING BOLT ABILITY
+-- ============================================================================
+
+AbilityLibrary.LIGHTNING_BOLT = {
+    name = "Lightning Bolt",
+    cooldown = 3.0,
+
+    onActivate = function(entity, state, context)
+        local LightningEffect = require("src.systems.LightningEffect")
+        local HealthSystem = require("src.systems.HealthSystem")
+
+        local centerX = entity.x + entity.width / 2
+        local centerY = entity.y + entity.height / 2
+        local mx, my = love.mouse.getPosition()
+
+        -- Calculate damage (3x weapon damage)
+        local baseDamage = 10
+        if entity.weapon then
+            baseDamage = entity.weapon:getEffectiveDamage()
+        end
+        local damage = baseDamage * 3
+
+        -- Fire chain lightning toward mouse, damaging enemies along the way
+        local enemies = context and context.enemies or {}
+        local hits = LightningEffect.fireChain(
+            centerX, centerY, mx, my, damage, enemies
+        )
+
+        -- Apply damage to hit enemies
+        for _, hit in ipairs(hits) do
+            if hit.enemy and not hit.enemy.dead then
+                HealthSystem.takeDamage(hit.enemy, hit.damage)
+                local FloatingTextSystem = getFloatingTextSystem()
+                FloatingTextSystem.add(
+                    tostring(math.floor(hit.damage)),
+                    hit.enemy.x + (hit.enemy.width or 0) / 2,
+                    hit.enemy.y,
+                    "LIGHTNING"
+                )
+            end
+        end
+
+        state.timer = 0
+        state.duration = LightningEffect.DURATION
+        print("[Lightning] Bolt fired! Hit " .. #hits .. " enemies")
+    end,
+
+    onUpdate = function(entity, state, dt, context)
+        state.timer = state.timer + dt
+        return state.timer < state.duration
+    end,
+
+    onDeactivate = function(entity, state, context)
     end
 }
 

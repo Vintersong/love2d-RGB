@@ -8,6 +8,7 @@ local flux = require("libs.flux-master.flux")
 local MusicReactor, ColorSystem, SpawnController, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
 local XPParticleSystem, BossSystem, Powerup, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
+local LightningEffect, ShieldEffect
 
 -- Shared game data (will be set by main.lua)
 PlayingState.player = nil
@@ -41,7 +42,9 @@ function PlayingState:enter(previous, data)
         GridAttackSystem = require("src.systems.GridAttackSystem")
         BackgroundShader = require("src.systems.BackgroundShader")
         SimpleGrid = require("src.systems.SimpleGrid")
-        
+        LightningEffect = require("src.systems.LightningEffect")
+        ShieldEffect = require("src.systems.ShieldEffect")
+
         -- Initialize controller
         SpawnController.init(self.screenWidth, self.screenHeight)
     end
@@ -111,6 +114,12 @@ function PlayingState:update(dt)
     -- Pass boss from BossSystem if active
     self.player:autoFire(self.enemies, BossSystem.activeBoss)
 
+    -- Update lightning bolt visual effect
+    LightningEffect.update(dt)
+
+    -- Update shield visual effect (handles expand + fade-out)
+    ShieldEffect.update(dt)
+
     -- Use SpawnController for procedural enemy waves
     SpawnController.update(dt, self.player.level, self.musicReactor, self.enemies)
 
@@ -179,10 +188,12 @@ function PlayingState:updateEnemies(dt, centerX, centerY)
             end)
         end
 
-        -- Remove dead enemies
+        -- Remove dead enemies (return to pool for recycling)
         if enemy.dead then
             CollisionSystem.remove(enemy)
             table.remove(self.enemies, i)
+            local EnemySpawner = require("src.systems.EnemySpawner")
+            EnemySpawner.returnToPool(enemy)
         end
     end
 
@@ -439,6 +450,9 @@ end
 
 function PlayingState:updateBoss(dt)
     if BossSystem.activeBoss then
+        -- Provide references for archetype behavior AI
+        BossSystem.activeBoss._playerRef = self.player
+        BossSystem.activeBoss._bossProjectiles = self.bossProjectiles
         local newProjectiles = BossSystem.activeBoss:update(dt, self.player.x, self.player.y)
 
         -- Add boss projectiles if any were fired
@@ -604,6 +618,12 @@ function PlayingState:draw()
         love.graphics.setColor(1, 0.2, 1, 0.9)
         love.graphics.circle("line", explosion.x, explosion.y, explosion.radius)
     end
+
+    -- Draw shield effect (gradient radial visual)
+    ShieldEffect.draw()
+
+    -- Draw lightning bolt effects
+    LightningEffect.draw()
 
     -- Draw player HUD using UISystem
     UISystem.drawPlayerHUD(self.player)

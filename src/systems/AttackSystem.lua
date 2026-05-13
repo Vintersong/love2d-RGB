@@ -85,7 +85,7 @@ function AttackSystem.applyEffects(projectile, target)
 end
 
 -- Update DoT effects on all entities
-function AttackSystem.updateDoTs(entities, dt)
+function AttackSystem.updateDoTs(entities, dt, onKillCallback)
     for _, entity in ipairs(entities) do
         if entity.dotStacks and #entity.dotStacks > 0 then
             for i = #entity.dotStacks, 1, -1 do
@@ -94,7 +94,10 @@ function AttackSystem.updateDoTs(entities, dt)
                 -- Tick damage
                 dot.tickRate = dot.tickRate - dt
                 if dot.tickRate <= 0 then
-                    HealthSystem.takeDamage(entity, dot.damage)
+                    local died = HealthSystem.takeDamage(entity, dot.damage)
+                    if died and onKillCallback then
+                        onKillCallback(entity)
+                    end
                     dot.tickRate = 0.5  -- Reset tick
                 end
                 

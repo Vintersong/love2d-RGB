@@ -58,9 +58,6 @@ function UISystem.drawPlayerHUD(player)
         if player.weapon.guaranteedBullets then
             projCount = projCount + player.weapon.guaranteedBullets
         end
-        if player.weapon.secondaryGuaranteedBullets then
-            projCount = projCount + player.weapon.secondaryGuaranteedBullets
-        end
         love.graphics.setColor(0.5, 0.8, 1)
         love.graphics.print(string.format("Projectiles: %d guaranteed", projCount), x, y, 0, 1.1, 1.1)
     end
@@ -132,7 +129,12 @@ function UISystem.drawPlayerHUD(player)
     love.graphics.rectangle("line", dashX, dashY + 30, barWidth, barHeight)
 
     -- Active Artifact Ability (if equipped)
-    if player.activeAbility then
+    local abilityState = player.abilityState or {
+        activeAbility = player.activeAbility,
+        cooldown = player.abilityCooldown or 0,
+        maxCooldown = player.abilityMaxCooldown or 1
+    }
+    if abilityState.activeAbility then
         local abilityY = SCREEN_HEIGHT - 200
 
         -- Background
@@ -141,10 +143,17 @@ function UISystem.drawPlayerHUD(player)
 
         -- Ability name
         love.graphics.setColor(1, 0.5, 1)
-        love.graphics.print(string.format("%s [L-SHIFT]", player.activeAbility), x, abilityY, 0, 1.3, 1.3)
+        love.graphics.print(string.format("%s [L-SHIFT]", abilityState.activeAbility), x, abilityY, 0, 1.3, 1.3)
 
         -- Cooldown bar
-        local cdPercent = 1 - (player.abilityCooldown / player.abilityMaxCooldown)
+<<<<<<< ours
+        local cdPercent = 1
+        if player.abilityMaxCooldown and player.abilityMaxCooldown > 0 then
+            cdPercent = 1 - (player.abilityCooldown / player.abilityMaxCooldown)
+        end
+=======
+        local cdPercent = 1 - (abilityState.cooldown / abilityState.maxCooldown)
+>>>>>>> theirs
 
         love.graphics.setColor(0.2, 0.2, 0.3)
         love.graphics.rectangle("fill", x, abilityY + 25, barWidth, barHeight)
@@ -161,7 +170,7 @@ function UISystem.drawPlayerHUD(player)
             love.graphics.setColor(0.8, 0.2, 0.8)
             love.graphics.rectangle("fill", x, abilityY + 25, barWidth * cdPercent, barHeight)
             love.graphics.setColor(1, 1, 1)
-            love.graphics.print(string.format("%.1fs", player.abilityCooldown), x + 75, abilityY + 27, 0, 1.2, 1.2)
+            love.graphics.print(string.format("%.1fs", abilityState.cooldown), x + 75, abilityY + 27, 0, 1.2, 1.2)
         end
 
         -- Border
@@ -172,7 +181,8 @@ function UISystem.drawPlayerHUD(player)
 
     -- Controls (bottom-left)
     love.graphics.setColor(0.5, 0.5, 0.5)
-    love.graphics.print("WASD: Move | SPACE: Dash | L-SHIFT: Ability | ESC: Exit", x, SCREEN_HEIGHT - 40, 0, 1.2, 1.2)
+    local activeText = player.activeAbility and " | L-SHIFT: Supernova" or ""
+    love.graphics.print("WASD: Move | SPACE: Dash | P/ESC: Pause" .. activeText, x, SCREEN_HEIGHT - 40, 0, 1.2, 1.2)
 
     -- Draw artifact panel on right side
     UISystem.drawArtifactPanel(player)
@@ -327,35 +337,35 @@ end
 
 -- Get color affinity display text
 function UISystem.getAffinityText()
-    local text = ""
-    
-    if ColorSystem.primaryColor then
-        text = string.upper(ColorSystem.getColorName(ColorSystem.primaryColor))
-        
-        if ColorSystem.primaryCount > 1 then
-            text = text .. " x" .. ColorSystem.primaryCount
+    local parts = {}
+
+    for _, color in ipairs({"RED", "GREEN", "BLUE"}) do
+        local level = ColorSystem.primary[color].level
+        if level > 0 then
+            local text = color
+            if level > 1 then
+                text = text .. " x" .. level
+            end
+            table.insert(parts, text)
         end
-    else
+    end
+
+    for _, color in ipairs({"YELLOW", "MAGENTA", "CYAN"}) do
+        local data = ColorSystem.secondary[color]
+        if data.unlocked and data.level > 0 then
+            local text = color
+            if data.level > 1 then
+                text = text .. " x" .. data.level
+            end
+            table.insert(parts, text)
+        end
+    end
+
+    if #parts == 0 then
         return "None"
     end
-    
-    if ColorSystem.secondaryColor then
-        text = text .. " + " .. string.upper(ColorSystem.getColorName(ColorSystem.secondaryColor))
-        
-        if ColorSystem.secondaryCount > 1 then
-            text = text .. " x" .. ColorSystem.secondaryCount
-        end
-    end
-    
-    if ColorSystem.tertiaryColor then
-        text = text .. " + " .. string.upper(ColorSystem.getColorName(ColorSystem.tertiaryColor))
-        
-        if ColorSystem.tertiaryCount > 1 then
-            text = text .. " x" .. ColorSystem.tertiaryCount
-        end
-    end
-    
-    return text
+
+    return table.concat(parts, " + ")
 end
 
 -- Draw enemy info (above enemy)

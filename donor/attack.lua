@@ -1,7 +1,7 @@
 local patternLibrary = require("bulletPatterns")
 local mathUtils = require("systems.core.mathUtils")
 
-local atan2 = math.atan2 or function(y, x)
+local atan2 = math2 or function(y, x)
     if x > 0 then
         return math.atan(y / x)
     elseif x < 0 and y >= 0 then

@@ -42,6 +42,8 @@ end
 -- Validate all registered systems
 function BootLoader.validateAll()
     print("[BootLoader] Validating systems...")
+    BootLoader.errors = {}
+    BootLoader.warnings = {}
     local allValid = true
 
     for name, systemData in pairs(BootLoader.systems) do
@@ -76,11 +78,12 @@ function BootLoader.performHealthChecks()
     print("[BootLoader] Performing health checks...")
 
     -- Check screen resolution
+    local Config = require("src.Config")
     local w, h = love.graphics.getDimensions()
-    if w ~= 1920 or h ~= 1080 then
+    if w ~= Config.screen.width or h ~= Config.screen.height then
         table.insert(BootLoader.warnings, string.format(
-            "Screen resolution is %dx%d (expected 1920x1080). UI may not display correctly.",
-            w, h
+            "Screen resolution is %dx%d (expected %dx%d). UI may not display correctly.",
+            w, h, Config.screen.width, Config.screen.height
         ))
     end
 

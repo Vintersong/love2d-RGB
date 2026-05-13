@@ -3,6 +3,24 @@
 
 local LensArtifact = {}
 
+local function getMergedVelocity(projectiles, speedMultiplier)
+    local vx, vy = 0, 0
+
+    for _, projectile in ipairs(projectiles) do
+        vx = vx + (projectile.vx or 0)
+        vy = vy + (projectile.vy or 0)
+    end
+
+    local speed = (projectiles[1].speed or math.sqrt((projectiles[1].vx or 0)^2 + (projectiles[1].vy or 0)^2)) * (speedMultiplier or 1)
+    local length = math.sqrt(vx * vx + vy * vy)
+
+    if length <= 0 then
+        return (projectiles[1].vx or 0) * (speedMultiplier or 1), (projectiles[1].vy or 0) * (speedMultiplier or 1)
+    end
+
+    return (vx / length) * speed, (vy / length) * speed
+end
+
 -- RED LENS: Merge projectiles into larger shot
 LensArtifact.RED = {
     name = "Crimson Lens",
@@ -18,11 +36,12 @@ LensArtifact.RED = {
         if math.random() < chance and #projectiles >= 2 then
             -- Merge all projectiles into one large projectile
             local baseSize = projectiles[1].size or 4  -- Default size if not set
+            local mergedVx, mergedVy = getMergedVelocity(projectiles)
             local merged = {
                 x = projectiles[1].x,
                 y = projectiles[1].y,
-                vx = projectiles[1].vx,
-                vy = projectiles[1].vy,
+                vx = mergedVx,
+                vy = mergedVy,
                 size = baseSize * math.sqrt(#projectiles),  -- Size scales with count
                 damage = projectiles[1].damage * #projectiles,  -- Combined damage
                 color = projectiles[1].color,
@@ -123,11 +142,12 @@ LensArtifact.YELLOW = {
         if math.random() < chance and #projectiles >= 2 then
             -- Merge projectiles (RED trait)
             local baseSize = projectiles[1].size or 4  -- Default size if not set
+            local mergedVx, mergedVy = getMergedVelocity(projectiles, 1.5)
             local merged = {
                 x = projectiles[1].x,
                 y = projectiles[1].y,
-                vx = projectiles[1].vx * 1.5,  -- YELLOW speed boost
-                vy = projectiles[1].vy * 1.5,
+                vx = mergedVx,  -- YELLOW speed boost
+                vy = mergedVy,
                 size = baseSize * math.sqrt(#projectiles),
                 damage = projectiles[1].damage * #projectiles,
                 color = {1, 1, 0.3},  -- Yellow/electric
@@ -170,11 +190,12 @@ LensArtifact.MAGENTA = {
         if math.random() < chance and #projectiles >= 2 then
             -- Merge (RED) + Enlarge (BLUE)
             local baseSize = projectiles[1].size or 4  -- Default size if not set
+            local mergedVx, mergedVy = getMergedVelocity(projectiles)
             local merged = {
                 x = projectiles[1].x,
                 y = projectiles[1].y,
-                vx = projectiles[1].vx,
-                vy = projectiles[1].vy,
+                vx = mergedVx,
+                vy = mergedVy,
                 size = baseSize * math.sqrt(#projectiles) * 1.5,  -- Extra large
                 damage = projectiles[1].damage * #projectiles,
                 color = {1, 0.3, 1},  -- Magenta

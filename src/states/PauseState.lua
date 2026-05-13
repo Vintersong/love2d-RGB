@@ -1,30 +1,67 @@
 -- PauseState.lua
+-- Frozen gameplay overlay pushed on top of PlayingState
 
 local PauseState = {}
 
+PauseState.previousState = nil
+PauseState.musicReactor = nil
 
 function PauseState:enter(previous, data)
+    self.previousState = previous
+    self.musicReactor = data and data.musicReactor or nil
 
+    if self.musicReactor and self.musicReactor.pause then
+        self.musicReactor:pause()
+    end
+end
+
+function PauseState:leave()
+    if self.musicReactor and self.musicReactor.play then
+        self.musicReactor:play()
+    end
 end
 
 function PauseState:update(dt)
-
+    -- Intentionally empty: gameplay remains frozen while paused.
 end
 
 function PauseState:draw()
+    if self.previousState and self.previousState.draw then
+        self.previousState:draw()
+    end
 
-end
+    love.graphics.setColor(0, 0, 0, 0.72)
+    love.graphics.rectangle("fill", 0, 0, 1920, 1080)
 
-function PauseState:drawVictoryScreen()
+    local centerX = 1920 / 2
+    local y = 350
 
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.printf("PAUSED", centerX - 300, y, 600, "center", 0, 4, 4)
+
+    y = y + 140
+    love.graphics.setColor(0.7, 0.9, 1)
+    love.graphics.printf("P / ESC  Resume", centerX - 250, y, 500, "center", 0, 1.8, 1.8)
+    y = y + 55
+    love.graphics.printf("R  Restart Run", centerX - 250, y, 500, "center", 0, 1.8, 1.8)
+    y = y + 55
+    love.graphics.printf("Q  Quit Game", centerX - 250, y, 500, "center", 0, 1.8, 1.8)
+
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 function PauseState:keypressed(key)
-   
-end
+    local StateManager = require("src.systems.StateManager")
 
-function PauseState:restartGame()
-    
+    if key == "p" or key == "escape" then
+        StateManager.pop()
+    elseif key == "r" then
+        local PlayingState = require("src.states.PlayingState")
+        PlayingState.startNewRun()
+        StateManager.switch("Playing")
+    elseif key == "q" then
+        love.event.quit()
+    end
 end
 
 return PauseState

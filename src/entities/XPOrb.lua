@@ -1,6 +1,7 @@
 -- XP Orb that drops from enemies and floats toward player when nearby
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
+local MathUtils = require("src.systems.MathUtils")
 
 local XPOrb = class{__includes = Entity}
 
@@ -63,7 +64,7 @@ function XPOrb:update(dt, playerX, playerY)
     
     -- Physics-based magnetic attraction
     if distance > 0 and distance < self.outerRadius then
-        local angle = math.atan(dy, dx)
+        local angle = MathUtils.atan2(dy, dx)
         local attractionForce
         
         if distance < self.innerRadius then

@@ -3,8 +3,6 @@
 -- Secondary colors: YELLOW (R+G electric), MAGENTA (R+B time), CYAN (G+B frost)
 -- Commitment: Can only choose TWO primaries total, then one secondary unlocks
 
-local ColorTree = require("src.data.ColorTree")
-
 local ColorSystem = {}
 
 -- Primary color tracking
@@ -14,7 +12,7 @@ ColorSystem.primary = {
     BLUE = {level = 0, locked = false}
 }
 
-ColorSystem.CODES ={
+ColorSystem.CODES = {
     RED = "r",
     GREEN = "g",
     BLUE = "b",
@@ -58,6 +56,34 @@ function ColorSystem.init()
     ColorSystem.colorHistory = {}
 end
 
+function ColorSystem.getColorCode(colorName)
+    return ColorSystem.CODES[colorName]
+end
+
+function ColorSystem.getCommittedSecondaryName()
+    if not ColorSystem.commitment.primary1 or not ColorSystem.commitment.primary2 then
+        return nil
+    end
+
+    local p1 = ColorSystem.commitment.primary1
+    local p2 = ColorSystem.commitment.primary2
+
+    if (p1 == "RED" and p2 == "GREEN") or (p1 == "GREEN" and p2 == "RED") then
+        return "YELLOW"
+    elseif (p1 == "RED" and p2 == "BLUE") or (p1 == "BLUE" and p2 == "RED") then
+        return "MAGENTA"
+    elseif (p1 == "GREEN" and p2 == "BLUE") or (p1 == "BLUE" and p2 == "GREEN") then
+        return "CYAN"
+    end
+
+    return nil
+end
+
+function ColorSystem.getCommittedSecondaryCode()
+    local secondaryName = ColorSystem.getCommittedSecondaryName()
+    return secondaryName and ColorSystem.getColorCode(secondaryName) or nil
+end
+
 function ColorSystem.getValidChoices(level)
     local choices = {}
     
@@ -78,26 +104,6 @@ function ColorSystem.getValidChoices(level)
     end
     
     return choices
-end
-
-function ColorSystem.getTertiaryColor()
-    -- Legacy function for compatibility - now returns secondary color
-    if not ColorSystem.commitment.primary1 or not ColorSystem.commitment.primary2 then
-        return nil
-    end
-    
-    local p1 = ColorSystem.commitment.primary1
-    local p2 = ColorSystem.commitment.primary2
-    
-    if (p1 == "RED" and p2 == "GREEN") or (p1 == "GREEN" and p2 == "RED") then
-        return "y"  -- YELLOW
-    elseif (p1 == "RED" and p2 == "BLUE") or (p1 == "BLUE" and p2 == "RED") then
-        return "m"  -- MAGENTA
-    elseif (p1 == "GREEN" and p2 == "BLUE") or (p1 == "BLUE" and p2 == "GREEN") then
-        return "c"  -- CYAN
-    end
-    
-    return nil
 end
 
 function ColorSystem.addColor(weapon, colorChoice)
@@ -187,10 +193,23 @@ function ColorSystem.applyEffects(weapon)
     weapon.pierceCount = 1
     weapon.spreadAngle = 0
     
-    weapon.secondarySpreadChance = 0
-    weapon.secondaryBounceChance = 0
-    weapon.secondaryPierceChance = 0
-    weapon.secondaryGuaranteedBullets = 0
+    weapon.rootChance = 0
+    weapon.rootDuration = 0
+    weapon.explodeChance = 0
+    weapon.explodeRadius = 0
+    weapon.explodeDamage = 0
+    weapon.dotChance = 0
+    weapon.dotDuration = 0
+    weapon.dotDamage = 0
+
+    weapon.yellowActive = false
+    weapon.magentaActive = false
+    weapon.cyanActive = false
+    weapon.magentaSpecialChance = 0
+    weapon.cyanSpecialChance = 0
+    weapon.frostDamage = 0
+    weapon.frostRadius = 0
+    weapon.frostSlowPercent = 0
     
     -- Apply RED traits (Multi-target aggression)
     local redLevel = ColorSystem.primary.RED.level
@@ -205,13 +224,9 @@ function ColorSystem.applyEffects(weapon)
         weapon.damage = weapon.damage + (redLevel * 2)
         weapon.fireRate = weapon.fireRate - (redLevel * 0.001)  -- Slightly faster
         
-        -- Spread angle based on projectile count
-        local maxProj = weapon.guaranteedBullets + 2
-        if maxProj <= 6 then
-            weapon.spreadAngle = (math.pi / 6) * maxProj  -- 30° to 180°
-        else
-            weapon.spreadAngle = math.pi * 2  -- Full circle
-        end
+        -- Keep red volleys centered on the target line.
+        -- Two projectiles are fanned 30 degrees apart, not widened by level.
+        weapon.spreadAngle = math.pi / 6
     end
     
     -- Apply GREEN traits (Adaptation/seeking)
@@ -225,7 +240,6 @@ function ColorSystem.applyEffects(weapon)
             weapon.bounceChance = greenLevel * 0.1
         else
             weapon.bounceChance = 1.0
-            weapon.bounceChance = weapon.bounceCount + math.floor((greenLevel - 10)/10)
         end
         
         weapon.damage = weapon.damage + (greenLevel * 3)
@@ -242,7 +256,7 @@ function ColorSystem.applyEffects(weapon)
         if blueLevel <= 10 then
             weapon.pierceChance = blueLevel * 0.1
         else
-            weapon.pierceChance = 1.0 + ((blueLevel - 10) * 0.05)  -- Over 100%
+            weapon.pierceChance = 1.0
         end
         
         weapon.damage = weapon.damage + (blueLevel * 3)
@@ -252,13 +266,8 @@ function ColorSystem.applyEffects(weapon)
     -- Apply YELLOW traits (RED + GREEN = Electric/velocity)
     local yellowLevel = ColorSystem.secondary.YELLOW.level
     if yellowLevel > 0 and ColorSystem.secondary.YELLOW.unlocked then
-        -- YELLOW inherits RED + GREEN traits AND adds special effect
-        -- Special: X% chance for electric blast wave
-        weapon.yellowSpecialChance = yellowLevel * 0.01  -- 1% per level
-        weapon.electricDamage = weapon.damage * 0.5
-        weapon.electricRadius = 80
-        
-        -- Speed boost (YELLOW identity)
+        -- YELLOW inherits RED spread and GREEN bounce through the primary traits.
+        -- Its secondary identity is velocity, not a separate projectile override.
         weapon.fireRate = weapon.fireRate * 0.85  -- 15% faster
         weapon.yellowActive = true
     end
@@ -266,9 +275,13 @@ function ColorSystem.applyEffects(weapon)
     -- Apply MAGENTA traits (RED + BLUE = Arcane/time)
     local magentaLevel = ColorSystem.secondary.MAGENTA.level
     if magentaLevel > 0 and ColorSystem.secondary.MAGENTA.unlocked then
-        -- MAGENTA inherits RED + BLUE traits AND adds time distortion
-        -- Special: X% chance for time distortion burst
-        weapon.magentaSpecialChance = magentaLevel * 0.01  -- 1% per level
+        -- MAGENTA inherits RED spread and BLUE pierce through the primary traits.
+        -- Its secondary identity is unstable burst damage.
+        local specialChance = math.min(magentaLevel * 0.01, 1.0)
+        weapon.magentaSpecialChance = specialChance
+        weapon.explodeChance = specialChance
+        weapon.explodeRadius = 80 + (magentaLevel * 4)
+        weapon.explodeDamage = weapon.damage * (0.45 + math.min(magentaLevel, 20) * 0.01)
         weapon.timeDistortionDuration = 2.0
         weapon.timeDistortionSlowPercent = 0.5
         
@@ -279,9 +292,13 @@ function ColorSystem.applyEffects(weapon)
     -- Apply CYAN traits (GREEN + BLUE = Frost/slow)
     local cyanLevel = ColorSystem.secondary.CYAN.level
     if cyanLevel > 0 and ColorSystem.secondary.CYAN.unlocked then
-        -- CYAN inherits GREEN + BLUE traits AND adds frost nova
-        -- Special: X% chance for frost nova explosion
-        weapon.cyanSpecialChance = cyanLevel * 0.01  -- 1% per level
+        -- CYAN inherits GREEN bounce and BLUE pierce through the primary traits.
+        -- Its secondary identity is frost damage over time.
+        local specialChance = math.min(cyanLevel * 0.01, 1.0)
+        weapon.cyanSpecialChance = specialChance
+        weapon.dotChance = specialChance
+        weapon.dotDuration = 2.0 + math.min(cyanLevel, 20) * 0.1
+        weapon.dotDamage = weapon.damage * 0.18
         weapon.frostDamage = weapon.damage * 0.6
         weapon.frostRadius = 100
         weapon.frostSlowPercent = 0.4
@@ -332,7 +349,7 @@ function ColorSystem.getDominantColor()
     end
     
     -- Check secondaries (they override if active)
-    local bestSec, bestLevel = nill, 0
+    local bestSec, bestLevel = nil, 0
     for color, data in pairs(ColorSystem.secondary) do
         if data.unlocked and data.level > bestLevel then
             bestSec = color
@@ -356,6 +373,25 @@ function ColorSystem.getColorCounts()
     }
 end
 
+function ColorSystem.getActiveColorNames()
+    local colors = {}
+
+    for _, color in ipairs({"YELLOW", "MAGENTA", "CYAN"}) do
+        local data = ColorSystem.secondary[color]
+        if data.unlocked and data.level > 0 then
+            table.insert(colors, color)
+        end
+    end
+
+    for _, color in ipairs({"RED", "GREEN", "BLUE"}) do
+        if ColorSystem.primary[color].level > 0 then
+            table.insert(colors, color)
+        end
+    end
+
+    return colors
+end
+
 -- Legacy compatibility functions
 function ColorSystem.getCurrentPath()
     local p1 = ColorSystem.commitment.primary1
@@ -374,7 +410,13 @@ function ColorSystem.getColorName(colorCode)
         b = "Blue",
         y = "Yellow",
         m = "Magenta",
-        c = "Cyan"
+        c = "Cyan",
+        RED = "Red",
+        GREEN = "Green",
+        BLUE = "Blue",
+        YELLOW = "Yellow",
+        MAGENTA = "Magenta",
+        CYAN = "Cyan"
     }
     return names[colorCode] or "Unknown"
 end

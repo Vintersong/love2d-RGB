@@ -3,6 +3,17 @@
 -- Extracted from Player.lua for better separation of concerns
 
 local PlayerCombat = {}
+local MathUtils = require("src.systems.MathUtils")
+
+local function getCombatState(player)
+    player.combatState = player.combatState or {
+        nearestEnemy = player.nearestEnemy,
+        projectiles = player.projectiles or {}
+    }
+    player.combatState.projectiles = player.combatState.projectiles or player.projectiles or {}
+    player.projectiles = player.combatState.projectiles  -- Compatibility shim
+    return player.combatState
+end
 
 -- Constants
 local SCREEN_WIDTH = 1920
@@ -71,11 +82,14 @@ function PlayerCombat.autoFire(player, enemies, boss)
         return
     end
 
+    local combatState = getCombatState(player)
+
     -- Find nearest enemy (including boss if provided)
     local nearestEnemy = PlayerCombat.findNearestEnemy(player, enemies, boss)
 
     -- Store for visual indicator
-    player.nearestEnemy = nearestEnemy
+    combatState.nearestEnemy = nearestEnemy
+    player.nearestEnemy = combatState.nearestEnemy  -- Compatibility shim
 
     -- Auto-fire at nearest enemy
     if nearestEnemy then
@@ -100,7 +114,7 @@ function PlayerCombat.autoFire(player, enemies, boss)
             projectiles = PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY, enemies)
 
             for _, proj in ipairs(projectiles) do
-                table.insert(player.projectiles, proj)
+                table.insert(combatState.projectiles, proj)
             end
         end
     end
@@ -187,8 +201,10 @@ end
 
 -- Update all player projectiles
 function PlayerCombat.updateProjectiles(player, dt, enemies)
-    for i = #player.projectiles, 1, -1 do
-        local proj = player.projectiles[i]
+    local combatState = getCombatState(player)
+
+    for i = #combatState.projectiles, 1, -1 do
+        local proj = combatState.projectiles[i]
 
         -- Initialize properties if they don't exist
         if not proj.trail then
@@ -239,7 +255,7 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
                 proj.hasSplit = true
                 PlayerCombat.splitProjectile(player, proj, i)
                 -- Remove original after splitting
-                table.remove(player.projectiles, i)
+                table.remove(combatState.projectiles, i)
                 goto continue
             end
         end
@@ -285,7 +301,7 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
         end
 
         if shouldRemove then
-            table.remove(player.projectiles, i)
+            table.remove(combatState.projectiles, i)
         end
 
         ::continue::
@@ -294,6 +310,8 @@ end
 
 -- Split a projectile into multiple smaller projectiles
 function PlayerCombat.splitProjectile(player, parentProj, index)
+    local combatState = getCombatState(player)
+
     -- Spawn PRISM split VFX
     local VFXLibrary = require("src.systems.VFXLibrary")
     VFXLibrary.spawnArtifactEffect("PRISM", parentProj.x, parentProj.y)
@@ -301,7 +319,7 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
     -- Create split projectiles in a spread pattern
     local splitCount = parentProj.splitCount or 2
     local angleStep = (math.pi / 6) / (splitCount - 1)  -- ±15° spread
-    local baseAngle = math.atan(parentProj.vy, parentProj.vx)
+    local baseAngle = MathUtils.atan2(parentProj.vy, parentProj.vx)
 
     for i = 1, splitCount do
         local offset = (i - 1) / (splitCount - 1) - 0.5  -- -0.5 to 0.5
@@ -345,18 +363,32 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
             hasSplit = true
         }
 
-        table.insert(player.projectiles, newProj)
+        table.insert(combatState.projectiles, newProj)
     end
 end
 
 -- Get aim angle to nearest enemy
 function PlayerCombat.getAimAngle(player)
-    if player.nearestEnemy then
+    local combatState = getCombatState(player)
+    local nearestEnemy = combatState.nearestEnemy or player.nearestEnemy
+    if nearestEnemy then
         local centerX = player.x + player.width / 2
         local centerY = player.y + player.height / 2
+<<<<<<< ours
         local targetX = player.nearestEnemy.x + player.nearestEnemy.width / 2
         local targetY = player.nearestEnemy.y + player.nearestEnemy.height / 2
+        return MathUtils.angleBetween(centerX, centerY, targetX, targetY)
+=======
+        local targetX, targetY
+        if nearestEnemy.width and nearestEnemy.height then
+            targetX = nearestEnemy.x + nearestEnemy.width / 2
+            targetY = nearestEnemy.y + nearestEnemy.height / 2
+        else
+            targetX = nearestEnemy.x
+            targetY = nearestEnemy.y
+        end
         return math.atan(targetY - centerY, targetX - centerX)
+>>>>>>> theirs
     end
     return 0
 end

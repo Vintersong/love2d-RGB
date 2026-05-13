@@ -2,6 +2,13 @@
 -- Theme: Projectiles that curve, orbit, and gain power through unique trajectories
 
 local RefractionArtifact = {}
+local MathUtils = require("src.systems.MathUtils")
+
+local function getShotAngleAndOrigin(projectiles, targetX, targetY, player)
+    local originX = projectiles[1] and projectiles[1].x or (player.x + (player.width or 0) / 2)
+    local originY = projectiles[1] and projectiles[1].y or (player.y + (player.height or 0) / 2)
+    return MathUtils.angleBetween(originX, originY, targetX, targetY), originX, originY
+end
 
 -- RED REFRACTION: Spiral projectile with rotating arms
 RefractionArtifact.RED = {
@@ -16,13 +23,13 @@ RefractionArtifact.RED = {
         local chance = RefractionArtifact.RED.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             local armCount = 2 + math.floor(level / 10)  -- 2-5 arms
             
             -- Center projectile
             local center = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 400,
                 vy = math.sin(baseAngle) * 400,
                 damage = projectiles[1].damage * 0.8,
@@ -79,13 +86,13 @@ RefractionArtifact.GREEN = {
         local chance = RefractionArtifact.GREEN.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             local satelliteCount = 2 + math.floor(level / 10)  -- 2-5 satellites
             
             -- Core projectile (seeking)
             local core = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 350,
                 vy = math.sin(baseAngle) * 350,
                 damage = projectiles[1].damage,
@@ -185,11 +192,11 @@ RefractionArtifact.BLUE = {
         local chance = RefractionArtifact.BLUE.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             local proj = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 400,
                 vy = math.sin(baseAngle) * 400,
                 damage = projectiles[1].damage,
@@ -243,12 +250,12 @@ RefractionArtifact.YELLOW = {
         local chance = RefractionArtifact.YELLOW.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             -- Combine spiral (RED) and orbital (GREEN)
             local proj = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 450,
                 vy = math.sin(baseAngle) * 450,
                 damage = projectiles[1].damage * 0.9,
@@ -370,12 +377,12 @@ RefractionArtifact.MAGENTA = {
         local chance = RefractionArtifact.MAGENTA.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             -- Spiral where each arm accumulates damage independently
             local proj = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 400,
                 vy = math.sin(baseAngle) * 400,
                 damage = projectiles[1].damage * 0.7,
@@ -445,12 +452,12 @@ RefractionArtifact.CYAN = {
         local chance = RefractionArtifact.CYAN.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             -- Orbital with shared damage multiplier
             local proj = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 350,
                 vy = math.sin(baseAngle) * 350,
                 damage = projectiles[1].damage,

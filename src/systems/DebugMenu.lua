@@ -1,6 +1,6 @@
 -- Debug Menu System
 -- Hierarchical menu system (like phone menus)
--- Controlled by GameConfig.debugMode
+-- Controlled by Config.debug.enabled through GameConfig.debugMode
 
 local DebugMenu = {}
 
@@ -53,6 +53,7 @@ function DebugMenu.showHelp()
         print("  3 - Add PRISM +1")
         print("  4 - Add HALO +1")
         print("  5 - Add DIFFUSION +1")
+        print("  6 - Add SUPERNOVA +1")
         print("  0 - Add +3 to last selected artifact")
         print("")
         print("ENEMY MENU (Press 3):")
@@ -84,7 +85,7 @@ function DebugMenu.showMenuState()
     if DebugMenu.currentMenu == "color" then
         print("[DEBUG MENU] COLOR - Pick: 1=RED 2=GREEN 3=BLUE 4=YELLOW 5=MAGENTA 6=CYAN 0=+10")
     elseif DebugMenu.currentMenu == "artifact" then
-        print("[DEBUG MENU] ARTIFACT - Pick: 1=LENS 2=MIRROR 3=PRISM 4=HALO 5=DIFFUSION 0=+3")
+        print("[DEBUG MENU] ARTIFACT - Pick: 1=LENS 2=MIRROR 3=PRISM 4=HALO 5=DIFFUSION 6=SUPERNOVA 0=+3")
     elseif DebugMenu.currentMenu == "enemy" then
         print("[DEBUG MENU] ENEMY - Pick: 1=Basic 2=Fast 3=Tank 4=Boss 9=Kill All")
     elseif DebugMenu.currentMenu == "player" then
@@ -96,6 +97,7 @@ end
 
 -- Handle key presses
 function DebugMenu.keypressed(key, player, enemies, musicReactor)
+    DebugMenu.enabled = GameConfig.isDebugMode()
     if not DebugMenu.enabled then return end
     
     local ColorSystem = require("src.systems.ColorSystem")
@@ -216,6 +218,10 @@ function DebugMenu.keypressed(key, player, enemies, musicReactor)
             ArtifactManager.collect("DIFFUSION", player.weapon, player)
             DebugMenu.lastArtifactChoice = "DIFFUSION"
             print("[ARTIFACT] DIFFUSION Level: " .. ArtifactManager.getLevel("DIFFUSION"))
+        elseif key == "6" then
+            ArtifactManager.collect("SUPERNOVA", player.weapon, player)
+            DebugMenu.lastArtifactChoice = "SUPERNOVA"
+            print("[ARTIFACT] SUPERNOVA Level: " .. ArtifactManager.getLevel("SUPERNOVA"))
         elseif key == "0" then
             -- Add +3 to last selected
             for i = 1, 3 do
@@ -363,6 +369,7 @@ end
 
 -- Draw debug overlay
 function DebugMenu.draw(player)
+    DebugMenu.enabled = GameConfig.isDebugMode()
     if not DebugMenu.enabled then return end
     
     local ColorSystem = require("src.systems.ColorSystem")

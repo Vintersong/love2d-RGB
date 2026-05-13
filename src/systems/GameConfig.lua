@@ -3,6 +3,7 @@
 -- Replaces global variable usage for better encapsulation
 
 local GameConfig = {}
+local Config = require("src.Config")
 
 -- Screen dimensions (constant for this game)
 GameConfig.screenWidth = 1920
@@ -11,8 +12,8 @@ GameConfig.screenHeight = 1080
 -- Music reactor instance (set during initialization)
 GameConfig.musicReactor = nil
 
--- Debug mode (can be toggled via environment or config)
-GameConfig.debugMode = true  -- Set to false for production builds
+-- Debug mode follows the canonical static config unless explicitly changed.
+GameConfig.debugMode = Config.debug.enabled
 
 -- Boss system color (used for visual effects)
 GameConfig.currentShipColor = nil

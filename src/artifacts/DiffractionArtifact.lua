@@ -2,6 +2,13 @@
 -- Theme: Explosive bursts, cones, and radial patterns
 
 local DiffractionArtifact = {}
+local MathUtils = require("src.systems.MathUtils")
+
+local function getShotAngleAndOrigin(projectiles, targetX, targetY, player)
+    local originX = projectiles[1] and projectiles[1].x or (player.x + (player.width or 0) / 2)
+    local originY = projectiles[1] and projectiles[1].y or (player.y + (player.height or 0) / 2)
+    return MathUtils.angleBetween(originX, originY, targetX, targetY), originX, originY
+end
 
 -- RED DIFFRACTION: Lateral cone spread (left + right)
 DiffractionArtifact.RED = {
@@ -16,7 +23,7 @@ DiffractionArtifact.RED = {
         local chance = DiffractionArtifact.RED.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             local result = {}
             
             -- Main shot
@@ -32,8 +39,8 @@ DiffractionArtifact.RED = {
                 local angle = baseAngle - math.pi/4 - spreadOffset
                 
                 table.insert(result, {
-                    x = player.x,
-                    y = player.y,
+                    x = originX,
+                    y = originY,
                     vx = math.cos(angle) * 350,
                     vy = math.sin(angle) * 350,
                     damage = projectiles[1].damage * 0.7,
@@ -51,8 +58,8 @@ DiffractionArtifact.RED = {
                 local angle = baseAngle + math.pi/4 + spreadOffset
                 
                 table.insert(result, {
-                    x = player.x,
-                    y = player.y,
+                    x = originX,
+                    y = originY,
                     vx = math.cos(angle) * 350,
                     vy = math.sin(angle) * 350,
                     damage = projectiles[1].damage * 0.7,
@@ -173,11 +180,11 @@ DiffractionArtifact.BLUE = {
         local chance = DiffractionArtifact.BLUE.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             local proj = {
-                x = player.x,
-                y = player.y,
+                x = originX,
+                y = originY,
                 vx = math.cos(baseAngle) * 400,
                 vy = math.sin(baseAngle) * 400,
                 damage = projectiles[1].damage,
@@ -337,7 +344,7 @@ DiffractionArtifact.MAGENTA = {
         local chance = DiffractionArtifact.MAGENTA.getChance(level)
         
         if math.random() < chance then
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             local result = {}
             
             local coneCount = 3 + math.floor(level / 10)
@@ -348,8 +355,8 @@ DiffractionArtifact.MAGENTA = {
                 local angle = baseAngle + angleOffset
                 
                 local coneProj = {
-                    x = player.x,
-                    y = player.y,
+                    x = originX,
+                    y = originY,
                     vx = math.cos(angle) * 380,
                     vy = math.sin(angle) * 380,
                     damage = projectiles[1].damage * 0.8,

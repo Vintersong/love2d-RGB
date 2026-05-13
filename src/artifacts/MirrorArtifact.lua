@@ -2,6 +2,7 @@
 -- Color-specific behaviors for MIRROR artifact
 
 local MirrorArtifact = {}
+local MathUtils = require("src.systems.MathUtils")
 
 -- RED MIRROR: Fire projectiles from both sides
 MirrorArtifact.RED = {
@@ -21,7 +22,7 @@ MirrorArtifact.RED = {
             
             for _, proj in ipairs(projectiles) do
                 -- Calculate perpendicular angles (left and right)
-                local baseAngle = math.atan(proj.vy, proj.vx)
+                local baseAngle = MathUtils.atan2(proj.vy, proj.vx)
                 local leftAngle = baseAngle + math.pi/2
                 local rightAngle = baseAngle - math.pi/2
                 
@@ -158,7 +159,7 @@ MirrorArtifact.YELLOW = {
             local duplicates = {}
             
             for _, proj in ipairs(projectiles) do
-                local baseAngle = math.atan(proj.vy, proj.vx)
+                local baseAngle = MathUtils.atan2(proj.vy, proj.vx)
                 local leftAngle = baseAngle + math.pi/2
                 local rightAngle = baseAngle - math.pi/2
                 
@@ -266,7 +267,7 @@ MirrorArtifact.CYAN = {
             local duplicates = {}
             
             for _, proj in ipairs(projectiles) do
-                local baseAngle = math.atan(proj.vy, proj.vx)
+                local baseAngle = MathUtils.atan2(proj.vy, proj.vx)
                 
                 -- Create 5 projectiles in a wall formation
                 for i = -2, 2 do

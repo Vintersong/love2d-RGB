@@ -77,18 +77,25 @@ function GameOverState:drawGameOverScreen()
 end
 
 function GameOverState:keypressed(key)
-    local Gamestate = require("libs.hump-master.gamestate")
+    local StateManager = require("src.systems.StateManager")
 
     if key == "escape" then
         love.event.quit()
     elseif key == "c" then
+        local CollisionSystem = require("src.systems.CollisionSystem")
+        local Config = require("src.Config")
+        CollisionSystem.init(Config.gameplay.cellSize)
+
         -- Continue in endless mode (heal player, keep level/upgrades)
         self.player.hp = self.player.maxHp
         self.player.invulnerable = false
-        self.player.invulnerableTimer = 0
+        self.player.invulnerableTime = 0
 
         -- Clear enemies and powerups
         local PlayingState = require("src.states.PlayingState")
+        local BossSystem = require("src.systems.BossSystem")
+        BossSystem.reset()
+
         PlayingState.player = self.player
         PlayingState.enemies = {}
         PlayingState.xpOrbs = {}
@@ -98,27 +105,37 @@ function GameOverState:keypressed(key)
         PlayingState.musicReactor = self.musicReactor
 
         print("[ENDLESS MODE] Continuing from level " .. self.player.level)
-        Gamestate.switch(PlayingState)
+        StateManager.switch("Playing")
     elseif key == "r" then
         -- Restart game
         self:restartGame()
-        local PlayingState = require("src.states.PlayingState")
-        Gamestate.switch(PlayingState)
+        StateManager.switch("Playing")
     end
 end
 
 function GameOverState:restartGame()
+<<<<<<< ours
+    local PlayingState = require("src.states.PlayingState")
+    PlayingState.startNewRun()
+=======
     local Player = require("src.entities.Player")
     local Weapon = require("src.Weapon")
     local ColorSystem = require("src.systems.ColorSystem")
     local SynergySystem = require("src.systems.SynergySystem")
     local ArtifactManager = require("src.systems.ArtifactManager")
+    local BossSystem = require("src.systems.BossSystem")
     local PlayingState = require("src.states.PlayingState")
+
+    if self.player and self.player.destroy then
+        self.player:destroy()
+        self.player = nil
+    end
 
     -- Reset all systems
     ColorSystem.init()
     SynergySystem.reset()
     ArtifactManager.reset()
+    BossSystem.reset()
 
     -- Create new player
     PlayingState.player = Player(512, 360, Weapon())
@@ -129,6 +146,7 @@ function GameOverState:restartGame()
     PlayingState.bossProjectiles = {}
     PlayingState.gameTime = 0
     PlayingState.enemyKillCount = 0
+>>>>>>> theirs
 end
 
 return GameOverState

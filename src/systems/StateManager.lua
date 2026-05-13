@@ -7,14 +7,20 @@ local StateManager = {}
 -- State registry with metadata
 StateManager.states = {}
 StateManager.currentState = nil
+StateManager.stateStack = {}
 StateManager.config = {
     enabledStates = {},  -- States available for use
-    testMode = false     -- When true, only enabled states can be switched to
+    testMode = false     -- Report/debug flag for focused state testing
 }
 
 -- Initialize the StateManager
 function StateManager.init()
     print("[StateManager] Initializing state management system")
+    StateManager.states = {}
+    StateManager.stateStack = {}
+    StateManager.currentState = nil
+    StateManager.config.enabledStates = {}
+    StateManager.config.testMode = false
 end
 
 -- Register a state with metadata
@@ -81,16 +87,16 @@ function StateManager.isEnabled(name)
     return StateManager.states[name] and StateManager.states[name].enabled
 end
 
--- Enable test mode (only enabled states can be switched to)
+-- Enable test mode reporting
 function StateManager.enableTestMode()
     StateManager.config.testMode = true
-    print("[StateManager] Test mode ENABLED - only enabled states can be switched to")
+    print("[StateManager] Test mode ENABLED")
 end
 
--- Disable test mode (all registered states can be switched to)
+-- Disable test mode reporting
 function StateManager.disableTestMode()
     StateManager.config.testMode = false
-    print("[StateManager] Test mode DISABLED - all states available")
+    print("[StateManager] Test mode DISABLED")
 end
 
 -- Validate if a state switch is allowed
@@ -100,9 +106,8 @@ function StateManager.canSwitchTo(name)
         return false
     end
 
-    -- In test mode, only enabled states are allowed
-    if StateManager.config.testMode and not StateManager.states[name].enabled then
-        print(string.format("[StateManager] ERROR: State '%s' is disabled in test mode", name))
+    if not StateManager.states[name].enabled then
+        print(string.format("[StateManager] ERROR: State '%s' is disabled", name))
         return false
     end
 
@@ -126,6 +131,62 @@ function StateManager.setCurrent(name)
 
     StateManager.currentState = name
     print(string.format("[StateManager] Switched to state: %s", name))
+    return true
+end
+
+function StateManager.switch(name, data)
+    if not StateManager.canSwitchTo(name) then
+        return false
+    end
+
+    local state = StateManager.getState(name)
+    if not state then
+        return false
+    end
+
+    local Gamestate = require("libs.hump-master.gamestate")
+
+    while #StateManager.stateStack > 1 do
+        table.remove(StateManager.stateStack)
+        Gamestate.pop()
+    end
+
+    StateManager.currentState = name
+    print(string.format("[StateManager] Switched to state: %s", name))
+    StateManager.stateStack = {name}
+    Gamestate.switch(state, data)
+    return true
+end
+
+function StateManager.push(name, data)
+    if not StateManager.setCurrent(name) then
+        return false
+    end
+
+    local state = StateManager.getState(name)
+    if not state then
+        return false
+    end
+
+    table.insert(StateManager.stateStack, name)
+    local Gamestate = require("libs.hump-master.gamestate")
+    Gamestate.push(state, data)
+    return true
+end
+
+function StateManager.pop(...)
+    if #StateManager.stateStack <= 1 then
+        print("[StateManager] WARNING: Cannot pop root state")
+        return false
+    end
+
+    table.remove(StateManager.stateStack)
+    local previousName = StateManager.stateStack[#StateManager.stateStack]
+    StateManager.currentState = previousName
+    print(string.format("[StateManager] Returned to state: %s", previousName))
+
+    local Gamestate = require("libs.hump-master.gamestate")
+    Gamestate.pop(...)
     return true
 end
 

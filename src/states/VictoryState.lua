@@ -67,8 +67,11 @@ function VictoryState:drawVictoryScreen()
     y = y + 80
 
     -- Final build name
-    local ColorTree = require("src.data.ColorTree")
-    local pathDesc = ColorTree.getPathDescription(ColorSystem.colorHistory or {})
+    local pathDesc = ColorSystem.getCurrentPath()
+    local dominantColor = ColorSystem.getDominantColor()
+    if dominantColor then
+        pathDesc = pathDesc .. " / Dominant " .. dominantColor
+    end
     love.graphics.setColor(0, 0.94, 1)
     love.graphics.print("Final Build:", centerX - 120, y, 0, 1.5, 1.5)
     love.graphics.print(pathDesc, centerX - 120, y + 40, 0, 1.5, 1.5)
@@ -76,6 +79,12 @@ function VictoryState:drawVictoryScreen()
 
     -- Color path
     local history = ColorSystem.colorHistory or {}
+    local displayHistory = {}
+    for _, colorCode in ipairs(history) do
+        table.insert(displayHistory, ColorSystem.getColorName(colorCode))
+    end
+    history = displayHistory
+
     if #history > 0 then
         love.graphics.setColor(1, 1, 1)
         love.graphics.print("Color Path:", centerX - 120, y, 0, 1.5, 1.5)
@@ -112,30 +121,42 @@ function VictoryState:drawVictoryScreen()
 end
 
 function VictoryState:keypressed(key)
-    local Gamestate = require("libs.hump-master.gamestate")
+    local StateManager = require("src.systems.StateManager")
 
     if key == "escape" then
         love.event.quit()
     elseif key == "space" then
         -- Restart game
         self:restartGame()
-        local PlayingState = require("src.states.PlayingState")
-        Gamestate.switch(PlayingState)
+        StateManager.switch("Playing")
     end
 end
 
 function VictoryState:restartGame()
+<<<<<<< ours
+    local PlayingState = require("src.states.PlayingState")
+    PlayingState.startNewRun()
+=======
     local Player = require("src.entities.Player")
     local Weapon = require("src.Weapon")
     local ColorSystem = require("src.systems.ColorSystem")
     local SynergySystem = require("src.systems.SynergySystem")
     local ArtifactManager = require("src.systems.ArtifactManager")
+    local BossSystem = require("src.systems.BossSystem")
     local PlayingState = require("src.states.PlayingState")
+
+    if self.player and self.player.destroy then
+        self.player:destroy()
+        self.player = nil
+    elseif PlayingState.player and PlayingState.player.destroy then
+        PlayingState.player:destroy()
+    end
 
     -- Reset all systems
     ColorSystem.init()
     SynergySystem.reset()
     ArtifactManager.reset()
+    BossSystem.reset()
 
     -- Create new player
     PlayingState.player = Player(512, 360, Weapon())
@@ -146,6 +167,7 @@ function VictoryState:restartGame()
     PlayingState.bossProjectiles = {}
     PlayingState.gameTime = 0
     PlayingState.enemyKillCount = 0
+>>>>>>> theirs
 end
 
 return VictoryState

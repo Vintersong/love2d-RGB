@@ -4,6 +4,7 @@
 
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
+local MathUtils = require("src.systems.MathUtils")
 local Drop = class{__includes = Entity}
 
 function Drop:init(x, y, value, type)
@@ -57,7 +58,7 @@ function Drop:update(dt, player)
 
         -- Move toward player if magnetized
         if self.magnetized and distance > 5 then
-            local angle = math.atan(dy, dx)
+            local angle = MathUtils.atan2(dy, dx)
             self.vx = math.cos(angle) * self.magnetSpeed
             self.vy = math.sin(angle) * self.magnetSpeed
         elseif self.magnetized and distance <= 5 then

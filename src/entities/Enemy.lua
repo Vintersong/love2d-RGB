@@ -2,6 +2,9 @@ local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 local Enemy = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
+local MathUtils = require("src.systems.MathUtils")
+local BehaviorSelector = require("src.systems.BehaviorSelector")
+local EnemyBehaviors = require("src.data.EnemyBehaviors")
 
 -- Helper function: Lerp between two colors
 local function lerpColor(color1, color2, t)
@@ -51,6 +54,36 @@ local function getRingCount(playerLevel)
     return math.min(math.floor((playerLevel - 1) / 40) + 1, 4)
 end
 
+local function defaultBehaviorProfile(enemyType)
+    local profile = {
+        movement = "chase_player",
+        attacks = {"passive", "aimed_shot"},
+        modifiers = {"prestige_rings"},
+    }
+
+    if enemyType == "BASS" then
+        profile.movement = "descend_straight"
+        profile.attacks = {"passive", "bass_pulse", "aimed_shot"}
+        table.insert(profile.modifiers, "tank_scaling")
+    elseif enemyType == "TREBLE" then
+        profile.movement = "strafe_player"
+        profile.attacks = {"passive", "aimed_shot", "spread_pepper", "warning_charge"}
+        table.insert(profile.modifiers, "scout_scaling")
+    elseif enemyType == "MIDS" then
+        profile.movement = "float_wave"
+        profile.attacks = {"passive", "aimed_shot", "spread_pepper"}
+    elseif enemyType == "formation" then
+        profile.movement = "formation_sway"
+        profile.attacks = {"passive", "aimed_shot"}
+    elseif enemyType == "flanker" then
+        profile.movement = "dash_probe"
+        profile.attacks = {"passive", "warning_charge", "aimed_shot"}
+        table.insert(profile.modifiers, "scout_scaling")
+    end
+
+    return profile
+end
+
 -- Draw outer rings for higher-level enemies using ShapeLibrary
 -- Each ring represents the color progression for that prestige tier
 -- NOTE: x, y should be 0, 0 when drawing within a transformed coordinate system
@@ -84,7 +117,15 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.pattern = "descend_straight"  -- Default pattern
     self.formationData = formationData or {}
     self.dead = false
+    self._deathRewarded = false
     self.age = 0
+    self.projectiles = {}
+    self.attackCooldown = 1.0 + math.random() * 2.0
+    self._behaviorCooldowns = {}
+    self._currentMovementBehavior = nil
+    self.behaviorProfile = self.formationData.behaviorProfile or defaultBehaviorProfile(self.enemyType)
+    self.formationRole = self.formationData.role
+    self.formationName = self.formationData.formation
     
     -- Follow player after delay
     self.followDelay = 3.0  -- Start following after 3 seconds
@@ -100,6 +141,7 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.baseColor = {1, 1, 1}  -- White base for all enemies
     self.overlayColor = levelColor  -- Level-based vaporwave color
     self.overlayAlpha = 0.5
+    self.projectileColor = levelColor
     
     -- Type-specific properties
     if self.enemyType == "BASS" then
@@ -197,16 +239,28 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         self.damage = math.floor(self.damage * statMultiplier)
         self.expReward = math.floor(self.expReward * statMultiplier)
     end
+
+    if self.behaviorProfile.modifiers then
+        for _, behaviorId in ipairs(self.behaviorProfile.modifiers) do
+            local behavior = EnemyBehaviors.getById(behaviorId)
+            if behavior and behavior.execute then
+                behavior.execute(self, {})
+            end
+        end
+    end
     
     -- Initial velocity based on spawn side (for flankers)
     self.vx = self.formationData.vx or 0
     self.vy = self.formationData.vy or 0
 end
 
-function Enemy:update(dt, playerX, playerY)
+function Enemy:update(dt, playerX, playerY, context)
     if self.dead then return end
     
     self.age = self.age + dt
+    context = context or {}
+    context.playerX = playerX
+    context.playerY = playerY
     
     -- Handle activation: enemies spawn above screen and become active after moving down
     if self.inactive then
@@ -221,25 +275,83 @@ function Enemy:update(dt, playerX, playerY)
         -- Don't update other behavior while inactive
         return
     end
-    
-    -- Check if should start following player
-    if not self.isFollowing and self.age >= self.followDelay then
-        self.isFollowing = true
+
+    BehaviorSelector.updateCooldowns(self, dt)
+    local behaviorContext = BehaviorSelector.buildContext(self, context)
+
+    for i = #self.projectiles, 1, -1 do
+        local proj = self.projectiles[i]
+        proj.x = proj.x + proj.vx * dt
+        proj.y = proj.y + proj.vy * dt
+        proj.lifetime = (proj.lifetime or 5) - dt
+        if proj.lifetime <= 0
+            or proj.x < -50 or proj.x > 1970
+            or proj.y < -50 or proj.y > 1130 then
+            table.remove(self.projectiles, i)
+        end
     end
-    
+
+    if self.chargeWarning then
+        self.chargeWarning = self.chargeWarning - dt
+        if self.chargeWarning <= 0 then
+            self.chargeWarning = nil
+        end
+    end
+
     -- Handle marching enemies (from GridAttackSystem)
     if self.isMarchingEnemy and self.marchTarget then
         self:marchTowardTarget(dt)
-    -- If following, move toward player
-    elseif self.isFollowing then
-        self:followPlayer(dt, playerX, playerY)
     else
-        -- Use original pattern-based movement
-        if self.enemyType == "formation" then
-            self:updateFormationMovement(dt, playerX, playerY)
-        elseif self.enemyType == "flanker" then
-            self:updateFlankerMovement(dt, playerX, playerY)
+        if self.pattern == "formation_hold" then
+            self.vx = 0
+            self.vy = 0
+        else
+            local movement = self.behaviorProfile and self.behaviorProfile.movement
+            local movementBehavior = movement and EnemyBehaviors.getById(movement)
+            if not movementBehavior then
+                movementBehavior = BehaviorSelector.select(
+                    EnemyBehaviors.listByKind("movement"),
+                    "movement",
+                    "enemy",
+                    self,
+                    behaviorContext
+                )
+            end
+
+            if movementBehavior then
+                BehaviorSelector.setMovement(self, movementBehavior, behaviorContext)
+                if self._currentMovementBehavior and self._currentMovementBehavior.update then
+                    self._currentMovementBehavior.update(self, dt, behaviorContext)
+                end
+            elseif self.isFollowing then
+                self:followPlayer(dt, playerX, playerY)
+            elseif self.enemyType == "formation" then
+                self:updateFormationMovement(dt, playerX, playerY)
+            elseif self.enemyType == "flanker" then
+                self:updateFlankerMovement(dt, playerX, playerY)
+            end
         end
+    end
+
+    self.attackCooldown = self.attackCooldown - dt
+    if self.attackCooldown <= 0 then
+        local allowedIds = {}
+        local attacks = (self.behaviorProfile and self.behaviorProfile.attacks) or {"passive"}
+        for _, id in ipairs(attacks) do
+            allowedIds[id] = true
+        end
+
+        local attackBehavior = BehaviorSelector.select(
+            EnemyBehaviors.listByKind("attack"),
+            "attack",
+            "enemy",
+            self,
+            behaviorContext,
+            {allowedIds = allowedIds}
+        ) or EnemyBehaviors.getById("passive")
+
+        BehaviorSelector.execute(self, attackBehavior, behaviorContext)
+        self.attackCooldown = attackBehavior.cooldown or 4.0
     end
 end
 
@@ -280,7 +392,7 @@ function Enemy:followPlayer(dt, playerX, playerY)
         
         -- Update angle for visual rotation (flankers)
         if self.enemyType == "flanker" then
-            self.angle = math.atan(self.vy, self.vx)
+            self.angle = MathUtils.atan2(self.vy, self.vx)
         end
     end
 end
@@ -355,7 +467,7 @@ function Enemy:updateFlankerMovement(dt, playerX, playerY)
     end
     
     -- Update rotation angle for visual direction
-    self.angle = math.atan(self.vy, self.vx)
+    self.angle = MathUtils.atan2(self.vy, self.vx)
 end
 
 function Enemy:draw(musicReactor)
@@ -444,6 +556,19 @@ function Enemy:draw(musicReactor)
     end
     
     love.graphics.pop()
+
+    if self.chargeWarning then
+        love.graphics.setColor(1, 0.9, 0.2, math.max(0, self.chargeWarning / 0.35))
+        love.graphics.circle("line", centerX, centerY, self.width * 1.2)
+    end
+
+    for _, proj in ipairs(self.projectiles or {}) do
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", proj.x, proj.y, proj.radius or 5)
+        local color = proj.color or {1, 0.4, 0.4}
+        love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+        love.graphics.circle("fill", proj.x, proj.y, (proj.radius or 5) * 0.55)
+    end
     
     -- Draw HP bar using ShapeLibrary
     ShapeLibrary.progressBar(self.x, self.y - 8, self.width, 4, self.hp / self.maxHp, {

@@ -24,10 +24,21 @@ local GridAttackSystem = require("src.systems.GridAttackSystem")
 local SongLibrary = require("src.systems.SongLibrary")
 local BackgroundShader = require("src.systems.BackgroundShader")
 local SimpleGrid = require("src.systems.SimpleGrid")
-
--- Entities
-local Player = require("src.entities.Player")
-local Weapon = require("src.Weapon")
+local AttackSystem = require("src.systems.AttackSystem")
+local HealthSystem = require("src.systems.HealthSystem")
+local SpawnController = require("src.systems.SpawnController")
+local EnemySpawner = require("src.systems.EnemySpawner")
+local ArtifactManager = require("src.systems.ArtifactManager")
+local SynergySystem = require("src.systems.SynergySystem")
+local AbilitySystem = require("src.systems.AbilitySystem")
+local UISystem = require("src.systems.UISystem")
+local LightningEffect = require("src.systems.LightningEffect")
+local ShieldEffect = require("src.systems.ShieldEffect")
+local ProjectileScheduler = require("src.systems.ProjectileScheduler")
+local MathUtils = require("src.systems.MathUtils")
+local BehaviorSelector = require("src.systems.BehaviorSelector")
+local EnemyBehaviors = require("src.data.EnemyBehaviors")
+local BossBehaviors = require("src.data.BossBehaviors")
 
 -- Game states
 local SplashScreen = require("src.states.SplashScreenState")
@@ -35,9 +46,9 @@ local PlayingState = require("src.states.PlayingState")
 local LevelUpState = require("src.states.LevelUpState")
 local GameOverState = require("src.states.GameOverState")
 local VictoryState = require("src.states.VictoryState")
+local PauseState = require("src.states.PauseState")
 local UISandboxState = require("src.states.UISandboxState")
 
--- Constants
 -- Constants
 local Config = require("src.Config")
 local screenWidth = Config.screen.width
@@ -57,6 +68,24 @@ function love.load()
     BootLoader.registerSystem("GridAttackSystem", GridAttackSystem, {"init", "update", "draw"})
     BootLoader.registerSystem("BackgroundShader", BackgroundShader, {"init", "update", "draw"})
     BootLoader.registerSystem("SimpleGrid", SimpleGrid, {"init", "update", "draw"})
+    BootLoader.registerSystem("GameConfig", GameConfig, {"init", "getMusicReactor", "getScreenSize", "isDebugMode"})
+    BootLoader.registerSystem("MusicReactor", MusicReactor, {"new"})
+    BootLoader.registerSystem("SongLibrary", SongLibrary, {"getRandomSong", "getSongCount"})
+    BootLoader.registerSystem("AttackSystem", AttackSystem, {"projectileHit", "enemyContactDamage", "updateDoTs", "processExplosion"})
+    BootLoader.registerSystem("HealthSystem", HealthSystem, {"register", "takeDamage", "reset"})
+    BootLoader.registerSystem("SpawnController", SpawnController, {"init", "update", "handleEnemyDeath"})
+    BootLoader.registerSystem("EnemySpawner", EnemySpawner, {"update", "returnToPool"})
+    BootLoader.registerSystem("ArtifactManager", ArtifactManager, {"collect", "getLevel", "reset"})
+    BootLoader.registerSystem("SynergySystem", SynergySystem, {"checkAndActivate", "reset", "getCount"})
+    BootLoader.registerSystem("AbilitySystem", AbilitySystem, {"register", "activate", "update"})
+    BootLoader.registerSystem("UISystem", UISystem, {"drawPlayerHUD", "drawArtifactPanel", "drawEnemyInfo"})
+    BootLoader.registerSystem("LightningEffect", LightningEffect, {"trigger", "fireChain", "update", "draw"})
+    BootLoader.registerSystem("ShieldEffect", ShieldEffect, {"trigger", "setPosition", "update", "draw"})
+    BootLoader.registerSystem("ProjectileScheduler", ProjectileScheduler, {"schedule", "update", "clear"})
+    BootLoader.registerSystem("MathUtils", MathUtils, {"atan2", "angleBetween"})
+    BootLoader.registerSystem("BehaviorSelector", BehaviorSelector, {"buildContext", "select", "execute", "updateCooldowns"})
+    BootLoader.registerSystem("EnemyBehaviors", EnemyBehaviors, {"getAll", "getById", "listByKind"})
+    BootLoader.registerSystem("BossBehaviors", BossBehaviors, {"getAll", "getById", "listByKind"})
 
     -- Validate all systems loaded correctly
     if not BootLoader.validateAll() then
@@ -82,7 +111,7 @@ function love.load()
     BootLoader.initializeSystem("XPParticleSystem", XPParticleSystem.init)
     BootLoader.initializeSystem("BossSystem", BossSystem.init)
     BootLoader.initializeSystem("DebugMenu", DebugMenu.init)
-    BootLoader.initializeSystem("CollisionSystem", CollisionSystem.init, 128) -- 128-pixel cell size
+    BootLoader.initializeSystem("CollisionSystem", CollisionSystem.init, Config.gameplay.cellSize)
     BootLoader.initializeSystem("GridAttackSystem", GridAttackSystem.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("BackgroundShader", BackgroundShader.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("SimpleGrid", SimpleGrid.init, screenWidth, screenHeight)
@@ -130,19 +159,27 @@ function love.load()
         description = "Victory screen",
         tags = {"menu", "end"}
     })
+    StateManager.register("Pause", PauseState, {
+        description = "Pause overlay",
+        dependencies = {"Playing"},
+        tags = {"menu", "gameplay"}
+    })
+    StateManager.register("UISandbox", UISandboxState, {
+        description = "HUD sandbox",
+        tags = {"menu", "debug"}
+    })
 
     -- Validate state dependencies
-    StateManager.validateAll()
+    if not StateManager.validateAll() then
+        error("[StateManager] State validation failed! See console for details.")
+    end
     StateManager.printReport()
 
     -- Register gamestate events and start with SplashScreen
     Gamestate.registerEvents()
 
     -- Use StateManager to track current state
-    if StateManager.canSwitchTo("Splash") then
-        StateManager.setCurrent("Splash")
-        Gamestate.switch(SplashScreen)
-    else
+    if not StateManager.switch("Splash") then
         error("[StateManager] Cannot start game - Splash state is disabled!")
     end
 end

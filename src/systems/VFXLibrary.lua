@@ -2,6 +2,7 @@
 -- Easy to tweak particle effects, colors, and behavior
 
 local ShapeLibrary = require("src.systems.ShapeLibrary")
+local MathUtils = require("src.systems.MathUtils")
 
 local VFXLibrary = {}
 
@@ -192,7 +193,7 @@ function VFXLibrary.spawnArtifactEffect(artifactType, x, y, targetX, targetY)
     
     local baseAngle = 0
     if targetX and targetY then
-        baseAngle = math.atan(targetY - y, targetX - x)
+        baseAngle = MathUtils.angleBetween(x, y, targetX, targetY)
     end
     
     for i = 1, effectDef.particleCount do
@@ -318,7 +319,7 @@ function VFXLibrary.update(dt)
             
             if particle.magnet then
                 -- Particles curve inward
-                local pullAngle = math.atan(-particle.y, -particle.x)
+                local pullAngle = MathUtils.atan2(-particle.y, -particle.x)
                 particle.vx = particle.vx + math.cos(pullAngle) * 100 * dt
                 particle.vy = particle.vy + math.sin(pullAngle) * 100 * dt
             end

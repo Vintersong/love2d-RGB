@@ -5,6 +5,7 @@
 local RefractionArtifact = require("src.artifacts.RefractionArtifact")
 local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
 local SupernovaArtifact = require("src.artifacts.SupernovaArtifact")
+local AbilityLibrary = require("src.data.AbilityLibrary")
 
 local ArtifactManager = {}
 
@@ -208,6 +209,9 @@ ArtifactManager.levelDefinitions = {
             [1] = {desc = "Unlock Supernova ultimate", effect = function(weapon, player) 
                 player.supernovaLevel = 1
                 player.hasSupernova = true
+                if player and player.setActiveAbility and AbilityLibrary.LIGHTNING_BOLT then
+                    player:setActiveAbility("LIGHTNING_BOLT", AbilityLibrary.LIGHTNING_BOLT.cooldown)
+                end
             end},
             [2] = {desc = "-20% Supernova cooldown", effect = function(weapon, player) 
                 player.supernovaLevel = 2
@@ -284,6 +288,9 @@ function ArtifactManager.collect(artifactType, weapon, player)
     local levelEffect = definition.levelEffects[currentLevel]
     if levelEffect then
         levelEffect.effect(weapon, player)
+        if artifactType == "SUPERNOVA" and currentLevel == 1 and player then
+            player:setActiveAbility("SUPERNOVA", ArtifactManager.getSupernovaCooldown("RED", player))
+        end
 
         local message = string.format("%s Level %d: %s",
             definition.name,
@@ -352,6 +359,13 @@ end
 -- Reset artifacts (on game restart)
 function ArtifactManager.reset()
     ArtifactManager.artifacts = {}
+    if SupernovaArtifact then
+        for _, colorVariant in pairs(SupernovaArtifact) do
+            if type(colorVariant) == "table" then
+                colorVariant.currentCooldown = 0
+            end
+        end
+    end
 end
 
 -- Get total artifact count
@@ -405,6 +419,25 @@ function ArtifactManager.updateSupernovaCooldowns(dt)
     end
 end
 
+function ArtifactManager.getSupernovaVariant(colorAffinity)
+    if not SupernovaArtifact then return nil end
+    return SupernovaArtifact[colorAffinity] or SupernovaArtifact.RED
+end
+
+function ArtifactManager.getSupernovaCooldown(colorAffinity, player)
+    local colorVariant = ArtifactManager.getSupernovaVariant(colorAffinity)
+    if not colorVariant then return 0 end
+
+    colorVariant.baseCooldown = colorVariant.baseCooldown or colorVariant.cooldown or 0
+    local reduction = player and player.supernovaCooldownReduction or 0
+    return colorVariant.baseCooldown * math.max(0.1, 1 - reduction)
+end
+
+function ArtifactManager.getSupernovaCooldownRemaining(colorAffinity)
+    local colorVariant = ArtifactManager.getSupernovaVariant(colorAffinity)
+    return colorVariant and math.max(0, colorVariant.currentCooldown or 0) or 0
+end
+
 -- Try to activate Supernova
 function ArtifactManager.tryActivateSupernova(colorAffinity, player, enemies, level)
     if not SupernovaArtifact then return false end
@@ -414,6 +447,9 @@ function ArtifactManager.tryActivateSupernova(colorAffinity, player, enemies, le
     
     -- Check if player has SUPERNOVA artifact
     if not ArtifactManager.hasArtifact("SUPERNOVA") then return false end
+
+    colorVariant.baseCooldown = colorVariant.baseCooldown or colorVariant.cooldown or 0
+    colorVariant.cooldown = ArtifactManager.getSupernovaCooldown(colorAffinity, player)
     
     -- Try to activate
     local success, effectData = colorVariant:activate(player, enemies, level)

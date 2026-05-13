@@ -171,9 +171,11 @@ function ColorTree.isValidCombination(history)
     end
     
     -- Count each color
-    local counts = {r = 0, g = 0, b = 0}
+    local counts = {r = 0, g = 0, b = 0, y = 0, m = 0, c = 0}
     for _, color in ipairs(history) do
-        counts[color] = counts[color] + 1
+        if counts[color] ~= nil then
+            counts[color] = counts[color] + 1
+        end
     end
     
     -- Always allow any color (no restrictions)
@@ -182,9 +184,19 @@ end
 
 -- Helper function to get current path description
 function ColorTree.getPathDescription(history)
-    local counts = {r = 0, g = 0, b = 0}
+    local counts = {r = 0, g = 0, b = 0, y = 0, m = 0, c = 0}
     for _, color in ipairs(history) do
-        counts[color] = counts[color] + 1
+        if counts[color] ~= nil then
+            counts[color] = counts[color] + 1
+        end
+    end
+
+    if counts.y > 0 then
+        return "Explosive Path (Yellow)"
+    elseif counts.m > 0 then
+        return "Homing Path (Magenta)"
+    elseif counts.c > 0 then
+        return "Control Path (Cyan)"
     end
     
     if counts.r > 0 and counts.g == 0 and counts.b == 0 then

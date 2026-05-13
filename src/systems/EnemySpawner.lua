@@ -222,6 +222,68 @@ function EnemySpawner.assignEnemyType(role, musicReactor)
     end
 end
 
+function EnemySpawner.createBehaviorProfile(enemyType, role, musicReactor, playerLevel, formationName)
+    playerLevel = playerLevel or 1
+    local bass = musicReactor and musicReactor.bass or 0.5
+    local mids = musicReactor and ((musicReactor.midLow or 0.5) + (musicReactor.midHigh or 0.5)) / 2 or 0.5
+    local treble = musicReactor and ((musicReactor.treble or 0.5) + (musicReactor.presence or 0.5)) / 2 or 0.5
+    local energy = musicReactor and musicReactor.energy or 0.5
+
+    local profile = {
+        movement = "formation_sway",
+        attacks = {"passive"},
+        modifiers = {"prestige_rings"},
+    }
+
+    if role == "center" or role == "leader" or role == "heavy" or enemyType == "BASS" then
+        profile.movement = bass > 0.65 and "chase_player" or "descend_straight"
+        table.insert(profile.modifiers, "tank_scaling")
+        table.insert(profile.attacks, "bass_pulse")
+    elseif role == "outer" or role == "scout" or role == "corner" or enemyType == "TREBLE" then
+        profile.movement = (playerLevel >= 10 or energy > 0.75) and "dash_probe" or "strafe_player"
+        table.insert(profile.modifiers, "scout_scaling")
+        table.insert(profile.attacks, "warning_charge")
+        table.insert(profile.attacks, "spread_pepper")
+    elseif mids > bass and mids > treble then
+        profile.movement = "float_wave"
+        table.insert(profile.attacks, "aimed_shot")
+    end
+
+    if treble > 0.6 or playerLevel >= 8 then
+        table.insert(profile.attacks, "spread_pepper")
+    end
+    if mids > 0.45 or playerLevel >= 4 then
+        table.insert(profile.attacks, "aimed_shot")
+    end
+    if bass > 0.6 then
+        table.insert(profile.attacks, "bass_pulse")
+    end
+    if playerLevel >= 20 then
+        profile.movement = treble > bass and "teleport_reposition" or profile.movement
+    end
+
+    if playerLevel >= 10 then
+        if bass >= mids and bass >= treble then
+            table.insert(profile.modifiers, "affinity_red")
+        elseif treble >= bass and treble >= mids then
+            table.insert(profile.modifiers, "affinity_blue")
+        else
+            table.insert(profile.modifiers, "affinity_green")
+        end
+    end
+    if playerLevel >= 20 then
+        if formationName == "vee" or treble > 0.7 then
+            table.insert(profile.modifiers, "affinity_cyan")
+        elseif formationName == "diamond" or bass > 0.7 then
+            table.insert(profile.modifiers, "affinity_yellow")
+        elseif energy > 0.75 then
+            table.insert(profile.modifiers, "affinity_magenta")
+        end
+    end
+
+    return profile
+end
+
 -- Select formation based on music frequency analysis
 function EnemySpawner.selectFormationByMusic(musicReactor, complexity)
     if not musicReactor then
@@ -413,6 +475,7 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
         
             -- Use pre-generated enemy type (same for both left and right)
             local enemyType = formationEnemyTypes[i]
+            local role = formation.roles and formation.roles[i + 1] or "support"
             
             -- Determine shape (override if specified, otherwise use type default)
             local shapeOverride = formation.shapeOverride and formation.shapeOverride[i + 1] or nil
@@ -422,10 +485,13 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 formation = formationName,
                 formationID = formationID,
                 formationIndex = i,
+                role = role,
                 offsetX = offsetX,
                 offsetY = offsetY,
                 centerX = direction.targetX,
-                spawnDirection = direction.name
+                targetY = direction.targetY,
+                spawnDirection = direction.name,
+                behaviorProfile = EnemySpawner.createBehaviorProfile(enemyType, role, musicReactor, playerLevel, formationName)
             }
             local enemy = table.remove(EnemySpawner.enemyPool)
             if enemy then
@@ -441,7 +507,7 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 end
                 
                 enemy.pattern = "formation_hold"
-                enemy.formationData = formationData
+                enemy.formationData.group = formationData
                 
                 -- Tween to target position (both X and Y for side spawns)
                 local targetX = direction.targetX + offsetX

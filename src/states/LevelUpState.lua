@@ -69,27 +69,30 @@ function LevelUpState:drawColorSelect()
     love.graphics.print("Level " .. self.player.level, centerX - 60, startY + 90, 0, 2, 2)
 
     -- Current path (if any)
-    if ColorSystem.primaryColor then
+    if ColorSystem.commitment.primary1 then
         local pathName = ColorSystem.getCurrentPath()
         love.graphics.setColor(0, 0.94, 1)
         love.graphics.print("Current Path: " .. pathName, centerX - 180, startY + 130, 0, 1.5, 1.5)
 
-        -- Show tertiary unlock progress
-        if ColorSystem.secondaryColor and not ColorSystem.tertiaryColor then
-            local pCount = ColorSystem.primaryCount
-            local sCount = ColorSystem.secondaryCount
+        -- Show secondary unlock progress for the committed primary pair
+        local secondaryName = ColorSystem.getCommittedSecondaryName()
+        local secondary = secondaryName and ColorSystem.secondary[secondaryName] or nil
+        if secondary and not secondary.unlocked then
+            local req1, req2 = secondary.requires[1], secondary.requires[2]
+            local pCount = ColorSystem.primary[req1].level
+            local sCount = ColorSystem.primary[req2].level
             if pCount >= 10 and sCount >= 10 then
                 love.graphics.setColor(1, 1, 0)
-                love.graphics.print("⚡ TERTIARY COLOR UNLOCKED! ⚡", centerX - 250, startY + 165, 0, 1.5, 1.5)
+                love.graphics.print(secondaryName .. " UNLOCKED!", centerX - 180, startY + 165, 0, 1.5, 1.5)
             elseif pCount >= 10 or sCount >= 10 then
                 love.graphics.setColor(1, 0.7, 0)
                 local needed = ""
                 if pCount < 10 then
-                    needed = (10 - pCount) .. " more " .. string.upper(ColorSystem.primaryColor)
+                    needed = (10 - pCount) .. " more " .. req1
                 else
-                    needed = (10 - sCount) .. " more " .. string.upper(ColorSystem.secondaryColor)
+                    needed = (10 - sCount) .. " more " .. req2
                 end
-                love.graphics.print("Tertiary unlock in: " .. needed, centerX - 200, startY + 165, 0, 1.5, 1.5)
+                love.graphics.print(secondaryName .. " unlock in: " .. needed, centerX - 220, startY + 165, 0, 1.5, 1.5)
             end
         end
     end
@@ -149,10 +152,10 @@ function LevelUpState:drawColorSelect()
             -- Both primaries committed - map to 1 and 2
             keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
             keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
-            -- Position 3 = tertiary (secondary color)
-            local tertiaryColor = ColorSystem.getTertiaryColor()
-            if tertiaryColor then
-                keyMap[3] = tertiaryColor
+            -- Position 3 = committed secondary color
+            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
+            if secondaryCode then
+                keyMap[3] = secondaryCode
             end
         else
             -- Only first primary chosen
@@ -280,7 +283,7 @@ function LevelUpState:drawColorSelect()
         cardIndex = cardIndex + 1
     end
 
-    -- Yellow option card (tertiary)
+    -- Yellow option card (secondary)
     if isValid("y") then
         local keyNum = getKeyForColor("y")
         local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
@@ -298,12 +301,12 @@ function LevelUpState:drawColorSelect()
             love.graphics.print("Level 10 req.", cardX - 75, cardY + 85, 0, 0.8, 0.8)
         elseif isIntensity then
             love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+1 explosion", cardX - 75, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("Boom chain!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
+            love.graphics.print("+spread volley", cardX - 75, cardY + 85, 0, 1.0, 1.0)
+            love.graphics.print("+bounce chains", cardX - 75, cardY + 105, 0, 0.9, 0.9)
         else
-            love.graphics.print("Area Explosion", cardX - 85, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+5 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("More boom!", cardX - 65, cardY + 105, 0, 0.9, 0.9)
+            love.graphics.print("Red + Green", cardX - 70, cardY + 55, 0, 1.0, 1.0)
+            love.graphics.print("Spread shots", cardX - 65, cardY + 80, 0, 1.0, 1.0)
+            love.graphics.print("Bounce chains", cardX - 70, cardY + 105, 0, 0.9, 0.9)
         end
         if keyNum then
             love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
@@ -376,7 +379,6 @@ end
 
 function LevelUpState:keypressed(key)
     local ColorSystem = require("src.systems.ColorSystem")
-    local Gamestate = require("libs.hump-master.gamestate")
 
     -- ESC exits game
     if key == "escape" then
@@ -400,7 +402,7 @@ function LevelUpState:keypressed(key)
     -- Build ordered choice map based on progression
     -- Initially: 1=RED, 2=GREEN, 3=BLUE
     -- After primary chosen: 1=Primary, 2/3=Remaining initial colors
-    -- After secondary unlocked: 1=Primary, 2=Secondary, 3=Tertiary
+    -- After secondary unlocked: 1=Primary, 2=Primary, 3=Secondary
     local keyMap = {}
     
     if ColorSystem.commitment.primary1 then
@@ -409,10 +411,10 @@ function LevelUpState:keypressed(key)
             -- After commitment
             keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
             keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
-            -- Position 3 = tertiary color if available
-            local tertiaryColor = ColorSystem.getTertiaryColor()
-            if tertiaryColor then
-                keyMap[3] = tertiaryColor
+            -- Position 3 = committed secondary color if available
+            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
+            if secondaryCode then
+                keyMap[3] = secondaryCode
             end
         else
             -- Only primary chosen, before commitment
@@ -443,12 +445,21 @@ function LevelUpState:keypressed(key)
     end
 
     if colorChosen then
-        self.player:levelUp()  -- Increment level and reset XP
+        self.player:levelUp()  -- Increment level and spend XP for this level
         ColorSystem.addColor(self.player.weapon, colorChosen)
         ColorSystem.applyEffects(self.player.weapon)
 
+<<<<<<< ours
         -- Return to playing state
-        Gamestate.pop()
+        local StateManager = require("src.systems.StateManager")
+        StateManager.pop()
+=======
+        -- Stay on the level-up screen if a large XP burst queued another choice
+        if not self.player:canLevelUp() then
+            -- Return to playing state
+            Gamestate.pop()
+        end
+>>>>>>> theirs
     end
 end
 

@@ -183,10 +183,17 @@ function SplashScreen:startGame()
     love.graphics.setFont(love.graphics.newFont(12))
 
     -- Initialize PlayingState before switching
-    local Player = require("src.entities.Player")
-    local Weapon = require("src.Weapon")
     local PlayingState = require("src.states.PlayingState")
+<<<<<<< ours
+    PlayingState.startNewRun()
+=======
     local GameConfig = require("src.systems.GameConfig")
+    local BossSystem = require("src.systems.BossSystem")
+
+    if PlayingState.player and PlayingState.player.destroy then
+        PlayingState.player:destroy()
+    end
+    BossSystem.reset()
 
     PlayingState.player = Player(512, 360, Weapon())
     PlayingState.enemies = {}
@@ -198,20 +205,19 @@ function SplashScreen:startGame()
     PlayingState.enemyKillCount = 0
     PlayingState.musicReactor = GameConfig.getMusicReactor()
     PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
+>>>>>>> theirs
 
     -- Switch to PlayingState
-    local Gamestate = require("libs.hump-master.gamestate")
-    Gamestate.switch(PlayingState)
+    local StateManager = require("src.systems.StateManager")
+    StateManager.switch("Playing")
 end
 
 function SplashScreen:enterUISandbox()
     -- Reset font and switch immediately to UI Sandbox
     love.graphics.setFont(love.graphics.newFont(12))
     
-    local Gamestate = require("libs.hump-master.gamestate")
-    local UISandboxState = require("src.states.UISandboxState")
-    
-    Gamestate.switch(UISandboxState)
+    local StateManager = require("src.systems.StateManager")
+    StateManager.switch("UISandbox")
 end
 
 return SplashScreen

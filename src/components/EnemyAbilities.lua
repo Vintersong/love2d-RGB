@@ -1,5 +1,6 @@
 -- EnemyAbilities: Composable abilities for procedural enemy generation
 local EnemyAbilities = {}
+local MathUtils = require("src.systems.MathUtils")
 
 -- Color Affinities (affect projectile color and resistance)
 EnemyAbilities.Affinities = {
@@ -140,7 +141,7 @@ EnemyAbilities.MovementBehaviors = {
             if dist > 0 then
                 -- Move perpendicular to player
                 enemy.strafeTime = (enemy.strafeTime or 0) + dt
-                local perpAngle = math.atan(dy, dx) + math.pi / 2
+                local perpAngle = MathUtils.atan2(dy, dx) + math.pi / 2
                 if enemy.strafeTime > 3 then
                     perpAngle = perpAngle + math.pi
                     if enemy.strafeTime > 6 then

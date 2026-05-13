@@ -7,9 +7,8 @@ local EnemySpawner = require("src.systems.EnemySpawner")
 local CollisionSystem = require("src.systems.CollisionSystem")
 local BossSystem = require("src.systems.BossSystem")
 local Powerup = require("src.entities.Powerup")
-local XPParticleSystem = require("src.systems.XPParticleSystem")
-local ColorSystem = require("src.systems.ColorSystem")
 local FloatingTextSystem = require("src.systems.FloatingTextSystem")
+local PickupSystem = require("src.systems.PickupSystem")
 
 -- Initialize controller
 function SpawnController.init(screenWidth, screenHeight)
@@ -39,6 +38,11 @@ end
 
 -- Handle enemy death interactions (spawn drops etc)
 function SpawnController.handleEnemyDeath(target, player, xpOrbs, powerups, onKillCallback)
+    if target._deathRewarded then
+        return
+    end
+    target._deathRewarded = true
+
     SpawnController.enemyKillCount = SpawnController.enemyKillCount + 1
 
     -- Check if boss should spawn (every 100 kills)
@@ -50,7 +54,7 @@ function SpawnController.handleEnemyDeath(target, player, xpOrbs, powerups, onKi
     end
 
     -- Spawn XP orbs (delegate calculation to helper)
-    local newOrbs = SpawnController.spawnOrbsForEnemy(target, player, SpawnController.gameTime)
+    local newOrbs = PickupSystem.spawnOrbsForEnemy(target, player, SpawnController.gameTime, SpawnController.screenWidth, SpawnController.screenHeight)
     for _, orb in ipairs(newOrbs) do
         table.insert(xpOrbs, orb)
     end
@@ -69,44 +73,6 @@ function SpawnController.handleEnemyDeath(target, player, xpOrbs, powerups, onKi
     end
 end
 
--- Helper: Spawn orbs based on enemy and player state
-function SpawnController.spawnOrbsForEnemy(enemy, player, gameTime)
-    local orbX = enemy.x + enemy.width / 2
-    local orbY = enemy.y + enemy.height / 2
-    
-    -- Clamp orb spawn to inner 70% of screen
-    orbX, orbY = SpawnController.clampToPlayArea(orbX, orbY)
-
-    local orbs = {}
-
-    -- Always spawn basic XP particle orb
-    table.insert(orbs, XPParticleSystem.new(orbX, orbY, 10))
-
-    -- Check if player has picked first color
-    local colorHistory = ColorSystem.colorHistory or {}
-    if #colorHistory > 0 then
-        local playerLevel = player.level
-
-        -- Roll for medium XP orb
-        local primaryChance = SpawnController.calculateDropChance("primary", playerLevel, gameTime)
-        if math.random() < primaryChance then
-            local offsetX = orbX + math.random(-20, 20)
-            offsetX, _ = SpawnController.clampToPlayArea(offsetX, orbY)
-            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, 20))
-        end
-
-        -- Roll for large XP orb
-        local secondaryChance = SpawnController.calculateDropChance("secondary", playerLevel, gameTime)
-        if math.random() < secondaryChance then
-            local offsetX = orbX + math.random(-20, 20)
-            offsetX, _ = SpawnController.clampToPlayArea(offsetX, orbY)
-            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, 40))
-        end
-    end
-
-    return orbs
-end
-
 -- Helper: Spawn powerup logic
 function SpawnController.spawnPowerup(target)
     local powerupType = Powerup.getRandomType()
@@ -116,18 +82,6 @@ function SpawnController.spawnPowerup(target)
     powerupX, powerupY = SpawnController.clampToPlayArea(powerupX, powerupY)
     
     return Powerup(powerupX, powerupY, powerupType)
-end
-
--- Helper: Calculate drop chances
-function SpawnController.calculateDropChance(orbType, playerLevel, time)
-    local base = (orbType == "primary") and 0.05 or 0.08
-    local levelBonus = (playerLevel - 1) * 0.005
-    local timeBonus = (time / 60) * 0.001
-    local total = base + levelBonus + timeBonus
-
-    -- Cap: primary at 0.25, secondary at 0.35
-    local cap = (orbType == "primary") and 0.25 or 0.35
-    return math.min(total, cap)
 end
 
 -- Helper: Clamp coordinates to inner play area

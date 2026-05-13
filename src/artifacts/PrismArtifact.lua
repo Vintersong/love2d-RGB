@@ -2,6 +2,13 @@
 -- Color-specific behaviors for PRISM artifact
 
 local PrismArtifact = {}
+local MathUtils = require("src.systems.MathUtils")
+
+local function getShotAngleAndOrigin(projectiles, targetX, targetY, player)
+    local originX = projectiles[1] and projectiles[1].x or (player.x + (player.width or 0) / 2)
+    local originY = projectiles[1] and projectiles[1].y or (player.y + (player.height or 0) / 2)
+    return MathUtils.angleBetween(originX, originY, targetX, targetY), originX, originY
+end
 
 -- RED PRISM: Wall of projectiles forward (shotgun)
 PrismArtifact.RED = {
@@ -22,15 +29,15 @@ PrismArtifact.RED = {
             local spreadAngle = math.pi / 3  -- 60 degrees
             
             -- Base angle toward target
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             for i = 1, projectileCount do
                 local angleOffset = spreadAngle * ((i - 1) / (projectileCount - 1) - 0.5)
                 local angle = baseAngle + angleOffset
                 
                 local wallProj = {
-                    x = player.x,
-                    y = player.y,
+                    x = originX,
+                    y = originY,
                     vx = math.cos(angle) * 300,
                     vy = math.sin(angle) * 300,
                     damage = projectiles[1].damage * 0.7,
@@ -198,15 +205,15 @@ PrismArtifact.MAGENTA = {
             local wall = {}
             local projectileCount = 6
             local spreadAngle = math.pi / 4
-            local baseAngle = math.atan(targetY - player.y, targetX - player.x)
+            local baseAngle, originX, originY = getShotAngleAndOrigin(projectiles, targetX, targetY, player)
             
             for i = 1, projectileCount do
                 local angleOffset = spreadAngle * ((i - 1) / (projectileCount - 1) - 0.5)
                 local angle = baseAngle + angleOffset
                 
                 local wallProj = {
-                    x = player.x,
-                    y = player.y,
+                    x = originX,
+                    y = originY,
                     vx = math.cos(angle) * 280,
                     vy = math.sin(angle) * 280,
                     damage = projectiles[1].damage * 0.7,

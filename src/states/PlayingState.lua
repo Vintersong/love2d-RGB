@@ -7,8 +7,8 @@ local flux = require("libs.flux-master.flux")
 -- Forward declarations for systems
 local MusicReactor, ColorSystem, SpawnController, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
-local XPParticleSystem, BossSystem, Powerup, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
-local LightningEffect, ShieldEffect
+local XPParticleSystem, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
+local LightningEffect, ShieldEffect, ProjectileCollisionSystem, PickupSystem, BossCoordinator
 
 -- Shared game data (will be set by main.lua)
 PlayingState.player = nil
@@ -22,6 +22,44 @@ PlayingState.gameTime = 0
 PlayingState.musicReactor = nil
 PlayingState.screenWidth = 1920
 PlayingState.screenHeight = 1080
+PlayingState.supernovaEffects = {}
+
+function PlayingState.startNewRun()
+    local Player = require("src.entities.Player")
+    local Weapon = require("src.Weapon")
+    local GameConfig = require("src.systems.GameConfig")
+    local ColorSystem = require("src.systems.ColorSystem")
+    local SynergySystem = require("src.systems.SynergySystem")
+    local ArtifactManager = require("src.systems.ArtifactManager")
+    local SpawnController = require("src.systems.SpawnController")
+    local BossSystem = require("src.systems.BossSystem")
+    local CollisionSystem = require("src.systems.CollisionSystem")
+    local VFXLibrary = require("src.systems.VFXLibrary")
+    local Config = require("src.Config")
+
+    ColorSystem.init()
+    SynergySystem.reset()
+    ArtifactManager.reset()
+    CollisionSystem.init(Config.gameplay.cellSize)
+    VFXLibrary.clear()
+
+    PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
+    SpawnController.init(PlayingState.screenWidth, PlayingState.screenHeight)
+    BossSystem.activeBoss = nil
+
+    PlayingState.player = Player(512, 360, Weapon())
+    PlayingState.enemies = {}
+    PlayingState.xpOrbs = {}
+    PlayingState.powerups = {}
+    PlayingState.explosions = {}
+    PlayingState.bossProjectiles = {}
+    PlayingState.supernovaEffects = {}
+    PlayingState.gameTime = 0
+    PlayingState.enemyKillCount = 0
+    PlayingState.musicReactor = GameConfig.getMusicReactor()
+
+    return PlayingState
+end
 
 function PlayingState:enter(previous, data)
     -- Load systems on first enter
@@ -36,22 +74,18 @@ function PlayingState:enter(previous, data)
         FloatingTextSystem = require("src.systems.FloatingTextSystem")
         VFXLibrary = require("src.systems.VFXLibrary")
         XPParticleSystem = require("src.systems.XPParticleSystem")
-        BossSystem = require("src.systems.BossSystem")
-        Powerup = require("src.entities.Powerup")
         CollisionSystem = require("src.systems.CollisionSystem")
         GridAttackSystem = require("src.systems.GridAttackSystem")
         BackgroundShader = require("src.systems.BackgroundShader")
         SimpleGrid = require("src.systems.SimpleGrid")
         LightningEffect = require("src.systems.LightningEffect")
         ShieldEffect = require("src.systems.ShieldEffect")
+        ProjectileCollisionSystem = require("src.systems.ProjectileCollisionSystem")
+        PickupSystem = require("src.systems.PickupSystem")
+        BossCoordinator = require("src.systems.BossCoordinator")
 
         -- Initialize controller
         SpawnController.init(self.screenWidth, self.screenHeight)
-    end
-
-    -- Register player in collision world
-    if self.player and not CollisionSystem.world:hasItem(self.player) then
-        CollisionSystem.add(self.player, "player")
     end
 
     -- If data provided, restore it (used for returning from levelUp)
@@ -62,10 +96,28 @@ function PlayingState:enter(previous, data)
         self.powerups = data.powerups or {}
         self.explosions = data.explosions or {}
         self.bossProjectiles = data.bossProjectiles or {}
+        self.supernovaEffects = data.supernovaEffects or {}
         self.gameTime = data.gameTime or 0
         SpawnController.enemyKillCount = data.enemyKillCount or 0 -- Restore kill count to controller
         self.musicReactor = data.musicReactor
     end
+
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+    -- Register the active player in the collision world after any restore.
+    if self.player and CollisionSystem.world and not CollisionSystem.world:hasItem(self.player) then
+        CollisionSystem.add(self.player, "player")
+    end
+=======
+    BossCoordinator.bossProjectiles = self.bossProjectiles
+>>>>>>> theirs
+=======
+    BossCoordinator.bossProjectiles = self.bossProjectiles
+>>>>>>> theirs
+=======
+    BossCoordinator.bossProjectiles = self.bossProjectiles
+>>>>>>> theirs
 end
 
 function PlayingState:update(dt)
@@ -111,8 +163,8 @@ function PlayingState:update(dt)
     self.player:checkDashCollisions(self.enemies)
 
     -- Auto-fire at nearest enemy (Vampire Survivors style)
-    -- Pass boss from BossSystem if active
-    self.player:autoFire(self.enemies, BossSystem.activeBoss)
+    -- Pass boss from BossCoordinator if active
+    self.player:autoFire(self.enemies, BossCoordinator.getActiveBoss())
 
     -- Update lightning bolt visual effect
     LightningEffect.update(dt)
@@ -130,30 +182,43 @@ function PlayingState:update(dt)
     self:updateEnemyProjectileCollisions(centerX, centerY)
 
     -- Update DoT effects on all enemies
-    AttackSystem.updateDoTs(self.enemies, dt)
+    local dotKillCallback = function(target)
+        SpawnController.handleEnemyDeath(target, self.player, self.xpOrbs, self.powerups)
+    end
+    AttackSystem.updateDoTs(self.enemies, dt, dotKillCallback)
 
     -- Check projectile-enemy collisions
-    self:updateProjectileCollisions()
+    ProjectileCollisionSystem.update(self.player, self.enemies, self.xpOrbs, self.powerups, self.explosions)
 
     -- Update explosions (MAGENTA tertiary effect)
     self:updateExplosions(dt)
 
+    -- Update persistent active-artifact effects
+    self:updateSupernovaEffects(dt)
+
     -- Update and collect XP orbs
-    self:updateXPOrbs(dt, centerX, centerY)
+    PickupSystem.updateXPOrbs(dt, self.player, self.xpOrbs, centerX, centerY)
 
     -- Update and collect powerups
-    self:updatePowerups(dt, centerX, centerY)
+    PickupSystem.updatePowerups(dt, self.player, self.enemies, self.powerups, centerX, centerY)
 
     -- Check for level up
+<<<<<<< ours
     if self.player.exp >= self.player.expToNext then
+        local StateManager = require("src.systems.StateManager")
+        StateManager.push("LevelUp", {
+=======
+    if self.player:canLevelUp() then
         local Gamestate = require("libs.hump-master.gamestate")
         Gamestate.push(require("src.states.LevelUpState"), {
+>>>>>>> theirs
             player = self.player,
             enemies = self.enemies,
             xpOrbs = self.xpOrbs,
             powerups = self.powerups,
             explosions = self.explosions,
             bossProjectiles = self.bossProjectiles,
+            supernovaEffects = self.supernovaEffects,
             gameTime = self.gameTime,
             enemyKillCount = SpawnController.enemyKillCount, -- Persist via controller
             musicReactor = self.musicReactor
@@ -162,7 +227,82 @@ function PlayingState:update(dt)
     end
 
     -- Update boss if active
-    self:updateBoss(dt)
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+    if self:updateBoss(dt) then
+        return
+    end
+end
+
+function PlayingState:captureAliveEnemies()
+    local alive = {}
+    for _, enemy in ipairs(self.enemies) do
+        if not enemy.dead then
+            alive[enemy] = true
+        end
+    end
+    return alive
+end
+
+function PlayingState:rewardNewEnemyDeaths(aliveBefore)
+    for _, enemy in ipairs(self.enemies) do
+        if aliveBefore[enemy] and enemy.dead and not enemy._deathRewarded then
+            SpawnController.handleEnemyDeath(enemy, self.player, self.xpOrbs, self.powerups)
+        end
+    end
+end
+
+function PlayingState:activateSupernova()
+    local aliveBefore = self:captureAliveEnemies()
+    local success, effectData, color = self.player:useActiveAbility(self.enemies)
+    if not success then
+        return false
+    end
+
+    self:rewardNewEnemyDeaths(aliveBefore)
+
+    local centerX = self.player.x + self.player.width / 2
+    local centerY = self.player.y + self.player.height / 2
+    VFXLibrary.spawnArtifactEffect("SUPERNOVA", centerX, centerY)
+    FloatingTextSystem.add((color or "RED") .. " SUPERNOVA", centerX, centerY - 80, "SYNERGY")
+
+    if effectData and effectData.field then
+        table.insert(self.supernovaEffects, {
+            type = effectData.type,
+            field = effectData.field,
+            color = effectData.color or {1, 0.3, 0.2},
+            radius = effectData.radius or 120,
+        })
+    end
+
+    return true
+end
+
+function PlayingState:updateSupernovaEffects(dt)
+    for i = #self.supernovaEffects, 1, -1 do
+        local effect = self.supernovaEffects[i]
+        if effect.field and effect.field.update then
+            local aliveBefore = self:captureAliveEnemies()
+            local stillActive = effect.field:update(dt, self.player, self.enemies)
+            self:rewardNewEnemyDeaths(aliveBefore)
+
+            if not stillActive then
+                table.remove(self.supernovaEffects, i)
+            end
+        else
+            table.remove(self.supernovaEffects, i)
+        end
+    end
+=======
+    BossCoordinator.update(dt, self.player, self.player.projectiles, self.bossProjectiles, self.musicReactor, self.enemies)
+>>>>>>> theirs
+=======
+    BossCoordinator.update(dt, self.player, self.player.projectiles, self.bossProjectiles, self.musicReactor, self.enemies)
+>>>>>>> theirs
+=======
+    BossCoordinator.update(dt, self.player, self.player.projectiles, self.bossProjectiles, self.musicReactor, self.enemies)
+>>>>>>> theirs
 end
 
 function PlayingState:updateEnemies(dt, centerX, centerY)
@@ -171,7 +311,12 @@ function PlayingState:updateEnemies(dt, centerX, centerY)
 
     for i = #self.enemies, 1, -1 do
         local enemy = self.enemies[i]
-        enemy:update(dt, centerX, centerY)
+        enemy:update(dt, centerX, centerY, {
+            player = self.player,
+            musicReactor = self.musicReactor,
+            enemyCount = #self.enemies,
+            gameTime = self.gameTime,
+        })
 
         -- Update enemy position in collision world
         if CollisionSystem.world:hasItem(enemy) then
@@ -203,8 +348,8 @@ function PlayingState:updateEnemies(dt, centerX, centerY)
         -- Enemy touches player - deal damage via AttackSystem
         local died = AttackSystem.enemyContactDamage(enemy, self.player, dt)
         if died then
-            local Gamestate = require("libs.hump-master.gamestate")
-            Gamestate.switch(require("src.states.GameOverState"), {
+            local StateManager = require("src.systems.StateManager")
+            StateManager.switch("GameOver", {
                 player = self.player,
                 enemies = self.enemies,
                 musicReactor = self.musicReactor
@@ -229,8 +374,8 @@ function PlayingState:updateEnemyProjectileCollisions(centerX, centerY)
                     table.remove(enemy.projectiles, i)
 
                     if died then
-                        local Gamestate = require("libs.hump-master.gamestate")
-                        Gamestate.switch(require("src.states.GameOverState"), {
+                        local StateManager = require("src.systems.StateManager")
+                        StateManager.switch("GameOver", {
                             player = self.player,
                             enemies = self.enemies,
                             musicReactor = self.musicReactor
@@ -243,6 +388,9 @@ function PlayingState:updateEnemyProjectileCollisions(centerX, centerY)
     end
 end
 
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
 function PlayingState:updateProjectileCollisions()
     for i = #self.player.projectiles, 1, -1 do
         local proj = self.player.projectiles[i]
@@ -278,10 +426,12 @@ function PlayingState:updateProjectileCollisions()
                     VFXLibrary.spawnArtifactEffect("SUPERNOVA", explosion.x, explosion.y)
                 end
 
-                -- GREEN: Bounce to nearest enemy
-                if proj.canBounceToNearest then
+                if proj.canBounceToNearest and proj.canPierce then
+                    local pierceDone = self:handlePierce(proj)
+                    local bounceDone = self:handleBounce(proj)
+                    shouldRemove = pierceDone and bounceDone
+                elseif proj.canBounceToNearest then
                     shouldRemove = self:handleBounce(proj)
-                -- BLUE: Pierce through enemies
                 elseif proj.canPierce then
                     shouldRemove = self:handlePierce(proj)
                 else
@@ -351,6 +501,12 @@ function PlayingState:handlePierce(proj)
     return false -- Continue piercing
 end
 
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 function PlayingState:updateExplosions(dt)
     for i = #self.explosions, 1, -1 do
         local explosion = self.explosions[i]
@@ -373,6 +529,9 @@ function PlayingState:updateExplosions(dt)
     end
 end
 
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
 function PlayingState:updateXPOrbs(dt, centerX, centerY)
     for i = #self.xpOrbs, 1, -1 do
         local orb = self.xpOrbs[i]
@@ -450,10 +609,30 @@ end
 
 function PlayingState:updateBoss(dt)
     if BossSystem.activeBoss then
+        local boss = BossSystem.activeBoss
+
         -- Provide references for archetype behavior AI
         BossSystem.activeBoss._playerRef = self.player
         BossSystem.activeBoss._bossProjectiles = self.bossProjectiles
-        local newProjectiles = BossSystem.activeBoss:update(dt, self.player.x, self.player.y)
+        BossSystem.activeBoss._musicReactor = self.musicReactor
+        local newProjectiles = BossSystem.activeBoss:update(
+            dt,
+            self.player.x + self.player.width / 2,
+            self.player.y + self.player.height / 2
+        )
+
+        if boss and not boss.alive then
+            local StateManager = require("src.systems.StateManager")
+            StateManager.switch("Victory", {
+                player = self.player,
+                enemies = self.enemies,
+                xpOrbs = self.xpOrbs,
+                musicReactor = self.musicReactor,
+                gameTime = self.gameTime,
+                enemyKillCount = SpawnController.enemyKillCount,
+            })
+            return true
+        end
 
         -- Add boss projectiles if any were fired
         if newProjectiles then
@@ -476,6 +655,7 @@ function PlayingState:updateBoss(dt)
 
         -- Check if boss is defeated
         if BossSystem.activeBoss and not BossSystem.activeBoss.alive then
+            BossSystem.clearBossReferences(BossSystem.activeBoss)
             BossSystem.activeBoss = nil
         end
     end
@@ -494,18 +674,18 @@ function PlayingState:updateBoss(dt)
                 if not self.player.invulnerable then
                     self.player.hp = self.player.hp - proj.damage
                     self.player.invulnerable = true
-                    self.player.invulnerableTimer = 0.5
+                    self.player.invulnerableTime = 0.5
                     self.player.damageFlashTime = 0.1
 
                     if self.player.hp <= 0 then
                         self.player.hp = 0
-                        local Gamestate = require("libs.hump-master.gamestate")
-                        Gamestate.switch(require("src.states.GameOverState"), {
+                        local StateManager = require("src.systems.StateManager")
+                        StateManager.switch("GameOver", {
                             player = self.player,
                             enemies = self.enemies,
                             musicReactor = self.musicReactor
                         })
-                        return
+                        return true
                     end
                 end
                 table.remove(self.bossProjectiles, i)
@@ -514,18 +694,20 @@ function PlayingState:updateBoss(dt)
     end
 end
 
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 function PlayingState:calculateDropChance(orbType, playerLevel, time)
-    local base = (orbType == "primary") and 0.05 or 0.08
-    local levelBonus = (playerLevel - 1) * 0.005
-    local timeBonus = (time / 60) * 0.001
-    local total = base + levelBonus + timeBonus
-
-    -- Cap: primary at 0.25, secondary at 0.35
-    local cap = (orbType == "primary") and 0.25 or 0.35
-    return math.min(total, cap)
+    return PickupSystem.calculateDropChance(orbType, playerLevel, time)
 end
 
 function PlayingState:spawnOrbsForEnemy(enemy)
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
     local orbX = enemy.x + enemy.width / 2
     local orbY = enemy.y + enemy.height / 2
 
@@ -546,7 +728,6 @@ function PlayingState:spawnOrbsForEnemy(enemy)
     -- Check if player has picked first color
     local colorHistory = ColorSystem.colorHistory or {}
     if #colorHistory > 0 then
-        local primaryColor = colorHistory[1]
         local playerLevel = self.player.level
 
         -- Roll for medium XP orb
@@ -567,9 +748,19 @@ function PlayingState:spawnOrbsForEnemy(enemy)
     end
 
     return orbs
+=======
+    return PickupSystem.spawnOrbsForEnemy(enemy, self.player, self.gameTime, self.screenWidth, self.screenHeight)
+>>>>>>> theirs
+=======
+    return PickupSystem.spawnOrbsForEnemy(enemy, self.player, self.gameTime, self.screenWidth, self.screenHeight)
+>>>>>>> theirs
+=======
+    return PickupSystem.spawnOrbsForEnemy(enemy, self.player, self.gameTime, self.screenWidth, self.screenHeight)
+>>>>>>> theirs
 end
 
 function PlayingState:draw()
+    -- LAYER: background
     -- Draw music-reactive shader background
     BackgroundShader.draw()
 
@@ -577,11 +768,19 @@ function PlayingState:draw()
     -- DISABLED FOR TESTING
     -- World.draw()
 
-    -- Draw grid attack system (under entities)
+    -- LAYER: ground/grid effects
+    -- Draw grid attack system and low-lying world effects under entities
     -- DISABLED FOR TESTING
     -- GridAttackSystem.draw(false)  -- Set to true for debug grid
+    self.player:drawAura()
+    VFXLibrary.draw()
 
-    self.player:draw()
+    -- LAYER: projectile trails
+    -- Player projectile trails render under combatants so motion reads without covering sprites
+    self.player:drawProjectileTrails()
+
+    -- LAYER: entities/player/enemies/boss/collectibles
+    self.player:drawBody()
 
     -- Draw enemies
     for _, enemy in ipairs(self.enemies) do
@@ -592,13 +791,20 @@ function PlayingState:draw()
     end
 
     -- Draw boss if active
-    if BossSystem.activeBoss then
-        BossSystem.activeBoss:draw()
+    local activeBoss = BossCoordinator.getActiveBoss()
+    if activeBoss then
+        activeBoss:draw()
+<<<<<<< ours
+<<<<<<< ours
+=======
+=======
+>>>>>>> theirs
     end
 
     -- Draw boss projectiles
     for _, proj in ipairs(self.bossProjectiles) do
         proj:draw()
+>>>>>>> theirs
     end
 
     -- Draw XP orbs
@@ -611,6 +817,31 @@ function PlayingState:draw()
         powerup:draw()
     end
 
+<<<<<<< ours
+    -- Draw persistent active-artifact fields
+    for _, effect in ipairs(self.supernovaEffects) do
+        if effect.field then
+            local alpha = 0.18
+            if effect.field.lifetime and effect.field.lifetime < 1 then
+                alpha = alpha * math.max(0, effect.field.lifetime)
+            end
+            local color = effect.color or {1, 0.3, 0.2}
+            love.graphics.setColor(color[1], color[2], color[3], alpha)
+            love.graphics.circle("fill", effect.field.x, effect.field.y, effect.field.radius or effect.radius or 120)
+            love.graphics.setColor(color[1], color[2], color[3], 0.7)
+            love.graphics.circle("line", effect.field.x, effect.field.y, effect.field.radius or effect.radius or 120)
+        end
+=======
+    -- LAYER: foreground projectile cores and combat VFX overlays
+    -- Draw player projectile cores above entities after their trails were rendered below entities
+    self.player:drawProjectileCores()
+
+    -- Draw boss projectiles
+    for _, proj in ipairs(self.bossProjectiles) do
+        proj:draw()
+>>>>>>> theirs
+    end
+
     -- Draw explosions (MAGENTA AoE)
     for _, explosion in ipairs(self.explosions) do
         love.graphics.setColor(1, 0.2, 1, 0.6 * (explosion.lifetime / 0.5))
@@ -619,33 +850,42 @@ function PlayingState:draw()
         love.graphics.circle("line", explosion.x, explosion.y, explosion.radius)
     end
 
-    -- Draw shield effect (gradient radial visual)
+    -- Shield is a foreground combat overlay around the player.
     ShieldEffect.draw()
 
-    -- Draw lightning bolt effects
+    -- Lightning is a foreground combat overlay so bolts remain readable above enemies/projectiles.
     LightningEffect.draw()
 
+    -- Draw impact burst particles with foreground combat VFX
+    VFXLibrary.drawImpactBursts()
+
+    -- LAYER: targeting overlays
+    -- Target line/indicator intentionally draws above enemies and foreground VFX
+    self.player:drawTargetingOverlay()
+
+    -- LAYER: HUD and debug overlays
     -- Draw player HUD using UISystem
     UISystem.drawPlayerHUD(self.player)
-
-    -- Draw VFX particles
-    VFXLibrary.draw()
-    
-    -- Draw impact burst particles
-    VFXLibrary.drawImpactBursts()
 
     -- Draw floating text (on top of everything)
     FloatingTextSystem.draw()
 
     -- Draw debug menu overlay
-    local DebugMenu = require("src.systems.DebugMenu")
-    DebugMenu.draw(self.player)
+    local GameConfig = require("src.systems.GameConfig")
+    if GameConfig.isDebugMode() then
+        local DebugMenu = require("src.systems.DebugMenu")
+        DebugMenu.draw(self.player)
+    end
 end
 
 function PlayingState:keypressed(key)
-    -- ESC exits game
-    if key == "escape" then
-        love.event.quit()
+    -- Pause overlay
+    if key == "escape" or key == "p" then
+        local StateManager = require("src.systems.StateManager")
+        StateManager.push("Pause", {
+            player = self.player,
+            musicReactor = self.musicReactor
+        })
         return
     end
 
@@ -657,8 +897,11 @@ function PlayingState:keypressed(key)
         return
     end
 
+    local GameConfig = require("src.systems.GameConfig")
+    local debugEnabled = GameConfig.isDebugMode()
+
     -- TEST: Trigger grid wave animations (for development)
-    if key == "t" then
+    if debugEnabled and key == "t" then
         SimpleGrid.triggerWave("all", {1, 1, 1}, "expand")  -- White wave in all quadrants
         print("[Test] Triggered white wave in all quadrants")
     end
@@ -679,19 +922,19 @@ function PlayingState:keypressed(key)
         return
     end
 
-    -- Left Shift: Use active artifact ability (for future)
+    -- Left Shift: Use active artifact ability
     if key == "lshift" then
-        if self.player:useActiveAbility() then
+        if self:activateSupernova() then
             print("[Input] Active artifact ability used!")
         end
         return
     end
 
-    -- Debug helpers (F1-F5)
-    if key == "f1" then
+    -- Debug helpers
+    if debugEnabled and key == "f1" then
         self.player:addExp(self.player.expToNext)
         print("[DEBUG] Instant level up to level " .. self.player.level)
-    elseif key == "f2" then
+    elseif debugEnabled and key == "f2" then
         local Enemy = require("src.entities.Enemy")
         for i = 1, 10 do
             local angle = (i / 10) * math.pi * 2
@@ -701,15 +944,17 @@ function PlayingState:keypressed(key)
             table.insert(self.enemies, Enemy(spawnX, spawnY))
         end
         print("[DEBUG] Spawned 10 enemies")
-    elseif key == "f3" then
+    elseif debugEnabled and key == "f3" then
+        local counts = ColorSystem.getColorCounts()
         print("[DEBUG] Color System State:")
-        print("  Primary: " .. tostring(ColorSystem.primaryColor) .. " (count: " .. ColorSystem.primaryCount .. ")")
-        print("  Secondary: " .. tostring(ColorSystem.secondaryColor) .. " (count: " .. ColorSystem.secondaryCount .. ")")
-        print("  Tertiary: " .. tostring(ColorSystem.tertiaryColor) .. " (count: " .. ColorSystem.tertiaryCount .. ")")
+        print("  Commitment: " .. ColorSystem.getCurrentPath())
+        print(string.format("  Primaries: RED=%d GREEN=%d BLUE=%d", counts.RED, counts.GREEN, counts.BLUE))
+        print(string.format("  Secondaries: YELLOW=%d MAGENTA=%d CYAN=%d", counts.YELLOW, counts.MAGENTA, counts.CYAN))
+        print("  Dominant: " .. tostring(ColorSystem.getDominantColor()))
         print("  Level: " .. self.player.level)
         local choices = ColorSystem.getValidChoices(self.player.level)
         print("  Valid choices: " .. table.concat(choices, ", "))
-    elseif key == "f4" then
+    elseif debugEnabled and key == "f4" then
         local xpNeeded = 0
         local tempLevel = self.player.level
         local tempExpToNext = self.player.expToNext
@@ -724,37 +969,39 @@ function PlayingState:keypressed(key)
 
         self.player:addExp(xpNeeded)
         print("[DEBUG] Added " .. xpNeeded .. " XP")
-    elseif key == "f5" then
+    elseif debugEnabled and key == "f5" then
         self.player.hp = self.player.maxHp
         print("[DEBUG] Full heal")
-    elseif key == "f8" then
+    elseif debugEnabled and key == "f8" then
         local playerCenterX = self.player.x + self.player.width / 2
         local playerCenterY = self.player.y + self.player.height / 2
         table.insert(self.xpOrbs, XPParticleSystem.new(playerCenterX, playerCenterY, 10))
         print("[DEBUG] Spawned basic XP particle orb (10 XP)")
-    elseif key == "f9" then
+    elseif debugEnabled and key == "f9" then
         local playerCenterX = self.player.x + self.player.width / 2
         local playerCenterY = self.player.y + self.player.height / 2
         table.insert(self.xpOrbs, XPParticleSystem.new(playerCenterX, playerCenterY, 20))
         print("[DEBUG] Spawned medium XP particle orb (20 XP)")
-    elseif key == "f10" then
+    elseif debugEnabled and key == "f10" then
         local playerCenterX = self.player.x + self.player.width / 2
         local playerCenterY = self.player.y + self.player.height / 2
         table.insert(self.xpOrbs, XPParticleSystem.new(playerCenterX, playerCenterY, 40))
         print("[DEBUG] Spawned large XP particle orb (40 XP)")
-    elseif key == "f11" then
+    elseif debugEnabled and key == "f11" then
         local primaryChance = self:calculateDropChance("primary", self.player.level, self.gameTime)
         local secondaryChance = self:calculateDropChance("secondary", self.player.level, self.gameTime)
         print(string.format("[DEBUG] Drop Chances - Primary: %.1f%%, Secondary: %.1f%%",
             primaryChance * 100, secondaryChance * 100))
         print(string.format("[DEBUG] Game Time: %.1fs, Level: %d", self.gameTime, self.player.level))
-    elseif key == "l" then
+    elseif debugEnabled and key == "l" then
         self.player.exp = self.player.exp + 50
     end
 
     -- DebugMenu system
-    local DebugMenu = require("src.systems.DebugMenu")
-    DebugMenu.keypressed(key, self.player, self.enemies, self.musicReactor)
+    if debugEnabled then
+        local DebugMenu = require("src.systems.DebugMenu")
+        DebugMenu.keypressed(key, self.player, self.enemies, self.musicReactor)
+    end
 end
 
 return PlayingState

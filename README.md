@@ -6,6 +6,8 @@ A Vampire Survivors-style bullet hell built with LÖVE2D (Lua). Auto-aim shootin
 
 On boot, **`SongLibrary`** picks **one of two authored tracks at random**, loads its structure table, and runs BPM detection (`main.lua`). Splash screen: **SPACE** starts a run; **U** jumps into **`UISandboxState`** for HUD experiments.
 
+Canonical runtime entrypoints are the root **`main.lua`**, **`conf.lua`**, and **`src/`** tree. The **`donor/`** folder is reference-only prototype material; its color logic and old entrypoints are not part of the runnable root game.
+
 ---
 
 ## Controls
@@ -16,9 +18,10 @@ On boot, **`SongLibrary`** picks **one of two authored tracks at random**, loads
 | Space | Dash (1.5s cooldown) |
 | E | Blink — teleport to mouse position (5s cooldown) |
 | Q | Shield — temporary invulnerability (10s cooldown, 3s duration) |
-| Left Shift | Artifact “active” slot *(keydown wired; **[`Player:useActiveAbility`](src/entities/Player.lua) is still a stub** — no effect yet. HUD block for **`[L-SHIFT]`** only appears once `setActiveAbility` is wired; footer text may still mention the bind.) |
+| Left Shift | SUPERNOVA active artifact ultimate once collected; uses the current dominant color variant and its cooldown. |
+| P / Esc | Pause / resume during gameplay. |
 
-Debug hotkeys (**PlayingState**, development prototype):
+Debug hotkeys (**PlayingState**, development prototype; gated by `Config.debug.enabled`):
 
 | Key | Action |
 |-----|--------|
@@ -34,17 +37,17 @@ Debug hotkeys (**PlayingState**, development prototype):
 | T | Pulse **SimpleGrid** wave animation (visual dev test) |
 | L | Grant +50 player EXP |
 
-`DebugMenu` adds its **own** overlay/help hotkeys (`src/systems/DebugMenu.lua`) on top of the above.
+`DebugMenu` adds its **own** overlay/help hotkeys (`src/systems/DebugMenu.lua`) on top of the above when debug mode is enabled.
 
 ---
 
 ## Color progression
 
-At each level-up the player selects a **color upgrade** overlay (`LevelUpState`). Mechanics match the **`ColorTree` + `ColorSystem`** pairing:
+At each level-up the player selects a **color upgrade** overlay (`LevelUpState`). The root **`ColorSystem`** is the source of truth for color progression, commitment, secondary unlocks, dominant color, and projectile stat effects:
 
 - Pick first primary — RED, GREEN, or BLUE.
 - Pick second primary — the third locks out for the remainder of the run.
-- With both locked, tertiary / secondary palettes unlock (`YELLOW`, `MAGENTA`, `CYAN`, etc.)
+- With both locked and leveled, the matching secondary palette unlocks (`YELLOW`, `MAGENTA`, or `CYAN`).
 
 Full tables live in **`DESIGN_DOC.md` §4** (this README stays succinct).
 
@@ -74,7 +77,7 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 
 - Spawn cadence — **every 100 kills** counted in `SpawnController` (not unused `BossSystem.checkSpawn`/wave scaffolding).
 - **2000 HP** — defeatable (`BossSystem.spawnBoss`).
-- Falling exit animation clears `BossSystem.activeBoss`.
+- Falling exit animation clears `BossSystem.activeBoss` and switches to `VictoryState`.
 
 **⚠ Separate debug entity [`Boss.lua`](src/entities/Boss.lua)** (9999 HP) spawns via **DebugMenu tooling** — not the cinematic boss chase above.
 
@@ -101,7 +104,7 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 | **`CollisionSystem`** | bump.lua hashing |
 | **`VFXLibrary` / XP particle helpers / `FloatingTextSystem`** | Juice & feedback |
 | **`UISystem`** + optional **`UISandboxState`** | HUD + layout lab |
-| **`DebugMenu`** | Overlay diagnostics |
+| **`DebugMenu`** | Config-gated overlay diagnostics |
 
 ---
 
@@ -113,8 +116,9 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 | `PlayingState` | Core loop orchestrator (`BackgroundShader` drawn here each frame) |
 | `LevelUpState` | Frozen snapshot + color cards (**shader grid not redrawn underneath right now**) |
 | `GameOverState` | Death recap path (`PlayingState` -> switch) |
-| `VictoryState` | Exists + renders summary overlays, yet **Gameplay never pushes/switches victory** currently |
-| `UISandboxState` | Dev HUD playground (direct `gamestate.switch` from splash) |
+| `VictoryState` | Run completion path after the production BossSystem boss defeat animation finishes |
+| `PauseState` | Pushed pause overlay; freezes gameplay, pauses music, supports resume/restart/quit |
+| `UISandboxState` | Dev HUD playground registered through `StateManager` |
 
 ---
 
@@ -134,7 +138,8 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 - Prefer **`DESIGN_DOC.md`** for mechanical depth; **`PITCH_DECK.md`** for stakeholder framing — both documents were refreshed to match **`src/`** at the time this README synced.
 - `Feedback.md` still tracks experiential papercuts (**post-upgrade delay**, **dash clarity**).
 - `_deprecated/` is historical baggage only.
-- `src/` **+** `main.lua` remain authoritative for behavior.
+- `donor/` is reference-only prototype code; do not port donor color-system behavior into the canonical root game.
+- `src/` **+** root `main.lua` / `conf.lua` remain authoritative for behavior.
 
 ---
 

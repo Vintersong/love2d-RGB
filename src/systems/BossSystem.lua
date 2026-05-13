@@ -3,7 +3,9 @@
 
 local BossSystem = {}
 BossSystem.__index = BossSystem
-local BossArchetypes = require("src.data.BossArchetypes")
+local BossBehaviors = require("src.data.BossBehaviors")
+local BehaviorSelector = require("src.systems.BehaviorSelector")
+local MathUtils = require("src.systems.MathUtils")
 
 -- Boss spawns every 20 waves
 BossSystem.SPAWN_INTERVAL = 20
@@ -18,6 +20,22 @@ function BossSystem.init()
     -- Setup boss ship color via GameConfig
     local GameConfig = require("src.systems.GameConfig")
     GameConfig.currentShipColor = BOSS_COLOR
+end
+
+
+function BossSystem.clearBossReferences(boss)
+    if not boss then return end
+
+    boss._playerRef = nil
+    boss._bossProjectiles = nil
+    boss._scheduledProjectiles = nil
+    boss._scheduler = nil
+end
+
+function BossSystem.reset()
+    BossSystem.clearBossReferences(BossSystem.activeBoss)
+    BossSystem.activeBoss = nil
+    BossSystem.currentWave = 0
 end
 
 function BossSystem.checkSpawn(waveNumber)
@@ -56,10 +74,10 @@ function BossSystem.spawnBoss()
     boss.invulnerable = true -- Invuln during entrance
 
     -- Archetype behavior AI
-    boss.archetypeName = BossArchetypes.randomArchetype()
+    boss.archetypeName = BossBehaviors.randomArchetype()
     boss.behaviorState = "idle" -- idle, attacking
     boss.behaviorTimer = 0
-    boss.behaviorCooldowns = {}
+    boss._behaviorCooldowns = {}
     boss.dashVx = 0
     boss.dashVy = 0
     boss.dashTimer = 0
@@ -88,74 +106,71 @@ end
 
 function BossSystem:update(dt, playerX, playerY)
     if self.phase == "entering" then
-        -- Move to combat position
-        self.y = self.y + self.speed * dt
-        
-        if self.y >= self.targetY then
-            self.y = self.targetY
-            self.phase = "combat"
-            self.invulnerable = false
-            -- FloatingText announcement will be handled by main.lua
+        local behavior = BossBehaviors.getById("enter_from_top")
+        if behavior and behavior.update then
+            behavior.update(self, dt, BehaviorSelector.buildContext(self, {playerX = playerX, playerY = playerY}))
         end
         
     elseif self.phase == "combat" then
         self.combatTime = (self.combatTime or 0) + dt
+        BehaviorSelector.updateCooldowns(self, dt)
 
-        -- Horizontal oscillation + follow player
-        local oscillation = math.sin(self.combatTime * 0.8) * 220
-        local targetX = love.graphics.getWidth() / 2 + oscillation
-        local dx = targetX - self.x
-        self.x = self.x + dx * 2 * dt
+        local context = BehaviorSelector.buildContext(self, {
+            player = self._playerRef,
+            playerX = playerX,
+            playerY = playerY,
+            bossProjectiles = self._bossProjectiles or {},
+            scheduler = self._scheduler,
+            bossPhase = self.phase,
+            combatTime = self.combatTime,
+            musicReactor = self._musicReactor,
+        })
 
-        -- Dash movement override
-        if self.dashTimer and self.dashTimer > 0 then
-            self.x = self.x + self.dashVx * dt
-            self.y = self.y + self.dashVy * dt
-            self.dashTimer = self.dashTimer - dt
+        local movement = self._currentMovementBehavior
+        if not movement or (movement.canRun and not movement.canRun(self, context)) then
+            movement = BehaviorSelector.select(
+                BossBehaviors.listByKind("movement"),
+                "movement",
+                "boss",
+                self,
+                context
+            ) or BossBehaviors.getById("horizontal_oscillate")
+        end
+        BehaviorSelector.setMovement(self, movement, context)
+        if self._currentMovementBehavior and self._currentMovementBehavior.update then
+            self._currentMovementBehavior.update(self, dt, context)
         end
 
-        -- Stay in bounds
-        local margin = 100
-        self.x = math.max(margin, math.min(love.graphics.getWidth() - margin, self.x))
-        self.y = math.max(50, math.min(love.graphics.getHeight() / 2, self.y))
-
-        -- Decrement behavior cooldowns
-        for key, cd in pairs(self.behaviorCooldowns) do
-            self.behaviorCooldowns[key] = cd - dt
-            if self.behaviorCooldowns[key] <= 0 then
-                self.behaviorCooldowns[key] = nil
-            end
+        local lowHealthPhase = BossBehaviors.getById("phase_low_health")
+        if lowHealthPhase and lowHealthPhase.canRun and lowHealthPhase.canRun(self, context) then
+            BehaviorSelector.execute(self, lowHealthPhase, context)
         end
 
-        -- Behavior AI
         self.behaviorTimer = self.behaviorTimer - dt
         if self.behaviorTimer <= 0 then
-            local distToPlayer = math.sqrt(
-                (playerX - self.x) * (playerX - self.x) +
-                (playerY - self.y) * (playerY - self.y)
+            local phaseBehavior = BehaviorSelector.select(
+                BossBehaviors.listByKind("phase"),
+                "phase",
+                "boss",
+                self,
+                context,
+                {allowedIds = BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
             )
-            local category, behaviorName = BossArchetypes.selectBehavior(
-                self.archetypeName, distToPlayer
+            local attackBehavior = BehaviorSelector.select(
+                BossBehaviors.listByKind("attack"),
+                "attack",
+                "boss",
+                self,
+                context,
+                {allowedIds = BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
             )
-            if category and behaviorName then
-                local cdKey = category .. "_" .. behaviorName
-                if not self.behaviorCooldowns[cdKey] then
-                    local behavior = BossArchetypes[category][behaviorName]
-                    if behavior then
-                        -- We need a reference to player and bossProjectiles
-                        -- Pass them via a temporary table stored on boss
-                        local projectiles = self._bossProjectiles or {}
-                        local player = self._playerRef
-                        if player then
-                            local duration = behavior.execute(self, player, projectiles)
-                            self.behaviorTimer = duration or 0.5
-                            self.behaviorCooldowns[cdKey] = behavior.cooldown
-                            return nil -- projectiles were added directly to bossProjectiles
-                        end
-                    end
-                end
+
+            local behavior = phaseBehavior or attackBehavior
+            if behavior then
+                self.behaviorTimer = BehaviorSelector.execute(self, behavior, context) or self.attackRate or 0.8
+            else
+                self.behaviorTimer = 0.3
             end
-            self.behaviorTimer = 0.3 -- retry soon
         end
 
         -- Process delayed pattern projectiles (spiral/cross staggered spawns)
@@ -190,6 +205,7 @@ function BossSystem:update(dt, playerX, playerY)
         if self.y > love.graphics.getHeight() + 200 then
             self:onDefeat()
             self.alive = false
+            BossSystem.clearBossReferences(self)
             BossSystem.activeBoss = nil
         end
     end
@@ -197,7 +213,7 @@ end
 
 function BossSystem:fireCone(targetX, targetY)
     -- Calculate angle to player
-    local baseAngle = math.atan(targetY - self.y, targetX - self.x)
+    local baseAngle = MathUtils.angleBetween(self.x, self.y, targetX, targetY)
     
     -- Fire 5 projectiles in a cone
     local Projectile = require("src.entities.Projectile")

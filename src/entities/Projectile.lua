@@ -2,6 +2,7 @@ local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 local Projectile = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
+local MathUtils = require("src.systems.MathUtils")
 
 function Projectile:init(x, y, vx, vy, damage, projType, owner)
     self.x = x
@@ -83,7 +84,7 @@ function Projectile:draw()
         
     elseif self.type == "ricochet" then
         -- CRESCENT MOON
-        local angle = math.atan(self.vy, self.vx)
+        local angle = MathUtils.atan2(self.vy, self.vx)
         ShapeLibrary.crescent(self.x, self.y, size, color, {
             angle = angle,
             outlineWidth = 1
@@ -91,7 +92,7 @@ function Projectile:draw()
         
     elseif self.type == "pierce" then
         -- ISOSCELES TRIANGLE
-        local angle = math.atan(self.vy, self.vx) + math.pi/2
+        local angle = MathUtils.atan2(self.vy, self.vx) + math.pi/2
         ShapeLibrary.triangle(self.x, self.y, size, color, {
             rotation = angle,
             outline = {1, 1, 1, 0.5},

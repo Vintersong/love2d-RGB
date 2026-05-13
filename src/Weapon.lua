@@ -1,4 +1,5 @@
 local class = require("libs.hump-master.class")
+local MathUtils = require("src.systems.MathUtils")
 local Weapon = class{}
 
 function Weapon:init(weaponType)
@@ -17,11 +18,6 @@ function Weapon:init(weaponType)
     self.pierceChance = 0
     self.spreadChance = 0
     self.spreadAngle = 0
-    
-    -- Secondary color chance attributes (level 10+)
-    self.secondaryBounceChance = 0
-    self.secondaryPierceChance = 0
-    self.secondarySpreadChance = 0
     
     -- Tertiary color chance attributes (level 20+)
     self.rootChance = 0        -- YELLOW: Root/slow
@@ -111,52 +107,8 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
         }}
     end
     
-    -- YELLOW SPECIAL: Always fire 2 bouncing projectiles (RED + GREEN combo)
-    if ColorSystem.tertiaryColor == "y" then
-        local projectiles = {}
-        local spreadAngle = math.pi / 8  -- 22.5 degrees spread
-        
-        -- Left projectile
-        local leftAngle = math.atan(dy, dx) - spreadAngle
-        table.insert(projectiles, {
-            x = x, y = y,
-            damage = effectiveDamage,
-            speed = self.projectileSpeed,
-            vx = math.cos(leftAngle) * self.projectileSpeed,
-            vy = math.sin(leftAngle) * self.projectileSpeed,
-            color = color,
-            shape = "atom_crescent",
-            type = "projectile",
-            canBounce = true,
-            bouncesLeft = 3,
-            canRoot = self.rootChance and self.rootChance > 0,
-            rootDuration = self.rootDuration
-        })
-        
-        -- Right projectile
-        local rightAngle = math.atan(dy, dx) + spreadAngle
-        table.insert(projectiles, {
-            x = x, y = y,
-            damage = effectiveDamage,
-            speed = self.projectileSpeed,
-            vx = math.cos(rightAngle) * self.projectileSpeed,
-            vy = math.sin(rightAngle) * self.projectileSpeed,
-            color = color,
-            shape = "atom_crescent",
-            type = "projectile",
-            canBounce = true,
-            bouncesLeft = 3,
-            canRoot = self.rootChance and self.rootChance > 0,
-            rootDuration = self.rootDuration
-        })
-        
-        return projectiles
-    end
-    
-    -- STEP 1: Determine projectile count (affected by RED primary/secondary)
+    -- STEP 1: Determine projectile count from RED
     local projectileCount = 1  -- Base count
-    local primaryRedTriggered = false
-    local secondaryRedTriggered = false
     
     -- RED PRIMARY: Guaranteed bullets + chance for one more
     if hasRed then
@@ -169,23 +121,6 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
         if self.spreadChance and self.spreadChance > 0 then
             if math.random() <= self.spreadChance then
                 projectileCount = projectileCount + 1
-                primaryRedTriggered = true
-            end
-        end
-    end
-    
-    -- RED SECONDARY: Guaranteed bullets + chance for one more
-    if dominantColor == "YELLOW" or dominantColor == "MAGENTA" then
-        -- Add guaranteed bullets from secondary
-        if self.secondaryGuaranteedBullets and self.secondaryGuaranteedBullets > 0 then
-            projectileCount = projectileCount + self.secondaryGuaranteedBullets
-        end
-        
-        -- Roll for bonus bullet based on secondarySpreadChance
-        if self.secondarySpreadChance and self.secondarySpreadChance > 0 then
-            if math.random() <= self.secondarySpreadChance then
-                projectileCount = projectileCount + 1
-                secondaryRedTriggered = true
             end
         end
     end
@@ -207,29 +142,11 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
         end
     end
     
-    -- Secondary GREEN (YELLOW or CYAN)
-    if (dominantColor == "YELLOW" or dominantColor == "CYAN") and self.secondaryBounceChance then
-        if math.random() <= self.secondaryBounceChance then
-            hasBounce = true
-            -- Use the higher bounce count if both trigger
-            bounceCount = math.max(bounceCount, self.secondaryBounceCount or 1)
-        end
-    end
-    
     -- Primary BLUE
     if hasBlue and self.pierceChance then
         if math.random() <= self.pierceChance then
             hasPierce = true
             pierceCount = self.pierceCount or 1
-        end
-    end
-    
-    -- Secondary BLUE (MAGENTA or CYAN)
-    if (dominantColor == "MAGENTA" or dominantColor == "CYAN") and self.secondaryPierceChance then
-        if math.random() <= self.secondaryPierceChance then
-            hasPierce = true
-            -- Use the higher pierce count if both trigger
-            pierceCount = math.max(pierceCount, self.secondaryPierceCount or 1)
         end
     end
     
@@ -252,7 +169,25 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
     
     -- STEP 3: Create projectiles with all abilities
     local projectiles = {}
-    local baseAngle = math.atan(dy, dx)
+    local baseAngle = MathUtils.atan2(dy, dx)
+
+    local function getProjectileShape()
+        if dominantColor == "RED" then
+            return "atom"
+        elseif dominantColor == "GREEN" then
+            return "crescent"
+        elseif dominantColor == "BLUE" then
+            return "arrow"
+        elseif dominantColor == "YELLOW" then
+            return "atom_crescent"
+        elseif dominantColor == "MAGENTA" then
+            return "atom_arrow"
+        elseif dominantColor == "CYAN" then
+            return "crescent_arrow"
+        end
+
+        return "atom"
+    end
     
     -- Helper function to apply all abilities to a projectile
     local function applyAbilities(proj)
@@ -303,23 +238,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
         
         applyAbilities(proj)
         
-        -- Assign shape based on dominant color
-        if dominantColor == "RED" then
-            proj.shape = "atom"
-        elseif dominantColor == "GREEN" then
-            proj.shape = "crescent"
-        elseif dominantColor == "BLUE" then
-            proj.shape = "arrow"  -- Arrow/triangle pointing forward
-        elseif dominantColor == "YELLOW" then
-            proj.shape = "atom_crescent"  -- Crescent with atom inside
-        elseif dominantColor == "MAGENTA" then
-            proj.shape = "atom_arrow"  -- Atom with arrow attached
-        elseif dominantColor == "CYAN" then
-            proj.shape = "crescent"
-        else
-            -- No color chosen yet, default to atom
-            proj.shape = "atom"
-        end
+        proj.shape = getProjectileShape()
         
         table.insert(projectiles, proj)
         
@@ -346,22 +265,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                 
                 applyAbilities(proj)
                 
-                -- Assign shape based on dominant color
-                if dominantColor == "RED" then
-                    proj.shape = "atom"
-                elseif dominantColor == "GREEN" then
-                    proj.shape = "crescent"
-                elseif dominantColor == "BLUE" then
-                    proj.shape = "arrow"
-                elseif dominantColor == "YELLOW" then
-                    proj.shape = "atom_crescent"
-                elseif dominantColor == "MAGENTA" then
-                    proj.shape = "atom_arrow"
-                elseif dominantColor == "CYAN" then
-                    proj.shape = "crescent"
-                else
-                    proj.shape = "atom"
-                end
+                proj.shape = getProjectileShape()
                 
                 table.insert(projectiles, proj)
             end
@@ -386,22 +290,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                     
                     applyAbilities(proj)
                     
-                    -- Assign shape based on dominant color
-                    if dominantColor == "RED" then
-                        proj.shape = "atom"
-                    elseif dominantColor == "GREEN" then
-                        proj.shape = "crescent"
-                    elseif dominantColor == "BLUE" then
-                        proj.shape = "arrow"
-                    elseif dominantColor == "YELLOW" then
-                        proj.shape = "atom_crescent"
-                    elseif dominantColor == "MAGENTA" then
-                        proj.shape = "atom_arrow"
-                    elseif dominantColor == "CYAN" then
-                        proj.shape = "crescent"
-                    else
-                        proj.shape = "atom"
-                    end
+                    proj.shape = getProjectileShape()
                     
                     table.insert(projectiles, proj)
                 end
@@ -424,71 +313,12 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
                     
                     applyAbilities(proj)
                     
-                    -- Assign shape based on dominant color
-                    if dominantColor == "RED" then
-                        proj.shape = "atom"
-                    elseif dominantColor == "GREEN" then
-                        proj.shape = "crescent"
-                    elseif dominantColor == "BLUE" then
-                        proj.shape = "arrow"
-                    elseif dominantColor == "YELLOW" then
-                        proj.shape = "atom_crescent"
-                    elseif dominantColor == "MAGENTA" then
-                        proj.shape = "atom_arrow"
-                    elseif dominantColor == "CYAN" then
-                        proj.shape = "crescent"
-                    else
-                        proj.shape = "atom"
-                    end
+                    proj.shape = getProjectileShape()
                     
                     table.insert(projectiles, proj)
                 end
             end
         end
-    end
-    
-    -- Apply artifact effects AFTER projectile creation
-    projectiles = self:applyArtifactEffects(projectiles)
-    
-    return projectiles
-end
-
-function Weapon:applyArtifactEffects(projectiles)
-    local ArtifactManager = require("src.systems.ArtifactManager")
-    local ColorSystem = require("src.systems.ColorSystem")
-    
-    -- Get dominant color for artifact behavior selection
-    local dominantColor = ColorSystem.getDominantColor()
-    if not dominantColor then return projectiles end
-    
-    -- Apply LENS artifact effect
-    if ArtifactManager.getLevel("LENS") > 0 then
-        local LensArtifact = require("src.artifacts.LensArtifact")
-        local lensLevel = ArtifactManager.getLevel("LENS")
-        projectiles = LensArtifact.apply(projectiles, lensLevel, dominantColor)
-    end
-    
-    -- Apply MIRROR artifact effect
-    if ArtifactManager.getLevel("MIRROR") > 0 then
-        local MirrorArtifact = require("src.artifacts.MirrorArtifact")
-        local mirrorLevel = ArtifactManager.getLevel("MIRROR")
-        projectiles = MirrorArtifact.apply(projectiles, mirrorLevel, dominantColor, self.player)
-    end
-    
-    -- Apply PRISM artifact effect
-    if ArtifactManager.getLevel("PRISM") > 0 then
-        local PrismArtifact = require("src.artifacts.PrismArtifact")
-        local prismLevel = ArtifactManager.getLevel("PRISM")
-        -- PRISM needs target position for wall calculations
-        projectiles = PrismArtifact.apply(projectiles, prismLevel, dominantColor, 
-                                         self.targetX or 0, self.targetY or 0, self.player)
-    end
-    
-    -- Apply DIFFUSION artifact effect
-    if ArtifactManager.getLevel("DIFFUSION") > 0 then
-        local DiffusionArtifact = require("src.artifacts.DiffusionArtifact")
-        local diffusionLevel = ArtifactManager.getLevel("DIFFUSION")
-        projectiles = DiffusionArtifact.apply(projectiles, diffusionLevel, dominantColor)
     end
     
     return projectiles

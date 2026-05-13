@@ -10,6 +10,8 @@ RGB is an auto-shooting bullet-hell roguelite built around a single design quest
 
 Every level-up is a color choice. Color shapes your projectiles, your dash behavior, your artifact synergies, and your identity. The player commits to a two-primary color path early, locking out the third primary permanently. That constraint is the game.
 
+Runtime source of truth: the root `src/systems/ColorSystem.lua` is the canonical color system. The `donor/` folder is reference-only prototype material; donor color behavior and donor entrypoints are not part of the root game.
+
 ---
 
 ## 2. Core Game Loop
@@ -24,7 +26,7 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 - Enemies approach from off-screen; contact with enemies deals damage over time.
 - XP orbs drop on kills and are picked up automatically on proximity.
 - A boss encounter triggers every **100 enemy kills**.
-- Runs **currently end only on player death**. `VictoryState` UI exists but **no gameplay path switches to victory** yet (win condition wiring is a gap).
+- Runs end on player death or on defeating the production `BossSystem` boss; the boss defeat animation switches to `VictoryState`.
 
 ---
 
@@ -36,9 +38,10 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 | Space | Dash — color-reactive burst | 1.5s |
 | E | Blink — teleport to mouse cursor | 5s |
 | Q | Shield — 3s invulnerability | 10s |
-| Left Shift | Active artifact ability | *(wired to keydown; [`Player:useActiveAbility`](src/entities/Player.lua) is a stub — no effect; [`setActiveAbility`](src/entities/Player.lua) is never called, so HUD block for `[L-SHIFT]` stays hidden)* |
+| Left Shift | SUPERNOVA active artifact ultimate | SUPERNOVA pickup required; cooldown and behavior use the current dominant color variant |
+| P / Esc | Pause / resume gameplay | — |
 
-**Developer debug (PlayingState)**
+**Developer debug (PlayingState, gated by `Config.debug.enabled`)**
 
 | Input | Action |
 |-------|--------|
@@ -54,7 +57,7 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 | T | Trigger `SimpleGrid` wave pulse (dev) |
 | L | Grant +50 EXP |
 
-Separate **Debug menu** overlays and hotkeys remain active via [`DebugMenu`](src/systems/DebugMenu.lua).
+Separate **Debug menu** overlays and hotkeys are available via [`DebugMenu`](src/systems/DebugMenu.lua) when debug mode is enabled.
 
 ---
 
@@ -68,7 +71,7 @@ At each level-up the player chooses from a small card selection of color upgrade
 
 1. First upgrade: choose RED, GREEN, or BLUE (any, all available).
 2. Second upgrade: choose any of the other two — the third is **locked out for the rest of the run**.
-3. Once both primaries are active, one secondary color unlocks automatically.
+3. Once both committed primaries reach the unlock threshold, their matching secondary color becomes available.
 
 This forces meaningful long-term identity from early decisions.
 
@@ -80,7 +83,7 @@ This forces meaningful long-term identity from early decisions.
 | GREEN | Speed | −0.02s fire rate, +1 bullet count; Emerald (GG) → −0.06s, +3 bullets; Forest Green (GGG) → −0.1s, +7 bullets |
 | BLUE | Utility | +1 pierce; Sapphire (BB) → +3 pierce, +2 ricochet; Deep Blue (BBB) → +5 pierce, +5 ricochet |
 
-### 4.3 Secondary Colors (auto-unlock when both required primaries are active)
+### 4.3 Secondary Colors (auto-unlock when both required primaries are leveled)
 
 | Color | Requires | Path | Effects |
 |-------|----------|------|---------|
@@ -88,11 +91,9 @@ This forces meaningful long-term identity from early decisions.
 | MAGENTA | RED + BLUE | Homing | +10 dmg, projectiles home at strength 2.0 |
 | CYAN | GREEN + BLUE | Control | +2 bullets, +1 pierce, slow enemies 50% for 2s |
 
-### 4.4 Ultimate Path
+### 4.4 Reserved / Non-Runtime Tree Data
 
-| Color | Requires | Path | Effects |
-|-------|----------|------|---------|
-| WHITE LIGHT | R + G + B | Transcendence | +20 dmg, −0.05s fire rate, +5 bullets, +2 pierce, 50-radius AoE, homing |
+`ColorTree.lua` still contains older/aspirational tree descriptions such as triple-primary and White Light data. The runtime `ColorSystem` standard is the 2-primary commitment model above, so third-primary / RGB paths are not currently reachable in canonical play.
 
 ### 4.5 Color-Reactive Dash
 
@@ -252,7 +253,7 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 - Floating text system for damage numbers and heal feedback.
 - Level-up is a **pushed Gamestate** ([`Gamestate.push`](libs/hump-master/gamestate.lua)): **enemy simulation freezes** while HUD cards show, but **`LevelUpState` still ticks music / lightweight effects**. Backdrop differs from gameplay: **`World.draw`** is largely disabled and **`BackgroundShader` is not drawn** there (Shader background only in [`PlayingState:draw`](src/states/PlayingState.lua)).
 - Ability cooldown indicators.
-- Artifact ability hint text may cite **Left Shift**, but HUD block renders only once `player.activeAbility` becomes non-nil (**stub today** — see Controls).
+- SUPERNOVA pickup equips the Left Shift active slot; the HUD renders its cooldown once `player.activeAbility` becomes non-nil.
 
 ---
 
@@ -275,9 +276,10 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 
 ```
 main.lua                      — Boot: SongLibrary RNG, BootLoader sanity checks, registers core states via StateManager
+conf.lua                      - Root window/debug config; donor conf/main are intentionally absent
 src/
   data/                       — Static data tables
-    ColorTree.lua             — Full RGB color upgrade tree
+    ColorTree.lua             - Descriptive/reference RGB tree data
     AbilityLibrary.lua        — Data-driven ability definitions
   Weapon.lua                  — Projectile / weapon facade used by Player
   entities/                   — Game objects
@@ -289,7 +291,7 @@ src/
   systems/
     BootLoader.lua            — Validates & initializes singleton systems printed at startup
     GameConfig.lua / StateManager.lua / SongLibrary.lua
-    ColorSystem.lua           — Primary commitment tracking + projectile stats
+    ColorSystem.lua           - Canonical primary commitment, secondary unlocks, dominant color, projectile stats
     AbilitySystem.lua         — Cooldown/state for DASH / BLINK / SHIELD (+ future actives)
     ArtifactManager.lua / SynergySystem.lua
     SpawnController.lua       — Kill counts, orb drops — wraps EnemySpawner.update
@@ -308,7 +310,8 @@ src/
     SplashScreenState.lua     — Menu: SPACE start, optional U → UISandbox
     PlayingState.lua          — Primary loop orchestrator
     LevelUpState.lua          — Card stack atop frozen playfield snapshot
-    GameOverState.lua / VictoryState.lua (Victory presently unwired from play)
+    GameOverState.lua / VictoryState.lua
+    PauseState.lua            — Pushed pause overlay
     UISandboxState.lua        — HUD layout prototyping
 ```
 
@@ -316,6 +319,7 @@ src/
 
 - Desktop (Windows/macOS/Linux) via LÖVE2D binary.
 - Web browser via love.js (uses compatibility mode to avoid SharedArrayBuffer requirement).
+- Canonical runtime is root `main.lua` / `conf.lua` / `src/`; `donor/` is reference-only and should not be used as an alternate runnable entrypoint.
 
 ---
 
@@ -323,7 +327,7 @@ src/
 
 ### Implemented
 
-- Full color progression data in [`ColorTree`](src/data/ColorTree.lua): primaries, secondaries, triple primaries (“White Light” path expressed in tree data).
+- Canonical runtime color progression in [`ColorSystem`](src/systems/ColorSystem.lua): 2-primary commitment, secondary unlocks, dominant color, and projectile stat effects.
 - Color-reactive Dash, Blink (`E`), Shield (`Q`) via [`AbilityLibrary`](src/data/AbilityLibrary.lua).
 - Eight artifacts leveling to 5 (`ArtifactManager`); passive behaviors across modules (`src/artifacts/*`).
 - **18** scripted synergies triggered through [`SynergySystem.checkAndActivate`](src/systems/SynergySystem.lua) on artifact pickups (`Powerup` types aligned with synergy keys — see HUD note for `HALO` vs `AURORA`).
@@ -334,17 +338,15 @@ src/
 - **SongLibrary**: two authored tracks randomized at startup.
 - **BootLoader** startup validation banner + deterministic init sequencing.
 - Particle / impact VFX stacks, FloatingText, HUD via `UISystem`.
-- Splash flow can jump to **UI Sandbox (`U`)** without registering that state inside `StateManager` (pure `gamestate.switch` shortcut).
+- Splash flow can jump to **UI Sandbox (`U`)** through `StateManager`.
 
 ### Known Gaps / In Progress
 
-- **Active artifact ability** — Left Shift calls [`useActiveAbility`](src/entities/Player.lua) stub (`setActiveAbility` unused).
 - **`GridAttackSystem.update/draw`** remain commented (**disabled**) inside [`PlayingState`](src/states/PlayingState.lua) “for testing”.
-- **Victory flow** — `VictoryState` assets exist yet **Gameplay never calls `switch(VictoryState)`**.
 - UX polish backlog: **post-upgrade input delay**, **dash cooldown clarity** (`Feedback.md`).
 - **Contributor trap:** Legacy [`Boss.lua`](src/entities/Boss.lua) (9999 HP) vs production **BossSystem** boss — differentiate when editing AI.
 - **Level-up layering:** Missing shader/grid backdrop parity while overlay is modal.
-- Debug surfaces (`DebugMenu`, extended F-keys) still compiled in prototype builds (`Config.debug`/console flags per [`conf.lua`](conf.lua)).
+- Debug surfaces (`DebugMenu`, extended F-keys) are gated by `Config.debug.enabled` / `GameConfig.isDebugMode()` per [`conf.lua`](conf.lua).
 
 ---
 

@@ -288,15 +288,7 @@ SynergySystem.definitions = {
 
 -- Check if a synergy exists and activate it
 function SynergySystem.checkAndActivate(artifactType, weapon, player)
-    local primary = ColorSystem.primaryColor
-    local secondary = ColorSystem.secondaryColor
-    local tertiary = ColorSystem.tertiaryColor
-    
-    -- Check synergies in order: tertiary > secondary > primary
-    local colors = {}
-    if tertiary then table.insert(colors, tertiary:upper()) end
-    if secondary then table.insert(colors, secondary:upper()) end
-    if primary then table.insert(colors, primary:upper()) end
+    local colors = ColorSystem.getActiveColorNames()
     
     -- Check each color for synergy
     for _, color in ipairs(colors) do

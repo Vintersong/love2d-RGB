@@ -26,7 +26,11 @@ function Player:init(x, y, weapon)
     self.hp = 100
     self.maxHp = 100
     self.weapon = weapon -- Weapon instance
-    self.projectiles = {}
+    self.projectiles = {}  -- Compatibility shim for combatState.projectiles
+    self.combatState = {
+        nearestEnemy = nil,
+        projectiles = self.projectiles
+    }
     self.level = 1
     self.exp = 0
     self.expToNext = 100  -- XP needed for next level
@@ -37,7 +41,7 @@ function Player:init(x, y, weapon)
     end
 
     -- Auto-aim targeting (Vampire Survivors style)
-    self.nearestEnemy = nil
+    self.nearestEnemy = self.combatState.nearestEnemy  -- Compatibility shim
 
     -- Damage/invulnerability system
     self.invulnerable = false
@@ -48,15 +52,30 @@ function Player:init(x, y, weapon)
     -- Register player abilities with AbilitySystem
     AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD", "LIGHTNING_BOLT"})
 
-    -- Active artifact ability system (for future active artifacts)
+<<<<<<< ours
+    -- Active artifact ability system
     self.activeAbility = nil  -- Current active artifact ability
     self.abilityCooldown = 0  -- Current cooldown timer
     self.abilityMaxCooldown = 0  -- Max cooldown for UI display
+=======
+    -- Active artifact ability system (for future active artifacts)
+    self.abilityState = {
+        activeAbility = nil,  -- Current active artifact ability
+        cooldown = 0,  -- Current cooldown timer
+        maxCooldown = 0,  -- Max cooldown for UI display
+        lastEnemies = {}  -- Cache for lightning bolt ability
+    }
+    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
+    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
+    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
+    self._lastEnemies = self.abilityState.lastEnemies  -- Compatibility shim
+>>>>>>> theirs
 end
 
 function Player:update(dt, enemies)
     enemies = enemies or {}  -- Default to empty table if not provided
-    self._lastEnemies = enemies  -- Cache for lightning bolt ability
+    self.abilityState.lastEnemies = enemies  -- Cache for lightning bolt ability
+    self._lastEnemies = self.abilityState.lastEnemies  -- Compatibility shim
 
     -- Update invulnerability timer
     if self.invulnerable then
@@ -72,15 +91,34 @@ function Player:update(dt, enemies)
     end
 
     -- Update active artifact ability cooldown
-    if self.abilityCooldown > 0 then
+<<<<<<< ours
+    if self.activeAbility == "SUPERNOVA" then
+        local ArtifactManager = require("src.systems.ArtifactManager")
+        local ColorSystem = require("src.systems.ColorSystem")
+        local color = ColorSystem.getDominantColor() or "RED"
+        ArtifactManager.updateSupernovaCooldowns(dt)
+        self.abilityMaxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
+        self.abilityCooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
+    elseif self.abilityCooldown > 0 then
         self.abilityCooldown = self.abilityCooldown - dt
         if self.abilityCooldown < 0 then
             self.abilityCooldown = 0
+=======
+    if self.abilityState.cooldown > 0 then
+        self.abilityState.cooldown = self.abilityState.cooldown - dt
+        if self.abilityState.cooldown < 0 then
+            self.abilityState.cooldown = 0
+>>>>>>> theirs
         end
+        self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
     end
 
     -- Update all abilities via AbilitySystem
     AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
+
+    -- Artifact updates
+    local ArtifactManager = require("src.systems.ArtifactManager")
+    local haloLevel = ArtifactManager.getLevel("HALO")
 
     -- Spawn continuous VFX for active artifacts
     self.vfxTimer = (self.vfxTimer or 0) + dt
@@ -89,21 +127,18 @@ function Player:update(dt, enemies)
         local centerX, centerY = PlayerInput.getCenter(self)
 
         -- HALO: Color-based aura VFX
-        local ArtifactManager = require("src.systems.ArtifactManager")
-        if ArtifactManager.getLevel("HALO") > 0 then
+        if haloLevel > 0 then
             local VFXLibrary = require("src.systems.VFXLibrary")
             VFXLibrary.spawnArtifactEffect("HALO", centerX, centerY)
         end
     end
 
     -- Update HALO artifact aura effects (passive)
-    local ArtifactManager = require("src.systems.ArtifactManager")
-    if ArtifactManager.getLevel("HALO") > 0 then
+    if haloLevel > 0 then
         local ColorSystem = require("src.systems.ColorSystem")
         local dominantColor = ColorSystem.getDominantColor()
         if dominantColor then
             local HaloArtifact = require("src.artifacts.HaloArtifact")
-            local haloLevel = ArtifactManager.getLevel("HALO")
             -- Initialize halo if needed
             HaloArtifact.apply(self, haloLevel, dominantColor)
             -- Update halo effects
@@ -123,7 +158,7 @@ function Player:update(dt, enemies)
     PlayerCombat.updateProjectiles(self, dt, enemies)
 end
 
-function Player:draw()
+function Player:drawAura()
     -- Draw HALO aura ring if artifact is active (delegated to HaloArtifact)
     local ArtifactManager = require("src.systems.ArtifactManager")
     if ArtifactManager.getLevel("HALO") > 0 then
@@ -132,12 +167,72 @@ function Player:draw()
         local HaloArtifact = require("src.artifacts.HaloArtifact")
         HaloArtifact.draw(self, dominantColor)
     end
+end
 
+function Player:drawBody()
     -- Draw player sprite (delegated to PlayerRender)
     PlayerRender.drawPlayer(self)
+end
 
-    -- Draw projectiles with trails (delegated to PlayerRender)
+function Player:drawProjectileTrails()
+    -- Draw projectile trails as a background combat VFX layer
+    PlayerRender.drawProjectileTrails(self)
+end
+
+function Player:drawProjectileCores()
+    -- Draw projectile cores as a foreground combat VFX layer
+    PlayerRender.drawProjectileCores(self)
+end
+
+function Player:drawProjectiles()
+    -- Backwards-compatible projectile draw for screens without explicit layering
     PlayerRender.drawProjectiles(self)
+end
+
+<<<<<<< ours
+
+-- Release subsystem-owned references before discarding this player.
+function Player:destroy()
+    local AbilitySystem = require("src.systems.AbilitySystem")
+
+    AbilitySystem.unregister(self)
+
+    local CollisionSystem = package.loaded["src.systems.CollisionSystem"]
+    if CollisionSystem then
+        CollisionSystem.remove(self)
+    end
+
+    if self.weapon and self.weapon.player == self then
+        self.weapon.player = nil
+    end
+
+    self.nearestEnemy = nil
+    self._lastEnemies = nil
+    self.projectiles = {}
+    self.activeAbility = nil
+    self.abilityCooldown = 0
+    self.abilityMaxCooldown = 0
+    self.vfxTimer = nil
+    self.weapon = nil
+    self.destroyed = true
+end
+
+-- Alias for callers that prefer dispose terminology.
+function Player:dispose()
+    self:destroy()
+=======
+function Player:drawTargetingOverlay()
+    -- Draw targeting lines/indicators above combatants
+    PlayerRender.drawTargetingOverlay(self)
+end
+
+function Player:draw()
+    -- Backwards-compatible full player draw for screens without explicit layering
+    self:drawAura()
+    self:drawBody()
+    self:drawProjectiles()
+    self:drawTargetingOverlay()
+>>>>>>> theirs
 end
 
 function Player:addExp(amount)
@@ -183,10 +278,16 @@ function Player:takeContinuousDamage(amount, dt)
     return false
 end
 
+function Player:canLevelUp()
+    return self.exp >= self.expToNext
+end
+
 function Player:levelUp()
-    if self.exp >= self.expToNext then
+    if self:canLevelUp() then
+        local oldExpToNext = self.expToNext
+
         self.level = self.level + 1
-        self.exp = 0
+        self.exp = self.exp - oldExpToNext
         -- XP requirement increases by 5% per level
         self.expToNext = math.floor(100 * (1.05^(self.level - 1)))
         -- Trigger color choice UI
@@ -228,23 +329,72 @@ end
 
 -- Set active ability (called when picking up an active artifact)
 function Player:setActiveAbility(abilityName, cooldown)
-    self.activeAbility = abilityName
-    self.abilityMaxCooldown = cooldown
-    self.abilityCooldown = 0  -- Ready immediately
+    self.abilityState.activeAbility = abilityName
+    self.abilityState.maxCooldown = cooldown
+    self.abilityState.cooldown = 0  -- Ready immediately
+    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
+    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
+    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
     print(string.format("[Player] Active ability set: %s (cooldown: %.1fs)", abilityName, cooldown))
 end
 
+<<<<<<< ours
+<<<<<<< ours
+-- Use active ability (called on left shift)
+function Player:useActiveAbility(enemies)
+    if not self.activeAbility then return false end
+    if self.abilityCooldown > 0 then return false end
+=======
 -- Use active ability (called on left shift - for future artifact abilities)
+function Player:useActiveAbility()
+    if not self.abilityState.activeAbility then return false end
+    if self.abilityState.cooldown > 0 then return false end
+>>>>>>> theirs
+
+    if self.activeAbility == "SUPERNOVA" then
+        local ArtifactManager = require("src.systems.ArtifactManager")
+        local ColorSystem = require("src.systems.ColorSystem")
+        local color = ColorSystem.getDominantColor() or "RED"
+        local level = ArtifactManager.getLevel("SUPERNOVA")
+        if level <= 0 then
+            return false
+        end
+
+        local success, effectData = ArtifactManager.tryActivateSupernova(color, self, enemies or {}, level)
+        if success then
+            self.abilityMaxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
+            self.abilityCooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
+        end
+        return success, effectData, color
+    end
+
+    return self:useLightningBolt()
+=======
+-- Use active ability (called on left shift - for active artifact abilities)
 function Player:useActiveAbility()
     if not self.activeAbility then return false end
     if self.abilityCooldown > 0 then return false end
 
-    return self:useLightningBolt()
+    local abilityDef = AbilityLibrary[self.activeAbility]
+    if not abilityDef then return false end
+
+    local context = {}
+    if self.activeAbility == "LIGHTNING_BOLT" then
+        context = {enemies = self._lastEnemies or {}}
+    end
+
+    local success = AbilitySystem.activate(self, self.activeAbility, abilityDef, context)
+    if success then
+        self.abilityCooldown = abilityDef.cooldown or self.abilityMaxCooldown or 0
+    end
+
+    return success
+>>>>>>> theirs
 end
 
 -- Use lightning bolt (L-Shift key)
 function Player:useLightningBolt()
-    local enemies = self._lastEnemies or {}
+    local enemies = self.abilityState.lastEnemies or {}
     local success = AbilitySystem.activate(self, "LIGHTNING_BOLT", AbilityLibrary.LIGHTNING_BOLT, {enemies = enemies})
     return success
 end

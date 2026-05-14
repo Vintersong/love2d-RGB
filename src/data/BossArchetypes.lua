@@ -42,7 +42,7 @@ BossArchetypes.melee = {
 BossArchetypes.ranged = {
     single = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math.atan2(
+            local angle = math2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -60,7 +60,7 @@ BossArchetypes.ranged = {
     },
     spread = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math.atan2(
+            local angle = math2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -77,7 +77,7 @@ BossArchetypes.ranged = {
     },
     spiral = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math.atan2(
+            local angle = math2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -105,7 +105,7 @@ BossArchetypes.ranged = {
     },
     wave = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math.atan2(
+            local angle = math2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )

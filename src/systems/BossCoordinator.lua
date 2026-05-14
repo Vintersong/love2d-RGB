@@ -27,7 +27,11 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
         -- Provide references for archetype behavior AI during the boss update only.
         activeBoss._playerRef = player
         activeBoss._bossProjectiles = BossCoordinator.bossProjectiles
-        local newProjectiles = activeBoss:update(dt, player.x, player.y)
+        local newProjectiles = activeBoss:update(
+            dt,
+            player.x + player.width / 2,
+            player.y + player.height / 2
+        )
         cleanupBossRefs(activeBoss)
 
         -- Add boss projectiles if any were fired
@@ -74,13 +78,13 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
                 if not player.invulnerable then
                     player.hp = player.hp - proj.damage
                     player.invulnerable = true
-                    player.invulnerableTimer = 0.5
+                    player.invulnerableTime = 0.5
                     player.damageFlashTime = 0.1
 
                     if player.hp <= 0 then
                         player.hp = 0
-                        local Gamestate = require("libs.hump-master.gamestate")
-                        Gamestate.switch(require("src.states.GameOverState"), {
+                        local StateManager = require("src.systems.StateManager")
+                        StateManager.switch("GameOver", {
                             player = player,
                             enemies = enemies,
                             musicReactor = musicReactor

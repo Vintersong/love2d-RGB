@@ -449,17 +449,11 @@ function LevelUpState:keypressed(key)
         ColorSystem.addColor(self.player.weapon, colorChosen)
         ColorSystem.applyEffects(self.player.weapon)
 
-<<<<<<< ours
-        -- Return to playing state
-        local StateManager = require("src.systems.StateManager")
-        StateManager.pop()
-=======
         -- Stay on the level-up screen if a large XP burst queued another choice
         if not self.player:canLevelUp() then
-            -- Return to playing state
-            Gamestate.pop()
+            local StateManager = require("src.systems.StateManager")
+            StateManager.pop()
         end
->>>>>>> theirs
     end
 end
 

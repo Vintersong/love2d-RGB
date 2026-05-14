@@ -124,6 +124,10 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self._behaviorCooldowns = {}
     self._currentMovementBehavior = nil
     self.behaviorProfile = self.formationData.behaviorProfile or defaultBehaviorProfile(self.enemyType)
+    if self.enemyType ~= "BOSS" then
+        self.behaviorProfile.movement = "chase_player"
+        self.behaviorProfile.attacks = {"passive"}
+    end
     self.formationRole = self.formationData.role
     self.formationName = self.formationData.formation
     
@@ -252,6 +256,9 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     -- Initial velocity based on spawn side (for flankers)
     self.vx = self.formationData.vx or 0
     self.vy = self.formationData.vy or 0
+
+    -- Regular enemies pressure through movement/contact; boss systems own projectile combat.
+    self.disableProjectileAttacks = self.enemyType ~= "BOSS"
 end
 
 function Enemy:update(dt, playerX, playerY, context)

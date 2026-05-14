@@ -374,11 +374,6 @@ function PlayerCombat.getAimAngle(player)
     if nearestEnemy then
         local centerX = player.x + player.width / 2
         local centerY = player.y + player.height / 2
-<<<<<<< ours
-        local targetX = player.nearestEnemy.x + player.nearestEnemy.width / 2
-        local targetY = player.nearestEnemy.y + player.nearestEnemy.height / 2
-        return MathUtils.angleBetween(centerX, centerY, targetX, targetY)
-=======
         local targetX, targetY
         if nearestEnemy.width and nearestEnemy.height then
             targetX = nearestEnemy.x + nearestEnemy.width / 2
@@ -387,8 +382,7 @@ function PlayerCombat.getAimAngle(player)
             targetX = nearestEnemy.x
             targetY = nearestEnemy.y
         end
-        return math.atan(targetY - centerY, targetX - centerX)
->>>>>>> theirs
+        return MathUtils.angleBetween(centerX, centerY, targetX, targetY)
     end
     return 0
 end

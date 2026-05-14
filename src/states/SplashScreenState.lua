@@ -184,28 +184,7 @@ function SplashScreen:startGame()
 
     -- Initialize PlayingState before switching
     local PlayingState = require("src.states.PlayingState")
-<<<<<<< ours
     PlayingState.startNewRun()
-=======
-    local GameConfig = require("src.systems.GameConfig")
-    local BossSystem = require("src.systems.BossSystem")
-
-    if PlayingState.player and PlayingState.player.destroy then
-        PlayingState.player:destroy()
-    end
-    BossSystem.reset()
-
-    PlayingState.player = Player(512, 360, Weapon())
-    PlayingState.enemies = {}
-    PlayingState.xpOrbs = {}
-    PlayingState.powerups = {}
-    PlayingState.explosions = {}
-    PlayingState.bossProjectiles = {}
-    PlayingState.gameTime = 0
-    PlayingState.enemyKillCount = 0
-    PlayingState.musicReactor = GameConfig.getMusicReactor()
-    PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
->>>>>>> theirs
 
     -- Switch to PlayingState
     local StateManager = require("src.systems.StateManager")

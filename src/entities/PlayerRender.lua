@@ -6,25 +6,25 @@ local PlayerRender = {}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
 local MathUtils = require("src.systems.MathUtils")
 
+local function getProjectileList(player)
+    local combatState = player.combatState or {projectiles = player.projectiles or {}}
+    return combatState.projectiles or player.projectiles or {}
+end
+
 local function getTargetInfo(player)
     local centerX = player.x + player.width / 2
     local centerY = player.y + player.height / 2
-    local targetX, targetY
-<<<<<<< ours
-    local hasTarget = player.nearestEnemy and (not player.nearestEnemy.dead or player.nearestEnemy.alive)
-
-    if hasTarget then
-=======
     local combatState = player.combatState or {projectiles = player.projectiles or {}}
     local nearestEnemy = combatState.nearestEnemy or player.nearestEnemy
-    if nearestEnemy and (not nearestEnemy.dead or nearestEnemy.alive) then
->>>>>>> theirs
+    local hasTarget = nearestEnemy and (not nearestEnemy.dead or nearestEnemy.alive)
+    local targetX, targetY
+
+    if hasTarget then
         -- BossSystem bosses use center x,y; regular enemies use x,y + width/height
         if nearestEnemy.width and nearestEnemy.height then
             targetX = nearestEnemy.x + nearestEnemy.width / 2
             targetY = nearestEnemy.y + nearestEnemy.height / 2
         else
-            -- BossSystem boss (x,y is center)
             targetX = nearestEnemy.x
             targetY = nearestEnemy.y
         end
@@ -37,7 +37,7 @@ local function getTargetInfo(player)
     local dx = targetX - centerX
     local dy = targetY - centerY
     local distance = math.sqrt(dx * dx + dy * dy)
-    local isBoss = hasTarget and (player.nearestEnemy.enemyType == "boss" or player.nearestEnemy.phase ~= nil)
+    local isBoss = hasTarget and (nearestEnemy.enemyType == "boss" or nearestEnemy.phase ~= nil)
 
     return {
         centerX = centerX,
@@ -54,27 +54,24 @@ end
 
 local function prepareProjectileVisuals(player)
     local ColorSystem = require("src.systems.ColorSystem")
-    local projColor = ColorSystem.getProjectileColor()
     local ArtifactManager = require("src.systems.ArtifactManager")
+    local projColor = ColorSystem.getProjectileColor()
 
-    for _, proj in ipairs(player.projectiles) do
-        -- Ensure projectile has necessary properties
+    for _, proj in ipairs(getProjectileList(player)) do
         proj.color = projColor
 
-        -- Enhanced size calculation (20-30% larger base + LENS scaling)
-        local baseSize = 8  -- Increased from 4 to 8 (100% larger)
+        local baseSize = 8
         local lensLevel = ArtifactManager.getLevel("LENS")
-        local lensScale = 1 + (lensLevel * 0.1)  -- +10% per LENS level
+        local lensScale = 1 + (lensLevel * 0.1)
 
-        -- Additional size for multiple abilities (5-10% per ability)
         local abilityCount = 0
         if proj.canPierce then abilityCount = abilityCount + 1 end
         if proj.canBounceToNearest then abilityCount = abilityCount + 1 end
         if proj.canRoot then abilityCount = abilityCount + 1 end
         if proj.canExplode then abilityCount = abilityCount + 1 end
         if proj.canDot then abilityCount = abilityCount + 1 end
-        local abilityScale = 1 + (abilityCount * 0.075)  -- 7.5% per ability
 
+        local abilityScale = 1 + (abilityCount * 0.075)
         proj.size = baseSize * lensScale * abilityScale
         proj.age = proj.age or 0
         proj._renderAbilityCount = abilityCount
@@ -91,22 +88,19 @@ function PlayerRender.drawPlayer(player)
     local radius = player.width / 2
 
     -- Draw player as CIRCLE
-    -- Flash white when taking damage, flicker when invulnerable
     if player.invulnerable and math.floor(player.invulnerableTime * 10) % 2 == 0 then
-        love.graphics.setColor(0.3, 0.6, 1, 0.5) -- Semi-transparent when invulnerable
+        love.graphics.setColor(0.3, 0.6, 1, 0.5)
     elseif player.damageFlashTime > 0 then
-        love.graphics.setColor(1, 0.3, 0.3) -- Red flash when hit
+        love.graphics.setColor(1, 0.3, 0.3)
     else
-        love.graphics.setColor(0.3, 0.6, 1) -- Blue-ish player
+        love.graphics.setColor(0.3, 0.6, 1)
     end
     love.graphics.circle("fill", centerX, centerY, radius)
 
-    -- Draw outline
     love.graphics.setColor(1, 1, 1)
     love.graphics.setLineWidth(2)
     love.graphics.circle("line", centerX, centerY, radius)
 
-    -- Draw player center dot for reference
     love.graphics.setColor(1, 1, 1)
     love.graphics.circle("fill", centerX, centerY, 2)
 end
@@ -119,98 +113,47 @@ function PlayerRender.drawTargetingOverlay(player)
     local targetX = targetInfo.targetX
     local targetY = targetInfo.targetY
 
-    -- Draw direction indicator circle in front of player
     if targetInfo.distance > 0 then
         local dirX = targetInfo.dx / targetInfo.distance
         local dirY = targetInfo.dy / targetInfo.distance
-        local indicatorDistance = 20 -- Distance from player center
+        local indicatorDistance = 20
         local indicatorX = centerX + dirX * indicatorDistance
         local indicatorY = centerY + dirY * indicatorDistance
 
-        love.graphics.setColor(1, 1, 0, 0.8) -- Yellow indicator
+        love.graphics.setColor(1, 1, 0, 0.8)
         love.graphics.circle("fill", indicatorX, indicatorY, 5)
     end
 
-    -- Draw line to nearest enemy (if exists)
-    -- BLUE for boss targeting, GREEN for regular enemy
-<<<<<<< ours
     if targetInfo.hasTarget then
         if targetInfo.isBoss then
-=======
-    if nearestEnemy and (not nearestEnemy.dead or nearestEnemy.alive) then
-        -- Detect boss: either enemyType="boss" (Boss entity) or has phase property (BossSystem)
-        local isBoss = nearestEnemy.enemyType == "boss" or nearestEnemy.phase ~= nil
-
-        if isBoss then
->>>>>>> theirs
-            -- BLUE line for boss targeting
-            love.graphics.setColor(0.3, 0.6, 1, 0.7)  -- Blue, semi-transparent
+            love.graphics.setColor(0.3, 0.6, 1, 0.7)
         else
-            -- GREEN line for regular enemy targeting
-            love.graphics.setColor(0.2, 1, 0.2, 0.4)  -- Green, semi-transparent
+            love.graphics.setColor(0.2, 1, 0.2, 0.4)
         end
 
         love.graphics.setLineWidth(3)
         love.graphics.line(centerX, centerY, targetX, targetY)
 
-        -- Draw target indicator on nearest enemy
         if targetInfo.isBoss then
-            love.graphics.setColor(0.3, 0.6, 1, 0.9)  -- Blue for boss
+            love.graphics.setColor(0.3, 0.6, 1, 0.9)
             love.graphics.circle("line", targetX, targetY, 20)
             love.graphics.circle("line", targetX, targetY, 16)
             love.graphics.circle("line", targetX, targetY, 12)
         else
-            love.graphics.setColor(0.2, 1, 0.2, 0.8)  -- Green for regular
+            love.graphics.setColor(0.2, 1, 0.2, 0.8)
             love.graphics.circle("line", targetX, targetY, 15)
             love.graphics.circle("line", targetX, targetY, 12)
         end
     end
 end
 
-<<<<<<< ours
--- Draw all projectiles with trails and special shapes
-function PlayerRender.drawProjectiles(player)
-    local ColorSystem = require("src.systems.ColorSystem")
-    local ArtifactManager = require("src.systems.ArtifactManager")
-
-<<<<<<< ours
-    for _, proj in ipairs(player.projectiles) do
-        local renderColor = ColorSystem.getProjectileColor()
-=======
-    local combatState = player.combatState or {projectiles = player.projectiles or {}}
-
-    for _, proj in ipairs(combatState.projectiles) do
-        -- Ensure projectile has necessary properties
-        proj.color = projColor
->>>>>>> theirs
-
-        -- Enhanced size calculation (20-30% larger base + LENS scaling)
-        local baseSize = 8  -- Increased from 4 to 8 (100% larger)
-        local lensLevel = ArtifactManager.getLevel("LENS")
-        local lensScale = 1 + (lensLevel * 0.1)  -- +10% per LENS level
-
-        -- Additional size for multiple abilities (5-10% per ability)
-        local abilityCount = 0
-        if proj.canPierce then abilityCount = abilityCount + 1 end
-        if proj.canBounceToNearest then abilityCount = abilityCount + 1 end
-        if proj.canRoot then abilityCount = abilityCount + 1 end
-        if proj.canExplode then abilityCount = abilityCount + 1 end
-        if proj.canDot then abilityCount = abilityCount + 1 end
-        local abilityScale = 1 + (abilityCount * 0.075)  -- 7.5% per ability
-
-        local renderSize = baseSize * lensScale * abilityScale
-        local renderAge = proj.age or 0
-
-        -- Draw trail using ShapeLibrary
-=======
 -- Draw only projectile trails for the behind-entity combat VFX layer
 function PlayerRender.drawProjectileTrails(player)
     local projColor = prepareProjectileVisuals(player)
 
-    for _, proj in ipairs(player.projectiles) do
->>>>>>> theirs
+    for _, proj in ipairs(getProjectileList(player)) do
         if proj.trail then
-            ShapeLibrary.trail(proj.trail, renderSize, renderColor, {fadeAlpha = 0.4})
+            ShapeLibrary.trail(proj.trail, proj.size, projColor, {fadeAlpha = 0.4})
         end
     end
 end
@@ -219,13 +162,8 @@ end
 function PlayerRender.drawProjectileCores(player)
     local projColor = prepareProjectileVisuals(player)
 
-<<<<<<< ours
-        -- Draw projectile based on shape
-        PlayerRender.drawProjectileShape(proj, renderSize, renderColor, renderAge, abilityCount)
-=======
-    for _, proj in ipairs(player.projectiles) do
-        PlayerRender.drawProjectileShape(proj, projColor, proj._renderAbilityCount or 0)
->>>>>>> theirs
+    for _, proj in ipairs(getProjectileList(player)) do
+        PlayerRender.drawProjectileShape(proj, proj.size, projColor, proj.age or 0, proj._renderAbilityCount or 0)
     end
 end
 
@@ -246,26 +184,16 @@ function PlayerRender.drawProjectileShape(proj, renderSize, renderColor, renderA
             uniqueSeed = proj.x + proj.y
         })
     elseif shape == "atom_crescent" then
-<<<<<<< ours
         local angle = MathUtils.atan2(proj.vy, proj.vx)
-        ShapeLibrary.atom_crescent(proj.x, proj.y, proj.size, projColor, {
-=======
-        local angle = math.atan(proj.vy, proj.vx)
         ShapeLibrary.atom_crescent(proj.x, proj.y, renderSize, renderColor, {
->>>>>>> theirs
             angle = angle,
             age = renderAge,
             orbitSpeed = 8,
             uniqueSeed = proj.x + proj.y
         })
     elseif shape == "atom_arrow" then
-<<<<<<< ours
         local angle = MathUtils.atan2(proj.vy, proj.vx)
-        ShapeLibrary.atom_arrow(proj.x, proj.y, proj.size, projColor, {
-=======
-        local angle = math.atan(proj.vy, proj.vx)
         ShapeLibrary.atom_arrow(proj.x, proj.y, renderSize, renderColor, {
->>>>>>> theirs
             angle = angle,
             age = renderAge,
             orbitSpeed = 8,
@@ -273,32 +201,22 @@ function PlayerRender.drawProjectileShape(proj, renderSize, renderColor, renderA
         })
     elseif shape == "crescent_arrow" then
         local angle = MathUtils.atan2(proj.vy, proj.vx)
-        ShapeLibrary.crescent(proj.x, proj.y, proj.size, projColor, {
+        ShapeLibrary.crescent(proj.x, proj.y, renderSize, renderColor, {
             angle = angle
         })
-        ShapeLibrary.triangle(proj.x, proj.y, proj.size * 0.7, projColor, {
+        ShapeLibrary.triangle(proj.x, proj.y, renderSize * 0.7, renderColor, {
             rotation = angle + math.pi / 2,
             outline = {1, 1, 1, 0.9},
             outlineWidth = 2
         })
     elseif shape == "crescent" then
-<<<<<<< ours
         local angle = MathUtils.atan2(proj.vy, proj.vx)
-        ShapeLibrary.crescent(proj.x, proj.y, proj.size, projColor, {
-            angle = angle
-        })
-    elseif shape == "triangle" or shape == "arrow" then
-        local angle = MathUtils.atan2(proj.vy, proj.vx) + math.pi/2
-        ShapeLibrary.triangle(proj.x, proj.y, proj.size, projColor, {
-=======
-        local angle = math.atan(proj.vy, proj.vx)
         ShapeLibrary.crescent(proj.x, proj.y, renderSize, renderColor, {
             angle = angle
         })
     elseif shape == "triangle" or shape == "arrow" then
-        local angle = math.atan(proj.vy, proj.vx) + math.pi/2
+        local angle = MathUtils.atan2(proj.vy, proj.vx) + math.pi / 2
         ShapeLibrary.triangle(proj.x, proj.y, renderSize, renderColor, {
->>>>>>> theirs
             rotation = angle,
             outline = {1, 1, 1, 0.95},
             outlineWidth = 3
@@ -308,7 +226,10 @@ function PlayerRender.drawProjectileShape(proj, renderSize, renderColor, renderA
             showRefraction = true
         })
     else
+        love.graphics.push()
+        love.graphics.translate(proj.x, proj.y)
         PlayerRender.drawCircleShape(proj, renderSize, renderColor, abilityCount)
+        love.graphics.pop()
     end
 end
 
@@ -316,38 +237,26 @@ end
 function PlayerRender.drawCircleShape(proj, renderSize, renderColor, abilityCount)
     local hasMultipleAbilities = abilityCount > 1
 
-    -- PIERCE (BLUE): Elongated diamond/arrow
     if proj.canPierce and not hasMultipleAbilities then
         PlayerRender.drawPierceShape(proj, renderSize, renderColor)
-    -- BOUNCE (GREEN): Circle with rotating orbit ring
     elseif proj.canBounceToNearest and not hasMultipleAbilities then
         PlayerRender.drawBounceShape(proj, renderSize, renderColor)
-    -- SPREAD (RED): Standard circle slightly larger
     elseif proj.type == "spread" and not hasMultipleAbilities then
         PlayerRender.drawSpreadShape(proj, renderSize, renderColor)
-    -- ROOT (YELLOW): Circle with pulsing corona
     elseif proj.canRoot and not hasMultipleAbilities then
         PlayerRender.drawRootShape(proj, renderSize, renderColor)
-    -- EXPLODE (MAGENTA): Circle with magenta glow
     elseif proj.canExplode and not hasMultipleAbilities then
         PlayerRender.drawExplodeShape(proj, renderSize, renderColor)
-    -- DOT (CYAN): Circle with cyan spiral
     elseif proj.canDot and not hasMultipleAbilities then
         PlayerRender.drawDotShape(proj, renderSize, renderColor)
-    -- MULTIPLE ABILITIES: Combined indicators
     else
         PlayerRender.drawMultiAbilityShape(proj, renderSize, renderColor)
     end
 end
 
 -- Pierce projectile shape
-<<<<<<< ours
-function PlayerRender.drawPierceShape(proj, projColor)
-    local angle = MathUtils.atan2(proj.vy, proj.vx)
-=======
 function PlayerRender.drawPierceShape(proj, renderSize, renderColor)
-    local angle = math.atan(proj.vy, proj.vx)
->>>>>>> theirs
+    local angle = MathUtils.atan2(proj.vy, proj.vx)
     love.graphics.push()
     love.graphics.rotate(angle)
 
@@ -395,8 +304,7 @@ end
 
 -- Spread projectile shape
 function PlayerRender.drawSpreadShape(proj, renderSize, renderColor)
-    local spreadScale = 1.15
-    local spreadSize = renderSize * spreadScale
+    local spreadSize = renderSize * 1.15
 
     love.graphics.setColor(1, 1, 1, 0.95)
     love.graphics.setLineWidth(3)
@@ -482,7 +390,6 @@ function PlayerRender.drawMultiAbilityShape(proj, renderSize, renderColor)
     love.graphics.setColor(renderColor)
     love.graphics.circle("fill", 0, 0, renderSize)
 
-    -- Draw indicators for each ability (stacked)
     if proj.canPierce then
         local angle = MathUtils.atan2(proj.vy, proj.vx)
         love.graphics.push()

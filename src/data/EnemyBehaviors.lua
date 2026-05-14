@@ -195,6 +195,9 @@ EnemyBehaviors.catalog = {
         validFor = "enemy",
         tags = {"mids"},
         cooldown = 5.5,
+        canRun = function(enemy)
+            return not enemy.disableProjectileAttacks
+        end,
         weight = function(enemy, context)
             return 0.5 + context.mids * 2 + math.min(context.playerLevel / 30, 1)
         end,
@@ -210,7 +213,8 @@ EnemyBehaviors.catalog = {
         tags = {"treble", "highEnergy"},
         cooldown = 6.5,
         canRun = function(enemy, context)
-            return context.playerLevel >= 8 or context.treble > 0.65
+            return not enemy.disableProjectileAttacks
+                and (context.playerLevel >= 8 or context.treble > 0.65)
         end,
         weight = function(enemy, context)
             return context.treble * 2.5 + context.energy
@@ -230,6 +234,9 @@ EnemyBehaviors.catalog = {
         validFor = "enemy",
         tags = {"bass"},
         cooldown = 7.0,
+        canRun = function(enemy)
+            return not enemy.disableProjectileAttacks
+        end,
         weight = function(enemy, context)
             return context.bass > 0.6 and context.bass * 3 or 0.2
         end,

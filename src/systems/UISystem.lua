@@ -146,14 +146,12 @@ function UISystem.drawPlayerHUD(player)
         love.graphics.print(string.format("%s [L-SHIFT]", abilityState.activeAbility), x, abilityY, 0, 1.3, 1.3)
 
         -- Cooldown bar
-<<<<<<< ours
+
         local cdPercent = 1
-        if player.abilityMaxCooldown and player.abilityMaxCooldown > 0 then
-            cdPercent = 1 - (player.abilityCooldown / player.abilityMaxCooldown)
+        if abilityState.maxCooldown and abilityState.maxCooldown > 0 then
+            cdPercent = 1 - (abilityState.cooldown / abilityState.maxCooldown)
         end
-=======
-        local cdPercent = 1 - (abilityState.cooldown / abilityState.maxCooldown)
->>>>>>> theirs
+
 
         love.graphics.setColor(0.2, 0.2, 0.3)
         love.graphics.rectangle("fill", x, abilityY + 25, barWidth, barHeight)

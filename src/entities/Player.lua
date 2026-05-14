@@ -52,12 +52,6 @@ function Player:init(x, y, weapon)
     -- Register player abilities with AbilitySystem
     AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD", "LIGHTNING_BOLT"})
 
-<<<<<<< ours
-    -- Active artifact ability system
-    self.activeAbility = nil  -- Current active artifact ability
-    self.abilityCooldown = 0  -- Current cooldown timer
-    self.abilityMaxCooldown = 0  -- Max cooldown for UI display
-=======
     -- Active artifact ability system (for future active artifacts)
     self.abilityState = {
         activeAbility = nil,  -- Current active artifact ability
@@ -69,7 +63,6 @@ function Player:init(x, y, weapon)
     self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
     self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
     self._lastEnemies = self.abilityState.lastEnemies  -- Compatibility shim
->>>>>>> theirs
 end
 
 function Player:update(dt, enemies)
@@ -91,27 +84,22 @@ function Player:update(dt, enemies)
     end
 
     -- Update active artifact ability cooldown
-<<<<<<< ours
-    if self.activeAbility == "SUPERNOVA" then
+    if self.abilityState.activeAbility == "SUPERNOVA" then
         local ArtifactManager = require("src.systems.ArtifactManager")
         local ColorSystem = require("src.systems.ColorSystem")
         local color = ColorSystem.getDominantColor() or "RED"
         ArtifactManager.updateSupernovaCooldowns(dt)
-        self.abilityMaxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
-        self.abilityCooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
-    elseif self.abilityCooldown > 0 then
-        self.abilityCooldown = self.abilityCooldown - dt
-        if self.abilityCooldown < 0 then
-            self.abilityCooldown = 0
-=======
-    if self.abilityState.cooldown > 0 then
+        self.abilityState.maxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
+        self.abilityState.cooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
+    elseif self.abilityState.cooldown > 0 then
         self.abilityState.cooldown = self.abilityState.cooldown - dt
         if self.abilityState.cooldown < 0 then
             self.abilityState.cooldown = 0
->>>>>>> theirs
         end
-        self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
     end
+    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
+    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
+    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
 
     -- Update all abilities via AbilitySystem
     AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
@@ -189,8 +177,6 @@ function Player:drawProjectiles()
     PlayerRender.drawProjectiles(self)
 end
 
-<<<<<<< ours
-
 -- Release subsystem-owned references before discarding this player.
 function Player:destroy()
     local AbilitySystem = require("src.systems.AbilitySystem")
@@ -220,7 +206,8 @@ end
 -- Alias for callers that prefer dispose terminology.
 function Player:dispose()
     self:destroy()
-=======
+end
+
 function Player:drawTargetingOverlay()
     -- Draw targeting lines/indicators above combatants
     PlayerRender.drawTargetingOverlay(self)
@@ -232,7 +219,6 @@ function Player:draw()
     self:drawBody()
     self:drawProjectiles()
     self:drawTargetingOverlay()
->>>>>>> theirs
 end
 
 function Player:addExp(amount)
@@ -338,20 +324,13 @@ function Player:setActiveAbility(abilityName, cooldown)
     print(string.format("[Player] Active ability set: %s (cooldown: %.1fs)", abilityName, cooldown))
 end
 
-<<<<<<< ours
-<<<<<<< ours
 -- Use active ability (called on left shift)
 function Player:useActiveAbility(enemies)
-    if not self.activeAbility then return false end
-    if self.abilityCooldown > 0 then return false end
-=======
--- Use active ability (called on left shift - for future artifact abilities)
-function Player:useActiveAbility()
-    if not self.abilityState.activeAbility then return false end
-    if self.abilityState.cooldown > 0 then return false end
->>>>>>> theirs
+    local activeAbility = self.abilityState.activeAbility or self.activeAbility
+    if not activeAbility then return false end
+    if (self.abilityState.cooldown or self.abilityCooldown or 0) > 0 then return false end
 
-    if self.activeAbility == "SUPERNOVA" then
+    if activeAbility == "SUPERNOVA" then
         local ArtifactManager = require("src.systems.ArtifactManager")
         local ColorSystem = require("src.systems.ColorSystem")
         local color = ColorSystem.getDominantColor() or "RED"
@@ -362,34 +341,29 @@ function Player:useActiveAbility()
 
         local success, effectData = ArtifactManager.tryActivateSupernova(color, self, enemies or {}, level)
         if success then
-            self.abilityMaxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
-            self.abilityCooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
+            self.abilityState.maxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
+            self.abilityState.cooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
+            self.abilityMaxCooldown = self.abilityState.maxCooldown
+            self.abilityCooldown = self.abilityState.cooldown
         end
         return success, effectData, color
     end
 
-    return self:useLightningBolt()
-=======
--- Use active ability (called on left shift - for active artifact abilities)
-function Player:useActiveAbility()
-    if not self.activeAbility then return false end
-    if self.abilityCooldown > 0 then return false end
-
-    local abilityDef = AbilityLibrary[self.activeAbility]
+    local abilityDef = AbilityLibrary[activeAbility]
     if not abilityDef then return false end
 
     local context = {}
-    if self.activeAbility == "LIGHTNING_BOLT" then
-        context = {enemies = self._lastEnemies or {}}
+    if activeAbility == "LIGHTNING_BOLT" then
+        context = {enemies = self.abilityState.lastEnemies or self._lastEnemies or {}}
     end
 
-    local success = AbilitySystem.activate(self, self.activeAbility, abilityDef, context)
+    local success = AbilitySystem.activate(self, activeAbility, abilityDef, context)
     if success then
-        self.abilityCooldown = abilityDef.cooldown or self.abilityMaxCooldown or 0
+        self.abilityState.cooldown = abilityDef.cooldown or self.abilityState.maxCooldown or 0
+        self.abilityCooldown = self.abilityState.cooldown
     end
 
     return success
->>>>>>> theirs
 end
 
 -- Use lightning bolt (L-Shift key)

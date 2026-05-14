@@ -114,39 +114,9 @@ function GameOverState:keypressed(key)
 end
 
 function GameOverState:restartGame()
-<<<<<<< ours
     local PlayingState = require("src.states.PlayingState")
     PlayingState.startNewRun()
-=======
-    local Player = require("src.entities.Player")
-    local Weapon = require("src.Weapon")
-    local ColorSystem = require("src.systems.ColorSystem")
-    local SynergySystem = require("src.systems.SynergySystem")
-    local ArtifactManager = require("src.systems.ArtifactManager")
-    local BossSystem = require("src.systems.BossSystem")
-    local PlayingState = require("src.states.PlayingState")
-
-    if self.player and self.player.destroy then
-        self.player:destroy()
-        self.player = nil
-    end
-
-    -- Reset all systems
-    ColorSystem.init()
-    SynergySystem.reset()
-    ArtifactManager.reset()
-    BossSystem.reset()
-
-    -- Create new player
-    PlayingState.player = Player(512, 360, Weapon())
-    PlayingState.enemies = {}
-    PlayingState.xpOrbs = {}
-    PlayingState.powerups = {}
-    PlayingState.explosions = {}
-    PlayingState.bossProjectiles = {}
-    PlayingState.gameTime = 0
-    PlayingState.enemyKillCount = 0
->>>>>>> theirs
+    self.player = PlayingState.player
 end
 
 return GameOverState

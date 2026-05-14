@@ -24,14 +24,14 @@ function ProceduralEnemy:init(x, y, level, config)
     self.weakness = affinityData.weakness
     self.projectileColor = affinityData.projectileColor
     
-    -- Apply attack pattern
-    self.attackPatternName = config.attackPattern or "STRAIGHT"
+    -- Regular enemies do not fire; they threaten through tracking/contact.
+    self.attackPatternName = "PASSIVE"
     self.attackPattern = EnemyAbilities.AttackPatterns[self.attackPatternName]
     self.attackCooldown = 0
-    self.projectiles = {}  -- Enemy projectiles
+    self.projectiles = nil
     
-    -- Apply movement behavior
-    self.movementBehaviorName = config.movementBehavior or "CHASE"
+    -- Regular enemies always track the player directly.
+    self.movementBehaviorName = "CHASE"
     self.movementBehavior = EnemyAbilities.MovementBehaviors[self.movementBehaviorName]
     
     -- Base stats (scaled by level and config)
@@ -46,9 +46,6 @@ function ProceduralEnemy:init(x, y, level, config)
     self.vx = 0
     self.vy = 0
     
-    -- Effects
-    self.teleportFlash = 0
-    self.spiralAngle = math.random() * math.pi * 2
 end
 
 function ProceduralEnemy:update(dt, playerX, playerY)
@@ -65,56 +62,10 @@ function ProceduralEnemy:update(dt, playerX, playerY)
     self.x = self.x + self.vx * dt
     self.y = self.y + self.vy * dt
     
-    -- Update attack cooldown
-    self.attackCooldown = self.attackCooldown - dt
-    
-    -- Attack when ready (only if this enemy can shoot)
-    if self.attackCooldown <= 0 and self.attackPattern and self.attackPattern.canShoot then
-        self:attack(playerX, playerY)
-        self.attackCooldown = self.attackPattern.cooldown
-    end
-    
-    -- Update projectiles
-    for i = #self.projectiles, 1, -1 do
-        local proj = self.projectiles[i]
-        proj.x = proj.x + proj.vx * dt
-        proj.y = proj.y + proj.vy * dt
-        proj.lifetime = proj.lifetime - dt
-        
-        -- Remove expired projectiles
-        if proj.lifetime <= 0 then
-            table.remove(self.projectiles, i)
-        end
-    end
-    
-    -- Update visual effects
-    if self.teleportFlash then
-        self.teleportFlash = self.teleportFlash - dt
-        if self.teleportFlash <= 0 then
-            self.teleportFlash = nil
-        end
-    end
 end
 
 function ProceduralEnemy:attack(playerX, playerY)
-    if not self.attackPattern or not self.attackPattern.execute then return end
-    
-    local projectileData = self.attackPattern.execute(self, playerX, playerY)
-    
-    for _, data in ipairs(projectileData) do
-        local proj = {
-            x = self.x + self.width / 2,
-            y = self.y + self.height / 2,
-            vx = data.vx,
-            vy = data.vy,
-            damage = self.attackPattern.damage,
-            color = self.projectileColor,
-            radius = 4,
-            lifetime = 5.0,  -- 5 seconds
-            owner = self
-        }
-        table.insert(self.projectiles, proj)
-    end
+    return
 end
 
 function ProceduralEnemy:takeDamage(amount, projectileAffinity)
@@ -146,12 +97,6 @@ end
 function ProceduralEnemy:draw()
     if self.dead then return end
     
-    -- Draw teleport flash effect
-    if self.teleportFlash then
-        love.graphics.setColor(1, 1, 1, self.teleportFlash / 0.3)
-        love.graphics.circle("fill", self.x + self.width / 2, self.y + self.height / 2, self.width * 1.5)
-    end
-    
     -- Draw enemy
     love.graphics.setColor(self.color)
     if self.shape == "square" then
@@ -166,17 +111,6 @@ function ProceduralEnemy:draw()
     love.graphics.rectangle("fill", self.x, self.y - 8, self.width, 4)
     love.graphics.setColor(0.2, 1, 0.2)
     love.graphics.rectangle("fill", self.x, self.y - 8, self.width * hpPercent, 4)
-    
-    -- Draw projectiles
-    for _, proj in ipairs(self.projectiles) do
-        -- Draw white outer ring
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.circle("fill", proj.x, proj.y, proj.radius)
-
-        -- Draw colored inner circle
-        love.graphics.setColor(proj.color)
-        love.graphics.circle("fill", proj.x, proj.y, proj.radius * 0.5)
-    end
     
     -- Reset color
     love.graphics.setColor(1, 1, 1)

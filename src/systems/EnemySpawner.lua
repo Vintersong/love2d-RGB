@@ -137,7 +137,7 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 flux.to(enemy, 2.0, {x = targetX, y = targetY})
                     :ease("quadout")
                     :oncomplete(function()
-                        enemy.pattern = "formation_sway"
+                        enemy.pattern = "track_player"
                         if i == 0 then
                             local formationColor = {1, 0.3, 0.3}
                             VFXLibrary.spawnFormationFlash(direction.targetX, direction.targetY, formationColor, 1.5)

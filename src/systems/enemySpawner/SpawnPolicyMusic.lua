@@ -83,36 +83,13 @@ function SpawnPolicyMusic.createBehaviorProfile(enemyType, role, musicReactor, p
     local energy = musicReactor and musicReactor.energy or 0.5
 
     local profile = {
-        movement = "formation_sway",
-        attacks = {"passive"},
         modifiers = {"prestige_rings"},
     }
 
     if role == "center" or role == "leader" or role == "heavy" or enemyType == "BASS" then
-        profile.movement = bass > 0.65 and "chase_player" or "descend_straight"
         table.insert(profile.modifiers, "tank_scaling")
-        table.insert(profile.attacks, "bass_pulse")
     elseif role == "outer" or role == "scout" or role == "corner" or enemyType == "TREBLE" then
-        profile.movement = (playerLevel >= 10 or energy > 0.75) and "dash_probe" or "strafe_player"
         table.insert(profile.modifiers, "scout_scaling")
-        table.insert(profile.attacks, "warning_charge")
-        table.insert(profile.attacks, "spread_pepper")
-    elseif mids > bass and mids > treble then
-        profile.movement = "float_wave"
-        table.insert(profile.attacks, "aimed_shot")
-    end
-
-    if treble > 0.6 or playerLevel >= 8 then
-        table.insert(profile.attacks, "spread_pepper")
-    end
-    if mids > 0.45 or playerLevel >= 4 then
-        table.insert(profile.attacks, "aimed_shot")
-    end
-    if bass > 0.6 then
-        table.insert(profile.attacks, "bass_pulse")
-    end
-    if playerLevel >= 20 then
-        profile.movement = treble > bass and "teleport_reposition" or profile.movement
     end
 
     if playerLevel >= 10 then

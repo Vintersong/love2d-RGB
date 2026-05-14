@@ -3,7 +3,6 @@ local Entity = require("src.entities.Entity")
 local Enemy = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
 local MathUtils = require("src.systems.MathUtils")
-local BehaviorSelector = require("src.systems.BehaviorSelector")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
 
 -- Helper function: Lerp between two colors
@@ -56,28 +55,14 @@ end
 
 local function defaultBehaviorProfile(enemyType)
     local profile = {
-        movement = "chase_player",
-        attacks = {"passive", "aimed_shot"},
         modifiers = {"prestige_rings"},
     }
 
     if enemyType == "BASS" then
-        profile.movement = "descend_straight"
-        profile.attacks = {"passive", "bass_pulse", "aimed_shot"}
         table.insert(profile.modifiers, "tank_scaling")
     elseif enemyType == "TREBLE" then
-        profile.movement = "strafe_player"
-        profile.attacks = {"passive", "aimed_shot", "spread_pepper", "warning_charge"}
         table.insert(profile.modifiers, "scout_scaling")
-    elseif enemyType == "MIDS" then
-        profile.movement = "float_wave"
-        profile.attacks = {"passive", "aimed_shot", "spread_pepper"}
-    elseif enemyType == "formation" then
-        profile.movement = "formation_sway"
-        profile.attacks = {"passive", "aimed_shot"}
     elseif enemyType == "flanker" then
-        profile.movement = "dash_probe"
-        profile.attacks = {"passive", "warning_charge", "aimed_shot"}
         table.insert(profile.modifiers, "scout_scaling")
     end
 
@@ -114,22 +99,15 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.width = 24
     self.height = 24
     self.enemyType = enemyType or "formation"  -- "formation", "flanker", "BASS", "MIDS", "TREBLE", "BOSS"
-    self.pattern = "descend_straight"  -- Default pattern
+    self.pattern = "track_player"  -- Default pattern
     self.formationData = formationData or {}
     self.dead = false
     self._deathRewarded = false
     self.age = 0
-    self.projectiles = {}
-    self.attackCooldown = 1.0 + math.random() * 2.0
-    self._behaviorCooldowns = {}
-    self._currentMovementBehavior = nil
+    self.projectiles = nil
     self.behaviorProfile = self.formationData.behaviorProfile or defaultBehaviorProfile(self.enemyType)
     self.formationRole = self.formationData.role
     self.formationName = self.formationData.formation
-    
-    -- Follow player after delay
-    self.followDelay = 3.0  -- Start following after 3 seconds
-    self.isFollowing = false
     
     -- Calculate color based on player level
     local levelColor = getEnemyColorByLevel(playerLevel)
@@ -253,18 +231,12 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.vx = self.formationData.vx or 0
     self.vy = self.formationData.vy or 0
 
-    -- Regular enemies pressure through movement/contact; boss systems own projectile combat.
-    self.disableProjectileAttacks = self.enemyType ~= "BOSS"
 end
 
 function Enemy:update(dt, playerX, playerY, context)
     if self.dead then return end
     
     self.age = self.age + dt
-    context = context or {}
-    context.playerX = playerX
-    context.playerY = playerY
-    
     -- Handle activation: enemies spawn above screen and become active after moving down
     if self.inactive then
         -- Move down slowly until reaching activation threshold
@@ -279,82 +251,14 @@ function Enemy:update(dt, playerX, playerY, context)
         return
     end
 
-    BehaviorSelector.updateCooldowns(self, dt)
-    local behaviorContext = BehaviorSelector.buildContext(self, context)
-
-    for i = #self.projectiles, 1, -1 do
-        local proj = self.projectiles[i]
-        proj.x = proj.x + proj.vx * dt
-        proj.y = proj.y + proj.vy * dt
-        proj.lifetime = (proj.lifetime or 5) - dt
-        if proj.lifetime <= 0
-            or proj.x < -50 or proj.x > 1970
-            or proj.y < -50 or proj.y > 1130 then
-            table.remove(self.projectiles, i)
-        end
-    end
-
-    if self.chargeWarning then
-        self.chargeWarning = self.chargeWarning - dt
-        if self.chargeWarning <= 0 then
-            self.chargeWarning = nil
-        end
-    end
-
     -- Handle marching enemies (from GridAttackSystem)
     if self.isMarchingEnemy and self.marchTarget then
         self:marchTowardTarget(dt)
+    elseif self.pattern == "formation_hold" then
+        self.vx = 0
+        self.vy = 0
     else
-        if self.pattern == "formation_hold" then
-            self.vx = 0
-            self.vy = 0
-        else
-            local movement = self.behaviorProfile and self.behaviorProfile.movement
-            local movementBehavior = movement and EnemyBehaviors.getById(movement)
-            if not movementBehavior then
-                movementBehavior = BehaviorSelector.select(
-                    EnemyBehaviors.listByKind("movement"),
-                    "movement",
-                    "enemy",
-                    self,
-                    behaviorContext
-                )
-            end
-
-            if movementBehavior then
-                BehaviorSelector.setMovement(self, movementBehavior, behaviorContext)
-                if self._currentMovementBehavior and self._currentMovementBehavior.update then
-                    self._currentMovementBehavior.update(self, dt, behaviorContext)
-                end
-            elseif self.isFollowing then
-                self:followPlayer(dt, playerX, playerY)
-            elseif self.enemyType == "formation" then
-                self:updateFormationMovement(dt, playerX, playerY)
-            elseif self.enemyType == "flanker" then
-                self:updateFlankerMovement(dt, playerX, playerY)
-            end
-        end
-    end
-
-    self.attackCooldown = self.attackCooldown - dt
-    if self.attackCooldown <= 0 then
-        local allowedIds = {}
-        local attacks = (self.behaviorProfile and self.behaviorProfile.attacks) or {"passive"}
-        for _, id in ipairs(attacks) do
-            allowedIds[id] = true
-        end
-
-        local attackBehavior = BehaviorSelector.select(
-            EnemyBehaviors.listByKind("attack"),
-            "attack",
-            "enemy",
-            self,
-            behaviorContext,
-            {allowedIds = allowedIds}
-        ) or EnemyBehaviors.getById("passive")
-
-        BehaviorSelector.execute(self, attackBehavior, behaviorContext)
-        self.attackCooldown = attackBehavior.cooldown or 4.0
+        self:followPlayer(dt, playerX, playerY)
     end
 end
 
@@ -371,9 +275,8 @@ function Enemy:marchTowardTarget(dt)
 
         self.x = self.x + self.vx * dt
     else
-        -- Reached center, stop marching and start following player
+        -- Reached center, stop marching and track the player directly.
         self.isMarchingEnemy = false
-        self.isFollowing = true
     end
 end
 
@@ -398,79 +301,6 @@ function Enemy:followPlayer(dt, playerX, playerY)
             self.angle = MathUtils.atan2(self.vy, self.vx)
         end
     end
-end
-
-function Enemy:updateFormationMovement(dt, playerX, playerY)
-    if self.pattern == "formation_hold" then
-        -- Hold position during formation tween (flux handles movement)
-        -- Do nothing, flux is moving the enemy
-        
-    elseif self.pattern == "formation_sway" then
-        -- Gentle swaying movement after formation arrives
-        if self.formationData then
-            local swaySpeed = 0.5
-            local swayAmount = 15
-            local targetX = self.formationData.centerX + self.formationData.offsetX + math.sin(self.age * swaySpeed) * swayAmount
-            self.x = self.x + (targetX - self.x) * 2 * dt
-        end
-        
-    elseif self.pattern == "descend_straight" then
-        -- Straight downward
-        self.y = self.y + self.speed * dt
-        
-    elseif self.pattern == "descend_wave" then
-        -- Sway side to side while descending
-        self.x = self.x + math.sin(self.age * 2) * 30 * dt
-        self.y = self.y + self.speed * dt
-        
-    elseif self.pattern == "sine_descend" then
-        -- Wave pattern while descending
-        local phase = self.formationData.phase or 0
-        self.x = self.x + math.sin(self.age * 3 + phase) * 50 * dt
-        self.y = self.y + self.speed * dt
-        
-    elseif self.pattern == "hold_formation" then
-        -- Maintain formation position, slow descent
-        if self.formationData.offsetX then
-            local targetX = (self.formationData.centerX or playerX) + self.formationData.offsetX
-            self.x = self.x + (targetX - self.x) * 2 * dt
-        end
-        self.y = self.y + self.speed * 0.5 * dt
-    end
-end
-
-function Enemy:updateFlankerMovement(dt, playerX, playerY)
-    if self.pattern == "straight" then
-        -- Straight horizontal movement
-        self.x = self.x + self.vx * dt
-        self.y = self.y + self.vy * dt
-        
-    elseif self.pattern == "zigzag" then
-        -- Horizontal + vertical oscillation
-        self.x = self.x + self.vx * dt
-        self.y = self.y + math.sin(self.age * 5 + self.x * 0.02) * 150 * dt
-        
-    elseif self.pattern == "dive" then
-        -- Start horizontal, dive toward player when close
-        local dx = playerX - self.x
-        local distX = math.abs(dx)
-        
-        if distX < 150 then
-            -- Dive toward player
-            local dy = playerY - self.y
-            local distance = math.sqrt(dx * dx + dy * dy)
-            if distance > 0 then
-                self.vx = (dx / distance) * self.speed
-                self.vy = (dy / distance) * self.speed
-            end
-        end
-        
-        self.x = self.x + self.vx * dt
-        self.y = self.y + self.vy * dt
-    end
-    
-    -- Update rotation angle for visual direction
-    self.angle = MathUtils.atan2(self.vy, self.vx)
 end
 
 function Enemy:draw(musicReactor)
@@ -560,19 +390,6 @@ function Enemy:draw(musicReactor)
     
     love.graphics.pop()
 
-    if self.chargeWarning then
-        love.graphics.setColor(1, 0.9, 0.2, math.max(0, self.chargeWarning / 0.35))
-        love.graphics.circle("line", centerX, centerY, self.width * 1.2)
-    end
-
-    for _, proj in ipairs(self.projectiles or {}) do
-        love.graphics.setColor(1, 1, 1, 0.95)
-        love.graphics.circle("fill", proj.x, proj.y, proj.radius or 5)
-        local color = proj.color or {1, 0.4, 0.4}
-        love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
-        love.graphics.circle("fill", proj.x, proj.y, (proj.radius or 5) * 0.55)
-    end
-    
     -- Draw HP bar using ShapeLibrary
     ShapeLibrary.progressBar(self.x, self.y - 8, self.width, 4, self.hp / self.maxHp, {
         bgColor = {0.3, 0.3, 0.3},

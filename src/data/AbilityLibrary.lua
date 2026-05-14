@@ -137,10 +137,13 @@ AbilityLibrary.DASH = {
         entity.y = entity.y + moveY
 
         -- Keep in bounds
-        local SCREEN_WIDTH = 1920
-        local SCREEN_HEIGHT = 1080
-        entity.x = math.max(0, math.min(SCREEN_WIDTH - entity.width, entity.x))
-        entity.y = math.max(0, math.min(SCREEN_HEIGHT - entity.height, entity.y))
+        local GameConfig = require("src.systems.GameConfig")
+        local Config = require("src.Config")
+        local screenWidth, screenHeight = GameConfig.getScreenSize()
+        screenWidth = screenWidth or Config.screen.width
+        screenHeight = screenHeight or Config.screen.height
+        entity.x = math.max(0, math.min(screenWidth - entity.width, entity.x))
+        entity.y = math.max(0, math.min(screenHeight - entity.height, entity.y))
 
         -- Check if dash duration expired
         if state.timer >= AbilityLibrary.DASH.duration then

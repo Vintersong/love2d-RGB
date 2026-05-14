@@ -2,6 +2,7 @@
 -- Game over screen when player dies
 
 local GameOverState = {}
+local Config = require("src.Config")
 
 GameOverState.player = nil
 GameOverState.enemies = {}
@@ -40,11 +41,14 @@ function GameOverState:draw()
 end
 
 function GameOverState:drawGameOverScreen()
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
+
     -- Semi-transparent overlay
     love.graphics.setColor(0, 0, 0, 0.9)
-    love.graphics.rectangle("fill", 0, 0, 1920, 1080)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
 
-    local centerX = 1920 / 2
+    local centerX = screenWidth / 2
     local startY = 250
 
     -- Title

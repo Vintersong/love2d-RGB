@@ -2,6 +2,7 @@
 -- Initial splash screen that displays game title and fades to PlayingState
 
 local SplashScreen = {}
+local Config = require("src.Config")
 
 -- Animation state
 local alpha = 0
@@ -78,13 +79,14 @@ function SplashScreen:update(dt)
 end
 
 function SplashScreen:draw()
+    local screenWidth = Config.screen.width
     -- Clear to black
     love.graphics.clear(0, 0, 0, 1)
 
     -- Draw title (centered)
     love.graphics.setFont(titleFont)
     local titleWidth = titleFont:getWidth(titleText)
-    local titleX = (1920 - titleWidth) / 2
+    local titleX = (screenWidth - titleWidth) / 2
     local titleY = 350
 
     -- Draw title with RGB gradient effect
@@ -99,7 +101,7 @@ function SplashScreen:draw()
     if showMenu then
         love.graphics.setFont(subtitleFont)
         
-        local menuStartX = 1920 / 2 - 150
+        local menuStartX = screenWidth / 2 - 150
         local menuStartY = 550
         local lineHeight = 50
         
@@ -119,7 +121,7 @@ function SplashScreen:draw()
         -- Show subtitle during fade in
         love.graphics.setFont(subtitleFont)
         local subtitleWidth = subtitleFont:getWidth(subtitleText)
-        local subtitleX = (1920 - subtitleWidth) / 2
+        local subtitleX = (screenWidth - subtitleWidth) / 2
         local subtitleY = titleY + 150
 
         love.graphics.setColor(1, 1, 1, alpha * 0.5)

@@ -2,6 +2,7 @@
 -- Frozen gameplay overlay pushed on top of PlayingState
 
 local PauseState = {}
+local Config = require("src.Config")
 
 PauseState.previousState = nil
 PauseState.musicReactor = nil
@@ -30,10 +31,13 @@ function PauseState:draw()
         self.previousState:draw()
     end
 
-    love.graphics.setColor(0, 0, 0, 0.72)
-    love.graphics.rectangle("fill", 0, 0, 1920, 1080)
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
 
-    local centerX = 1920 / 2
+    love.graphics.setColor(0, 0, 0, 0.72)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+
+    local centerX = screenWidth / 2
     local y = 350
 
     love.graphics.setColor(1, 1, 1)

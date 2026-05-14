@@ -1,7 +1,11 @@
+-- LEGACY MODULE
+-- Runtime boss behavior selection is owned by src.data.BossBehaviors.
+-- This file is kept only as a compatibility artifact for old references.
 local BossArchetypes = {}
 
 local Projectile = require("src.entities.Projectile")
 local BulletPatterns = require("src.data.BulletPatterns")
+local MathUtils = require("src.systems.MathUtils")
 
 -- Helper: create Projectile objects from pattern data tables
 local function patternToProjectiles(patternProjectiles, bossProjectiles, damage, color)
@@ -42,7 +46,7 @@ BossArchetypes.melee = {
 BossArchetypes.ranged = {
     single = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math2(
+            local angle = MathUtils.atan2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -60,7 +64,7 @@ BossArchetypes.ranged = {
     },
     spread = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math2(
+            local angle = MathUtils.atan2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -77,7 +81,7 @@ BossArchetypes.ranged = {
     },
     spiral = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math2(
+            local angle = MathUtils.atan2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )
@@ -105,7 +109,7 @@ BossArchetypes.ranged = {
     },
     wave = {
         execute = function(boss, player, bossProjectiles)
-            local angle = math2(
+            local angle = MathUtils.atan2(
                 player.y + player.height / 2 - boss.y,
                 player.x + player.width / 2 - boss.x
             )

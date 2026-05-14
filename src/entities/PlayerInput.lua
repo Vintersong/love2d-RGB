@@ -6,10 +6,13 @@ local PlayerInput = {}
 
 -- Get required systems
 local AbilitySystem = require("src.systems.AbilitySystem")
+local GameConfig = require("src.systems.GameConfig")
+local Config = require("src.Config")
 
--- Constants
-local SCREEN_WIDTH = 1920
-local SCREEN_HEIGHT = 1080
+local function getScreenSize()
+    local w, h = GameConfig.getScreenSize()
+    return w or Config.screen.width, h or Config.screen.height
+end
 
 -- Process keyboard input and update player position
 function PlayerInput.update(player, dt)
@@ -65,8 +68,9 @@ function PlayerInput.update(player, dt)
     player.y = player.y + moveY
 
     -- Keep player in bounds
-    player.x = math.max(0, math.min(SCREEN_WIDTH - player.width, player.x))
-    player.y = math.max(0, math.min(SCREEN_HEIGHT - player.height, player.y))
+    local screenWidth, screenHeight = getScreenSize()
+    player.x = math.max(0, math.min(screenWidth - player.width, player.x))
+    player.y = math.max(0, math.min(screenHeight - player.height, player.y))
 end
 
 -- Get player center position (useful for targeting/collision)

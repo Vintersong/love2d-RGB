@@ -2,6 +2,7 @@
 -- Level up screen where player chooses color upgrades
 
 local LevelUpState = {}
+local Config = require("src.Config")
 
 -- Shared data from PlayingState
 LevelUpState.player = nil
@@ -52,12 +53,14 @@ end
 function LevelUpState:drawColorSelect()
     local ColorSystem = require("src.systems.ColorSystem")
     local ArtifactManager = require("src.systems.ArtifactManager")
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
 
     -- Semi-transparent overlay
     love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", 0, 0, 1920, 1080)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
 
-    local centerX = 1920 / 2
+    local centerX = screenWidth / 2
     local startY = 200
 
     -- Title
@@ -123,7 +126,7 @@ function LevelUpState:drawColorSelect()
     -- Display collected artifacts (on right side)
     local artifacts = ArtifactManager.getCollectedArtifacts()
     if #artifacts > 0 then
-        local artifactX = 1920 - 350
+        local artifactX = screenWidth - 350
         local artifactY = startY + 250
 
         love.graphics.setColor(0.5, 1, 1)

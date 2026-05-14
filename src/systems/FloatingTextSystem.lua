@@ -1,5 +1,7 @@
 -- Floating Text System - Visual feedback for artifact collection and game events
 local FloatingTextSystem = {}
+local GameConfig = require("src.systems.GameConfig")
+local Config = require("src.Config")
 
 FloatingTextSystem.texts = {}
 
@@ -131,15 +133,15 @@ function FloatingTextSystem.update(dt)
 end
 
 function FloatingTextSystem.draw()
-    local SCREEN_WIDTH = 1920
-    local SCREEN_HEIGHT = 1080
+    local _, screenHeight = GameConfig.getScreenSize()
+    screenHeight = screenHeight or Config.screen.height
     
     -- Save the current font to restore later
     local currentFont = love.graphics.getFont()
     
     for _, text in ipairs(FloatingTextSystem.texts) do
         -- Only draw if on screen
-        if text.y > -50 and text.y < SCREEN_HEIGHT + 50 then
+        if text.y > -50 and text.y < screenHeight + 50 then
             -- Set font (using cached fonts)
             local font = fonts[text.font] or fonts.medium
             love.graphics.setFont(font)

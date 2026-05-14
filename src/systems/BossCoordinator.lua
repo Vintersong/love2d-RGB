@@ -5,6 +5,8 @@ local BossCoordinator = {}
 
 local BossSystem = require("src.systems.BossSystem")
 local CollisionSystem = require("src.systems.CollisionSystem")
+local GameConfig = require("src.systems.GameConfig")
+local Config = require("src.Config")
 
 BossCoordinator.bossProjectiles = {}
 
@@ -65,12 +67,15 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
     end
 
     -- Update boss projectiles
+    local screenWidth, screenHeight = GameConfig.getScreenSize()
+    screenWidth = screenWidth or Config.screen.width
+    screenHeight = screenHeight or Config.screen.height
     for i = #BossCoordinator.bossProjectiles, 1, -1 do
         local proj = BossCoordinator.bossProjectiles[i]
         proj:update(dt)
 
         -- Remove if dead or off screen
-        if proj.dead or proj.y > 1080 or proj.y < -50 or proj.x < -50 or proj.x > 1970 then
+        if proj.dead or proj.y > screenHeight or proj.y < -50 or proj.x < -50 or proj.x > (screenWidth + 50) then
             table.remove(BossCoordinator.bossProjectiles, i)
         else
             -- Check collision with player using CollisionSystem

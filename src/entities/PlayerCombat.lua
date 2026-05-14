@@ -4,6 +4,8 @@
 
 local PlayerCombat = {}
 local MathUtils = require("src.systems.MathUtils")
+local GameConfig = require("src.systems.GameConfig")
+local Config = require("src.Config")
 
 local function getCombatState(player)
     player.combatState = player.combatState or {
@@ -15,10 +17,12 @@ local function getCombatState(player)
     return player.combatState
 end
 
--- Constants
-local SCREEN_WIDTH = 1920
-local SCREEN_HEIGHT = 1080
 local BOSS_PRIORITY_RANGE = 1000  -- Auto-target boss if within this range (covers most of screen)
+
+local function getScreenSize()
+    local w, h = GameConfig.getScreenSize()
+    return w or Config.screen.width, h or Config.screen.height
+end
 
 -- Find nearest enemy to player (for auto-targeting)
 -- Prioritizes boss enemies if player is within BOSS_PRIORITY_RANGE
@@ -202,6 +206,7 @@ end
 -- Update all player projectiles
 function PlayerCombat.updateProjectiles(player, dt, enemies)
     local combatState = getCombatState(player)
+    local screenWidth, screenHeight = getScreenSize()
 
     for i = #combatState.projectiles, 1, -1 do
         local proj = combatState.projectiles[i]
@@ -271,8 +276,8 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
                 proj.x = 0
                 proj.vx = -proj.vx
                 bounced = true
-            elseif proj.x > SCREEN_WIDTH then
-                proj.x = SCREEN_WIDTH
+            elseif proj.x > screenWidth then
+                proj.x = screenWidth
                 proj.vx = -proj.vx
                 bounced = true
             end
@@ -281,8 +286,8 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
                 proj.y = 0
                 proj.vy = -proj.vy
                 bounced = true
-            elseif proj.y > SCREEN_HEIGHT then
-                proj.y = SCREEN_HEIGHT
+            elseif proj.y > screenHeight then
+                proj.y = screenHeight
                 proj.vy = -proj.vy
                 bounced = true
             end
@@ -295,7 +300,7 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
             end
         else
             -- Non-bouncing projectiles: Remove when off-screen
-            if proj.y < -10 or proj.y > SCREEN_HEIGHT + 10 or proj.x < -10 or proj.x > SCREEN_WIDTH + 10 then
+            if proj.y < -10 or proj.y > screenHeight + 10 or proj.x < -10 or proj.x > screenWidth + 10 then
                 shouldRemove = true
             end
         end

@@ -124,10 +124,6 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self._behaviorCooldowns = {}
     self._currentMovementBehavior = nil
     self.behaviorProfile = self.formationData.behaviorProfile or defaultBehaviorProfile(self.enemyType)
-    if self.enemyType ~= "BOSS" then
-        self.behaviorProfile.movement = "chase_player"
-        self.behaviorProfile.attacks = {"passive"}
-    end
     self.formationRole = self.formationData.role
     self.formationName = self.formationData.formation
     

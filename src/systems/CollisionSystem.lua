@@ -11,39 +11,6 @@ local CollisionSystem = {}
 -- Bump world instance
 CollisionSystem.world = nil
 
--- Collision filters
-local function playerFilter(item, other)
-    -- Player collides with enemies and powerups
-    if other.type == "enemy" or other.type == "powerup" or other.type == "xpOrb" then
-        return "cross" -- Allow overlap, we handle it manually
-    end
-    return nil -- No collision response
-end
-
-local function projectileFilter(item, other)
-    -- Projectiles collide with enemies and bosses
-    if other.type == "enemy" or other.type == "boss" then
-        return "cross"
-    end
-    return nil
-end
-
-local function enemyProjectileFilter(item, other)
-    -- Enemy projectiles collide with player
-    if other.type == "player" then
-        return "cross"
-    end
-    return nil
-end
-
-local function pickupFilter(item, other)
-    -- Pickups (powerups, xpOrbs) collide with player
-    if other.type == "player" then
-        return "cross"
-    end
-    return nil
-end
-
 -- Initialize the collision world
 function CollisionSystem.init(cellSize)
     cellSize = cellSize or 128 -- Larger cells for performance with many entities
@@ -88,53 +55,13 @@ function CollisionSystem.checkPlayerEnemyCollisions(player)
         return {}
     end
 
-    local items, len = CollisionSystem.world:queryRect(
+    local items = CollisionSystem.world:queryRect(
         player.x,
         player.y,
         player.width,
         player.height,
         function(item)
             return item.type == "enemy" and not item.dead and not item.inactive
-        end
-    )
-
-    return items
-end
-
--- Check collisions between player and powerups
-function CollisionSystem.checkPlayerPowerupCollisions(player, powerups)
-    if not CollisionSystem.world or not CollisionSystem.world:hasItem(player) then
-        return {}
-    end
-
-    local collectedPowerups = {}
-
-    local items, len = CollisionSystem.world:queryRect(
-        player.x,
-        player.y,
-        player.width,
-        player.height,
-        function(item)
-            return item.type == "powerup"
-        end
-    )
-
-    return items
-end
-
--- Check collisions between player and XP orbs
-function CollisionSystem.checkPlayerXPCollisions(player)
-    if not CollisionSystem.world or not CollisionSystem.world:hasItem(player) then
-        return {}
-    end
-
-    local items, len = CollisionSystem.world:queryRect(
-        player.x,
-        player.y,
-        player.width,
-        player.height,
-        function(item)
-            return item.type == "xpOrb"
         end
     )
 
@@ -149,7 +76,7 @@ function CollisionSystem.checkProjectileEnemyCollisions(projectile, enemies)
 
     -- Query area around projectile (projectiles are circles, approximate with square)
     local radius = projectile.radius or 5
-    local items, len = CollisionSystem.world:queryRect(
+    local items = CollisionSystem.world:queryRect(
         projectile.x - radius,
         projectile.y - radius,
         radius * 2,

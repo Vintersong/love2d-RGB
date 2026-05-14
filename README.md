@@ -139,6 +139,8 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 - `Feedback.md` still tracks experiential papercuts (**post-upgrade delay**, **dash clarity**).
 - `_deprecated/` is historical baggage only.
 - `donor/` is reference-only prototype code; do not port donor color-system behavior into the canonical root game.
+- `src/data/ColorTree.lua` is now an archived legacy data tree; active color progression lives in `src/systems/ColorSystem.lua`.
+- `src/data/BossArchetypes.lua` is legacy compatibility only; canonical boss AI comes from `src/data/BossBehaviors.lua`.
 - `src/` **+** root `main.lua` / `conf.lua` remain authoritative for behavior.
 
 ---

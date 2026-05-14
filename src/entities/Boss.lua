@@ -1,11 +1,12 @@
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 local Boss = class{__includes = Entity}
+local Config = require("src.Config")
 
 function Boss:init(x, y)
-    local SCREEN_WIDTH = 1920
-    local SCREEN_HEIGHT = 1080
-    self.x = x or SCREEN_WIDTH / 2 - 50
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
+    self.x = x or screenWidth / 2 - 50
     self.y = y or -100
     self.width = 100
     self.height = 100
@@ -24,7 +25,7 @@ function Boss:init(x, y)
     
     -- Boss behavior
     self.hasReachedCenter = false
-    self.targetY = SCREEN_HEIGHT / 2 - 50
+    self.targetY = screenHeight / 2 - 50
 end
 
 function Boss:update(dt, playerX, playerY)

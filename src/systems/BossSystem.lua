@@ -7,9 +7,8 @@ local BossBehaviors = require("src.data.BossBehaviors")
 local BehaviorSelector = require("src.systems.BehaviorSelector")
 local MathUtils = require("src.systems.MathUtils")
 
--- Boss spawns every 20 waves
-BossSystem.SPAWN_INTERVAL = 20
-BossSystem.currentWave = 0
+-- Canonical spawn policy is kill-based via SpawnController.
+-- Wave-based spawn fields are retired to avoid dual policy drift.
 BossSystem.activeBoss = nil
 
 -- Boss colors (replaced palette dependency)
@@ -35,15 +34,11 @@ end
 function BossSystem.reset()
     BossSystem.clearBossReferences(BossSystem.activeBoss)
     BossSystem.activeBoss = nil
-    BossSystem.currentWave = 0
 end
 
 function BossSystem.checkSpawn(waveNumber)
-    BossSystem.currentWave = waveNumber
-    
-    if waveNumber % BossSystem.SPAWN_INTERVAL == 0 and not BossSystem.activeBoss then
-        return BossSystem.spawnBoss()
-    end
+    -- Legacy compatibility shim: boss spawning is owned by SpawnController.
+    -- Keep the function to avoid breaking stale callers.
     return nil
 end
 
@@ -268,7 +263,7 @@ function BossSystem:onDefeat()
     end
     
     -- Announcement
-    FloatingTextSystem = require("src.systems.FloatingTextSystem")
+    local FloatingTextSystem = require("src.systems.FloatingTextSystem")
     FloatingTextSystem.add("⚡ BOSS DEFEATED ⚡", love.graphics.getWidth()/2, love.graphics.getHeight()/2, "BOSS")
 end
 

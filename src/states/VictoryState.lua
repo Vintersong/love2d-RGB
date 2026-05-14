@@ -2,6 +2,7 @@
 -- Victory screen when player completes the game
 
 local VictoryState = {}
+local Config = require("src.Config")
 
 VictoryState.player = nil
 VictoryState.enemies = {}
@@ -47,12 +48,14 @@ end
 
 function VictoryState:drawVictoryScreen()
     local ColorSystem = require("src.systems.ColorSystem")
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
 
     -- Semi-transparent overlay
     love.graphics.setColor(0, 0, 0, 0.85)
-    love.graphics.rectangle("fill", 0, 0, 1920, 1080)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
 
-    local centerX = 1920 / 2
+    local centerX = screenWidth / 2
     local startY = 200
 
     -- Title

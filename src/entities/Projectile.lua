@@ -3,6 +3,13 @@ local Entity = require("src.entities.Entity")
 local Projectile = class{__includes = Entity}
 local ShapeLibrary = require("src.systems.ShapeLibrary")
 local MathUtils = require("src.systems.MathUtils")
+local GameConfig = require("src.systems.GameConfig")
+local Config = require("src.Config")
+
+local function getScreenSize()
+    local w, h = GameConfig.getScreenSize()
+    return w or Config.screen.width, h or Config.screen.height
+end
 
 function Projectile:init(x, y, vx, vy, damage, projType, owner)
     self.x = x
@@ -54,12 +61,11 @@ function Projectile:update(dt)
     self.x = self.x + self.vx * dt
     self.y = self.y + self.vy * dt
     
-    -- Check bounds (using constant resolution)
-    local SCREEN_WIDTH = 1920
-    local SCREEN_HEIGHT = 1080
+    -- Check bounds
+    local screenWidth, screenHeight = getScreenSize()
     
-    if self.x < -10 or self.x > SCREEN_WIDTH + 10 or 
-       self.y < -10 or self.y > SCREEN_HEIGHT + 10 then
+    if self.x < -10 or self.x > screenWidth + 10 or
+       self.y < -10 or self.y > screenHeight + 10 then
         self.dead = true
     end
 end

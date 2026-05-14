@@ -195,7 +195,7 @@ function drawInventoryPanel()
     love.graphics.setColor(0.3, 0.3, 0.35, 1)
     love.graphics.print("Artifacts:", gridStartX, gridStartY - 40)
     
-    -- Draw artifact slots (placeholder)
+    -- TODO(ui-sandbox): Replace artifact slot placeholders with real icon atlas bindings.
     for i = 1, 5 do
         local x = gridStartX + (i - 1) * (slotSize + spacing)
         local y = gridStartY
@@ -209,7 +209,7 @@ function drawInventoryPanel()
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", x, y, slotSize, slotSize)
         
-        -- Icon placeholder
+        -- TODO(ui-sandbox): Replace simple icon placeholder with artifact icon sprite.
         love.graphics.setColor(0.7, 0.5, 1, 0.5)
         love.graphics.circle("fill", x + slotSize/2, y + slotSize/2, slotSize/4)
         
@@ -378,7 +378,7 @@ function drawCustomPanel()
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
     love.graphics.print("Add experimental UI elements here:", 100, 80)
     
-    -- Example: Character portrait placeholder
+    -- TODO(ui-sandbox): Replace character portrait placeholder with runtime portrait source.
     local portraitX, portraitY = 100, 130
     local portraitSize = 120
     

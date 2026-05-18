@@ -101,32 +101,28 @@ function SimpleGrid.applyWave(wave)
             -- Determine which quadrant this cell is in
             local cellQuadrant = SimpleGrid.getCellQuadrant(col, row)
 
-            -- Skip if wave is for a specific quadrant and this cell isn't in it
-            if wave.quadrant ~= "all" and wave.quadrant ~= cellQuadrant then
-                goto continue
-            end
+            -- Process only matching quadrants ("all" affects every cell).
+            if wave.quadrant == "all" or wave.quadrant == cellQuadrant then
+                -- Calculate distance from nearest center cell
+                local minDist = math.huge
+                for _, centerCol in ipairs(centerCols) do
+                    for _, centerRow in ipairs(centerRows) do
+                        local dist = math.abs(col - centerCol) + math.abs(row - centerRow)  -- Manhattan distance
+                        minDist = math.min(minDist, dist)
+                    end
+                end
 
-            -- Calculate distance from nearest center cell
-            local minDist = math.huge
-            for _, centerCol in ipairs(centerCols) do
-                for _, centerRow in ipairs(centerRows) do
-                    local dist = math.abs(col - centerCol) + math.abs(row - centerRow)  -- Manhattan distance
-                    minDist = math.min(minDist, dist)
+                -- Check if wave front has reached this cell (with small tolerance band)
+                local distDiff = math.abs(minDist - wave.distance)
+                if distDiff < 1.5 then  -- Wave "thickness"
+                    -- Set cell color and opacity based on wave
+                    local opacity = 1.0 - (wave.age / wave.duration)  -- Fade over time
+                    opacity = opacity * (1.0 - distDiff / 1.5)  -- Smooth edges
+
+                    SimpleGrid.grid[row][col].color = wave.color
+                    SimpleGrid.grid[row][col].opacity = math.max(SimpleGrid.grid[row][col].opacity, opacity)
                 end
             end
-
-            -- Check if wave front has reached this cell (with small tolerance band)
-            local distDiff = math.abs(minDist - wave.distance)
-            if distDiff < 1.5 then  -- Wave "thickness"
-                -- Set cell color and opacity based on wave
-                local opacity = 1.0 - (wave.age / wave.duration)  -- Fade over time
-                opacity = opacity * (1.0 - distDiff / 1.5)  -- Smooth edges
-
-                SimpleGrid.grid[row][col].color = wave.color
-                SimpleGrid.grid[row][col].opacity = math.max(SimpleGrid.grid[row][col].opacity, opacity)
-            end
-
-            ::continue::
         end
     end
 end

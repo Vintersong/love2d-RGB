@@ -249,6 +249,8 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
             proj.y = proj.y - proj.speed * dt
         end
 
+        local splitTriggered = false
+
         -- Track distance for split mechanic
         if proj.canSplit then
             local dx = proj.x - oldX
@@ -261,55 +263,55 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
                 PlayerCombat.splitProjectile(player, proj, i)
                 -- Remove original after splitting
                 table.remove(combatState.projectiles, i)
-                goto continue
+                splitTriggered = true
             end
         end
 
-        -- Handle screen edge collisions
-        local shouldRemove = false
+        if not splitTriggered then
+            -- Handle screen edge collisions
+            local shouldRemove = false
 
-        -- BOUNCE attribute: Bounce off screen edges
-        if proj.canBounce and proj.bounces and proj.bounces > 0 then
-            local bounced = false
+            -- BOUNCE attribute: Bounce off screen edges
+            if proj.canBounce and proj.bounces and proj.bounces > 0 then
+                local bounced = false
 
-            if proj.x < 0 then
-                proj.x = 0
-                proj.vx = -proj.vx
-                bounced = true
-            elseif proj.x > screenWidth then
-                proj.x = screenWidth
-                proj.vx = -proj.vx
-                bounced = true
-            end
+                if proj.x < 0 then
+                    proj.x = 0
+                    proj.vx = -proj.vx
+                    bounced = true
+                elseif proj.x > screenWidth then
+                    proj.x = screenWidth
+                    proj.vx = -proj.vx
+                    bounced = true
+                end
 
-            if proj.y < 0 then
-                proj.y = 0
-                proj.vy = -proj.vy
-                bounced = true
-            elseif proj.y > screenHeight then
-                proj.y = screenHeight
-                proj.vy = -proj.vy
-                bounced = true
-            end
+                if proj.y < 0 then
+                    proj.y = 0
+                    proj.vy = -proj.vy
+                    bounced = true
+                elseif proj.y > screenHeight then
+                    proj.y = screenHeight
+                    proj.vy = -proj.vy
+                    bounced = true
+                end
 
-            if bounced then
-                proj.bounces = proj.bounces - 1
-                if proj.bounces <= 0 then
+                if bounced then
+                    proj.bounces = proj.bounces - 1
+                    if proj.bounces <= 0 then
+                        shouldRemove = true
+                    end
+                end
+            else
+                -- Non-bouncing projectiles: Remove when off-screen
+                if proj.y < -10 or proj.y > screenHeight + 10 or proj.x < -10 or proj.x > screenWidth + 10 then
                     shouldRemove = true
                 end
             end
-        else
-            -- Non-bouncing projectiles: Remove when off-screen
-            if proj.y < -10 or proj.y > screenHeight + 10 or proj.x < -10 or proj.x > screenWidth + 10 then
-                shouldRemove = true
+
+            if shouldRemove then
+                table.remove(combatState.projectiles, i)
             end
         end
-
-        if shouldRemove then
-            table.remove(combatState.projectiles, i)
-        end
-
-        ::continue::
     end
 end
 

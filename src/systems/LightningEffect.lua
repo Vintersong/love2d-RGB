@@ -119,15 +119,13 @@ end
 function LightningEffect.draw()
     for _, bolt in ipairs(LightningEffect.bolts) do
         local alpha = math.max(0, 1 - (bolt.timer / bolt.duration))
-        if alpha <= 0 then goto continue end
-
-        love.graphics.setColor(bolt.color[1], bolt.color[2], bolt.color[3], alpha)
-        for _, seg in ipairs(bolt.segments) do
-            love.graphics.setLineWidth(seg.thickness * alpha)
-            love.graphics.line(seg.x1, seg.y1, seg.x2, seg.y2)
+        if alpha > 0 then
+            love.graphics.setColor(bolt.color[1], bolt.color[2], bolt.color[3], alpha)
+            for _, seg in ipairs(bolt.segments) do
+                love.graphics.setLineWidth(seg.thickness * alpha)
+                love.graphics.line(seg.x1, seg.y1, seg.x2, seg.y2)
+            end
         end
-
-        ::continue::
     end
     love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 1, 1, 1)

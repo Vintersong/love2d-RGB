@@ -26,8 +26,8 @@ local easing = {
 }
 
 local makefunc = function(str, expr)
-  local load = load
-  return load("return function(p) " .. str:gsub("%$e", expr) .. " end")()
+  local loader = loadstring or load
+  return loader("return function(p) " .. str:gsub("%$e", expr) .. " end")()
 end
 
 for k, v in pairs(easing) do

@@ -111,9 +111,18 @@ function BootLoader.performHealthChecks()
         "src/entities",
         "src/states",
         "src/artifacts",
-        "assets/music",
         "libs"
     }
+
+    if Config.runtime and Config.runtime.web then
+        local hasWebMusic = love.filesystem.getInfo("assets/music_web")
+        local hasDesktopMusic = love.filesystem.getInfo("assets/music")
+        if not hasWebMusic and not hasDesktopMusic then
+            table.insert(BootLoader.errors, "Required directory not found: assets/music_web or assets/music")
+        end
+    else
+        table.insert(requiredDirs, "assets/music")
+    end
 
     for _, dir in ipairs(requiredDirs) do
         local info = love.filesystem.getInfo(dir)

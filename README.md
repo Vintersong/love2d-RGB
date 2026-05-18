@@ -1,6 +1,6 @@
 # LÖVE2D RGB — Bullet Hell
 
-A Vampire Survivors-style bullet hell built with LÖVE2D (Lua). Auto-aim shooting, a **2-primary color commitment** tree, **music-reactive** formation spawning (`MusicReactor` → `EnemySpawner`), collectible **artifacts** with scripted **synergies** (`SynergySystem` — **18** named combos today).
+A Vampire Survivors-style bullet heaven built with LÖVE2D (Lua). Auto-aim shooting, a **2-primary color commitment** tree, **music-reactive** formation spawning (`MusicReactor` → `EnemySpawner`), collectible **artifacts** with scripted **synergies** (`SynergySystem` — **18** named combos today).
 
 **Resolution:** fixed **1920×1080**.
 
@@ -142,6 +142,20 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 - `src/data/ColorTree.lua` is now an archived legacy data tree; active color progression lives in `src/systems/ColorSystem.lua`.
 - `src/data/BossArchetypes.lua` is legacy compatibility only; canonical boss AI comes from `src/data/BossBehaviors.lua`.
 - `src/` **+** root `main.lua` / `conf.lua` remain authoritative for behavior.
+
+---
+
+## Web build
+
+The browser build targets **LOVE 11.5** through the 2dengine `love.js` standalone player.
+
+Local package command on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package-web.ps1 -GenerateWebAudio
+```
+
+This creates `dist/rgb.love` and `dist/web/`. If `ffmpeg` is available, WAV music is converted to `assets/music_web/*.ogg` for the web package; otherwise the package keeps the WAV files so it still runs. The GitHub Pages workflow installs `ffmpeg`, assembles `dist/web`, downloads love.js, and deploys the static site.
 
 ---
 

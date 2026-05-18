@@ -10,9 +10,14 @@ BackgroundShader.shader = nil
 BackgroundShader.canvas = nil
 BackgroundShader.time = 0
 BackgroundShader.effect = nil  -- Moonshine glow effect
+BackgroundShader.fallback = false
 
 -- Initialize shader system
 function BackgroundShader.init(screenWidth, screenHeight)
+    BackgroundShader.fallback = false
+    BackgroundShader.screenWidth = screenWidth
+    BackgroundShader.screenHeight = screenHeight
+
     -- Load shader
     local success, result = pcall(function()
         return love.graphics.newShader("assets/shaders/background.glsl")
@@ -23,7 +28,8 @@ function BackgroundShader.init(screenWidth, screenHeight)
         print("[BackgroundShader] Shader loaded successfully")
     else
         print("[BackgroundShader] Failed to load shader: " .. tostring(result))
-        return false
+        BackgroundShader.fallback = true
+        return true
     end
 
     -- Fixed grid dimensions (number of cells)
@@ -43,30 +49,45 @@ function BackgroundShader.init(screenWidth, screenHeight)
     BackgroundShader.screenHeight = screenHeight
 
     -- Create canvas for rendering with exact cell dimensions
-    BackgroundShader.canvas = love.graphics.newCanvas(canvasWidth, canvasHeight)
+    local canvasOk, canvasOrError = pcall(love.graphics.newCanvas, canvasWidth, canvasHeight)
+    if not canvasOk then
+        print("[BackgroundShader] Failed to create canvas: " .. tostring(canvasOrError))
+        BackgroundShader.fallback = true
+        return true
+    end
+    BackgroundShader.canvas = canvasOrError
 
     -- Initialize moonshine post-FX chain
-    BackgroundShader.effect = moonshine(canvasWidth, canvasHeight, moonshine.effects.glow)
-        .chain(moonshine.effects.chromasep)
-        .chain(moonshine.effects.filmgrain)
-        .chain(moonshine.effects.vignette)
+    local effectOk, effectOrError = pcall(function()
+        return moonshine(canvasWidth, canvasHeight, moonshine.effects.glow)
+            .chain(moonshine.effects.chromasep)
+            .chain(moonshine.effects.filmgrain)
+            .chain(moonshine.effects.vignette)
+    end)
 
-    -- Configure glow
-    BackgroundShader.effect.glow.strength = 5
-    BackgroundShader.effect.glow.min_luma = 0.2
+    if not effectOk then
+        print("[BackgroundShader] Failed to initialize post-FX, using shader without moonshine: " .. tostring(effectOrError))
+        BackgroundShader.effect = nil
+    else
+        BackgroundShader.effect = effectOrError
 
-    -- Configure chromatic separation
-    BackgroundShader.effect.chromasep.angle = 0.15
-    BackgroundShader.effect.chromasep.radius = 1.5
+        -- Configure glow
+        BackgroundShader.effect.glow.strength = 5
+        BackgroundShader.effect.glow.min_luma = 0.2
 
-    -- Configure film grain
-    BackgroundShader.effect.filmgrain.opacity = 0.15
-    BackgroundShader.effect.filmgrain.size = 1
+        -- Configure chromatic separation
+        BackgroundShader.effect.chromasep.angle = 0.15
+        BackgroundShader.effect.chromasep.radius = 1.5
 
-    -- Configure vignette
-    BackgroundShader.effect.vignette.radius = 0.85
-    BackgroundShader.effect.vignette.opacity = 0.5
-    BackgroundShader.effect.vignette.softness = 0.5
+        -- Configure film grain
+        BackgroundShader.effect.filmgrain.opacity = 0.15
+        BackgroundShader.effect.filmgrain.size = 1
+
+        -- Configure vignette
+        BackgroundShader.effect.vignette.radius = 0.85
+        BackgroundShader.effect.vignette.opacity = 0.5
+        BackgroundShader.effect.vignette.softness = 0.5
+    end
 
     -- Set initial uniforms using canvas dimensions
     BackgroundShader.shader:send("resolution", {canvasWidth, canvasHeight})
@@ -84,9 +105,9 @@ end
 
 -- Update shader uniforms with music data and player level
 function BackgroundShader.update(dt, musicReactor, player)
-    if not BackgroundShader.shader then return end
-
     BackgroundShader.time = BackgroundShader.time + dt
+
+    if not BackgroundShader.shader then return end
 
     -- Update time uniform
     BackgroundShader.shader:send("time", BackgroundShader.time)
@@ -112,7 +133,10 @@ end
 
 -- Draw the shader background with glow effect
 function BackgroundShader.draw()
-    if not BackgroundShader.shader or not BackgroundShader.effect then return end
+    if BackgroundShader.fallback or not BackgroundShader.shader or not BackgroundShader.canvas then
+        BackgroundShader.drawFallback()
+        return
+    end
 
     -- Save previous shader
     local previousShader = love.graphics.getShader()
@@ -126,14 +150,39 @@ function BackgroundShader.draw()
     love.graphics.setShader()
     love.graphics.setCanvas()
 
-    -- Draw the canvas through moonshine effect at 0,0 (fills entire screen)
-    BackgroundShader.effect(function()
+    if BackgroundShader.effect then
+        -- Draw the canvas through moonshine effect at 0,0 (fills entire screen)
+        BackgroundShader.effect(function()
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(BackgroundShader.canvas, 0, 0)
+        end)
+    else
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(BackgroundShader.canvas, 0, 0)
-    end)
+    end
 
     -- Restore previous shader
     love.graphics.setShader(previousShader)
+end
+
+function BackgroundShader.drawFallback()
+    local width = BackgroundShader.screenWidth or love.graphics.getWidth()
+    local height = BackgroundShader.screenHeight or love.graphics.getHeight()
+    local cellSize = 48
+    local pulse = 0.5 + 0.5 * math.sin(BackgroundShader.time * 2)
+
+    love.graphics.setColor(0.08, 0.05, 0.12, 1)
+    love.graphics.rectangle("fill", 0, 0, width, height)
+
+    love.graphics.setColor(0.6 + pulse * 0.25, 0.25, 0.8, 0.45)
+    for x = 0, width, cellSize do
+        love.graphics.line(x, 0, x, height)
+    end
+    for y = 0, height, cellSize do
+        love.graphics.line(0, y, width, y)
+    end
+
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 -- Reset shader time (useful for testing)

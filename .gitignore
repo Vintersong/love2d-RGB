@@ -1,6 +1,8 @@
 .claude/settings.local.json
 .vscode/settings.json
 
+dist/
+
 # Internal design documents (exclude from repo)
 ARCHITECTURE.md
 CURRENT_IMPLEMENTATION_STATUS.md

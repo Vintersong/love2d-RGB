@@ -1,4 +1,6 @@
 function love.conf(t)
+    t.version = "11.5"
+
     -- Window
     local Config = require("src.Config")
     

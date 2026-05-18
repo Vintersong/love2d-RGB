@@ -13,14 +13,28 @@ SongLibrary.songs = {
     {
         name = "Song 1",
         audioPath = "assets/music/song1.wav",
+        webAudioPath = "assets/music_web/song1.ogg",
         structurePath = "assets.songs.song1"
     },
     {
         name = "Song 2",
         audioPath = "assets/music/song2.wav",
+        webAudioPath = "assets/music_web/song2.ogg",
         structurePath = "assets.songs.song2"
     }
 }
+
+local function resolveAudioPath(song)
+    local Config = require("src.Config")
+    if Config.runtime and Config.runtime.web and song.webAudioPath then
+        local info = love.filesystem.getInfo(song.webAudioPath)
+        if info then
+            return song.webAudioPath
+        end
+    end
+
+    return song.audioPath
+end
 
 -- Get a random song from the library
 function SongLibrary.getRandomSong()
@@ -34,7 +48,7 @@ function SongLibrary.getRandomSong()
 
     return {
         name = song.name,
-        audioPath = song.audioPath,
+        audioPath = resolveAudioPath(song),
         structure = structure.structure,
         bpm = structure.bpm
     }
@@ -62,7 +76,7 @@ function SongLibrary.getSongByIndex(index)
 
     return {
         name = song.name,
-        audioPath = song.audioPath,
+        audioPath = resolveAudioPath(song),
         structure = structure.structure,
         bpm = structure.bpm
     }

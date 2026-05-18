@@ -3,6 +3,7 @@
 
 local SplashScreen = {}
 local Config = require("src.Config")
+local Runtime = require("src.systems.Runtime")
 
 -- Animation state
 local alpha = 0
@@ -107,6 +108,10 @@ function SplashScreen:draw()
         
         for i, option in ipairs(menuOptions) do
             local y = menuStartY + (i - 1) * lineHeight
+            local label = option.label
+            if option.action == "quit" and Runtime.isWeb() then
+                label = "[ESC] Reload"
+            end
             
             -- Highlight selected option
             if i == selectedMenuOption then
@@ -115,7 +120,7 @@ function SplashScreen:draw()
                 love.graphics.setColor(0.7, 0.7, 0.7, alpha)  -- Gray
             end
             
-            love.graphics.print(option.label, menuStartX, y)
+            love.graphics.print(label, menuStartX, y)
         end
     else
         -- Show subtitle during fade in
@@ -148,14 +153,14 @@ function SplashScreen:keypressed(key)
             elseif action == "uiSandbox" then
                 self:enterUISandbox()
             elseif action == "quit" then
-                love.event.quit()
+                Runtime.quitOrReturnToTitle()
             end
             return
         elseif key == "u" then
             self:enterUISandbox()
             return
         elseif key == "escape" then
-            love.event.quit()
+            Runtime.quitOrReturnToTitle()
             return
         end
     else
@@ -165,12 +170,16 @@ function SplashScreen:keypressed(key)
         elseif key == "u" then
             self:enterUISandbox()
         elseif key == "escape" then
-            love.event.quit()
+            Runtime.quitOrReturnToTitle()
         end
     end
 end
 
 function SplashScreen:startGame()
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
     phase = "fadeOut"
     timer = 0
     
@@ -194,6 +203,10 @@ function SplashScreen:startGame()
 end
 
 function SplashScreen:enterUISandbox()
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
     -- Reset font and switch immediately to UI Sandbox
     love.graphics.setFont(love.graphics.newFont(12))
     

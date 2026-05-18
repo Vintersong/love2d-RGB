@@ -3,6 +3,7 @@
 
 local PauseState = {}
 local Config = require("src.Config")
+local Runtime = require("src.systems.Runtime")
 
 PauseState.previousState = nil
 PauseState.musicReactor = nil
@@ -49,7 +50,7 @@ function PauseState:draw()
     y = y + 55
     love.graphics.printf("R  Restart Run", centerX - 250, y, 500, "center", 0, 1.8, 1.8)
     y = y + 55
-    love.graphics.printf("Q  Quit Game", centerX - 250, y, 500, "center", 0, 1.8, 1.8)
+    love.graphics.printf("Q  " .. Runtime.quitActionText(), centerX - 250, y, 500, "center", 0, 1.8, 1.8)
 
     love.graphics.setColor(1, 1, 1, 1)
 end
@@ -64,7 +65,7 @@ function PauseState:keypressed(key)
         PlayingState.startNewRun()
         StateManager.switch("Playing")
     elseif key == "q" then
-        love.event.quit()
+        Runtime.quitOrReturnToTitle()
     end
 end
 

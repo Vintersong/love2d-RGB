@@ -3,6 +3,7 @@
 
 local GameOverState = {}
 local Config = require("src.Config")
+local Runtime = require("src.systems.Runtime")
 
 GameOverState.player = nil
 GameOverState.enemies = {}
@@ -77,14 +78,14 @@ function GameOverState:drawGameOverScreen()
     y = y + 60
 
     love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.print("Press R to Restart | ESC to Exit", centerX - 220, y, 0, 1.5, 1.5)
+    love.graphics.print("Press R to Restart | ESC to " .. Runtime.exitActionText(), centerX - 220, y, 0, 1.5, 1.5)
 end
 
 function GameOverState:keypressed(key)
     local StateManager = require("src.systems.StateManager")
 
     if key == "escape" then
-        love.event.quit()
+        Runtime.quitOrReturnToTitle()
     elseif key == "c" then
         local CollisionSystem = require("src.systems.CollisionSystem")
         local Config = require("src.Config")

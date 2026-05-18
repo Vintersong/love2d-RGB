@@ -3,6 +3,12 @@
 -- Use this for balance tuning and global constants
 
 local Config = {
+    -- Runtime state populated at startup.
+    runtime = {
+        web = false,
+        musicStarted = false
+    },
+
     -- Window / Display settings
     screen = {
         width = 1920,

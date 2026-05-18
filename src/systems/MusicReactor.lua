@@ -55,20 +55,28 @@ function MusicReactor:new()
     return reactor
 end
 
-function MusicReactor:loadSong(filepath, structure)
-    self.currentSong = love.audio.newSource(filepath, "stream")
+function MusicReactor:loadSong(filepath, structure, options)
+    options = options or {}
+
+    self.currentSong = love.audio.newSource(filepath, options.sourceType or "stream")
     self.currentSong:setLooping(true)
-    
-    -- Load sound data for BPM detection
-    local success, soundData = pcall(love.sound.newSoundData, filepath)
-    if success then
-        self.soundData = soundData
-        -- Detect BPM automatically
-        local detectedBPM = audioAnalyzer.detectBPM(soundData, {minbpm = 80, maxbpm = 180})
-        self:setBPM(detectedBPM)
-        print(string.format("[MusicReactor] Detected BPM: %.1f", detectedBPM))
+
+    if options.skipAnalysis then
+        self:setBPM(options.bpm or self.bpm)
+        print(string.format("[MusicReactor] Skipped BPM analysis, using authored BPM: %.1f", self.bpm))
     else
-        print("[MusicReactor] Could not load sound data for analysis, using default BPM")
+        -- Load sound data for BPM detection
+        local success, soundData = pcall(love.sound.newSoundData, filepath)
+        if success then
+            self.soundData = soundData
+            -- Detect BPM automatically
+            local detectedBPM = audioAnalyzer.detectBPM(soundData, {minbpm = 80, maxbpm = 180})
+            self:setBPM(detectedBPM)
+            print(string.format("[MusicReactor] Detected BPM: %.1f", detectedBPM))
+        else
+            self:setBPM(options.bpm or self.bpm)
+            print("[MusicReactor] Could not load sound data for analysis, using authored/default BPM")
+        end
     end
     
     -- Set song structure if provided

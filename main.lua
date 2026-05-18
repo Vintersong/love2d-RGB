@@ -8,6 +8,7 @@ local BootLoader = require("src.systems.BootLoader")
 local Gamestate = require("libs.hump-master.gamestate")
 local StateManager = require("src.systems.StateManager")
 local GameConfig = require("src.systems.GameConfig")
+local Runtime = require("src.systems.Runtime")
 
 -- Game systems (initialized once)
 local MusicReactor = require("src.systems.MusicReactor")
@@ -54,7 +55,9 @@ local Config = require("src.Config")
 local screenWidth = Config.screen.width
 local screenHeight = Config.screen.height
 
-function love.load()
+function love.load(args)
+    Runtime.init(args)
+
     -- Register systems for validation
     BootLoader.registerSystem("ColorSystem", ColorSystem, {"init", "getDominantColor", "getProjectileColor"})
     BootLoader.registerSystem("World", World, {"init", "update", "draw"})
@@ -121,13 +124,21 @@ function love.load()
     local randomSong = SongLibrary.getRandomSong()
 
     local success, song = pcall(function()
-        return musicReactor:loadSong(randomSong.audioPath, randomSong.structure)
+        return musicReactor:loadSong(randomSong.audioPath, randomSong.structure, {
+            skipAnalysis = Runtime.isWeb(),
+            bpm = randomSong.bpm,
+            sourceType = Runtime.isWeb() and "static" or "stream"
+        })
     end)
 
     if success and song then
-        musicReactor:play()
-        print(string.format("[Game] Music loaded and playing: %s (%d songs available)", randomSong.name, SongLibrary.getSongCount()))
-        print(string.format("[Game] Detected BPM: %.1f", musicReactor:getCurrentBPM()))
+        if Runtime.isWeb() then
+            print(string.format("[Game] Music loaded for browser playback after input: %s (%d songs available)", randomSong.name, SongLibrary.getSongCount()))
+        else
+            musicReactor:play()
+            print(string.format("[Game] Music loaded and playing: %s (%d songs available)", randomSong.name, SongLibrary.getSongCount()))
+        end
+        print(string.format("[Game] BPM: %.1f", musicReactor:getCurrentBPM()))
     else
         print("[Game] Could not load music, continuing without audio")
     end

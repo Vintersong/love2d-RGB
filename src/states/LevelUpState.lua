@@ -3,6 +3,7 @@
 
 local LevelUpState = {}
 local Config = require("src.Config")
+local Runtime = require("src.systems.Runtime")
 
 -- Shared data from PlayingState
 LevelUpState.player = nil
@@ -383,9 +384,9 @@ end
 function LevelUpState:keypressed(key)
     local ColorSystem = require("src.systems.ColorSystem")
 
-    -- ESC exits game
+    -- ESC exits on desktop and returns to title on web.
     if key == "escape" then
-        love.event.quit()
+        Runtime.quitOrReturnToTitle()
         return
     end
 

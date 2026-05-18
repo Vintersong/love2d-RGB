@@ -3,6 +3,7 @@
 
 local VictoryState = {}
 local Config = require("src.Config")
+local Runtime = require("src.systems.Runtime")
 
 VictoryState.player = nil
 VictoryState.enemies = {}
@@ -120,14 +121,14 @@ function VictoryState:drawVictoryScreen()
 
     -- Controls
     love.graphics.setColor(1, 1, 0)
-    love.graphics.print("[SPACE] Restart    [ESC] Quit", centerX - 120, y, 0, 1.2, 1.2)
+    love.graphics.print("[SPACE] Restart    [ESC] " .. Runtime.exitActionText(), centerX - 120, y, 0, 1.2, 1.2)
 end
 
 function VictoryState:keypressed(key)
     local StateManager = require("src.systems.StateManager")
 
     if key == "escape" then
-        love.event.quit()
+        Runtime.quitOrReturnToTitle()
     elseif key == "space" then
         -- Restart game
         self:restartGame()

@@ -50,6 +50,7 @@ local GameOverState = require("src.states.GameOverState")
 local VictoryState = require("src.states.VictoryState")
 local PauseState = require("src.states.PauseState")
 local UISandboxState = require("src.states.UISandboxState")
+local OptionsState = require("src.states.OptionsState")
 
 -- Constants
 local Config = require("src.Config")
@@ -120,6 +121,17 @@ function love.load(args)
     BootLoader.initializeSystem("BackgroundShader", BackgroundShader.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("SimpleGrid", SimpleGrid.init, screenWidth, screenHeight)
 
+    -- Apply master volume mute or set from configuration
+    if love.audio then
+        if Config.debug.muteAudio then
+            love.audio.setVolume(0)
+            print("[Game] Audio muted at startup due to muteAudio debug configuration")
+        else
+            love.audio.setVolume(Config.sound.volume or 0.8)
+            print(string.format("[Game] Master volume set to %.0f%% at startup", (Config.sound.volume or 0.8) * 100))
+        end
+    end
+
     -- Initialize music with Song 1 selection (always play Song 1 on start)
     local musicReactor = MusicReactor:new()
     local startingSong = SongLibrary.getSongByIndex(1) or SongLibrary.getRandomSong()
@@ -183,6 +195,10 @@ function love.load(args)
     StateManager.register("UISandbox", UISandboxState, {
         description = "HUD sandbox",
         tags = {"menu", "debug"}
+    })
+    StateManager.register("Options", OptionsState, {
+        description = "Options and settings menu",
+        tags = {"menu", "settings"}
     })
 
     -- Validate state dependencies

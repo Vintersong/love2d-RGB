@@ -412,7 +412,9 @@ function MenuState:keypressed(key)
         elseif action == "uiSandbox" then
             self:enterUISandbox()
         elseif action == "settings" then
-            showSettings = true
+            local StateManager = require("src.systems.StateManager")
+            love.graphics.setFont(love.graphics.newFont(12))
+            StateManager.switch("Options")
         elseif action == "credits" then
             showCredits = true
         elseif action == "quit" then

@@ -1,4 +1,5 @@
 local audioAnalyzer = require("libs.audioAnalyzer")
+local Config = require("src.Config")
 
 local MusicReactor = {}
 MusicReactor.__index = MusicReactor
@@ -60,6 +61,11 @@ function MusicReactor:loadSong(filepath, structure, options)
 
     self.currentSong = love.audio.newSource(filepath, options.sourceType or "stream")
     self.currentSong:setLooping(true)
+
+    -- Handle debugging/mute mode
+    if Config.debug.muteAudio then
+        self.currentSong:setVolume(0)
+    end
 
     if options.skipAnalysis then
         self:setBPM(options.bpm or self.bpm)

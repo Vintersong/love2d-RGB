@@ -62,11 +62,17 @@ local Config = {
         vignette  = { enabled = true, radius = 0.85, opacity = 0.5, softness = 0.5 },
     },
 
+    -- Sound settings
+    sound = {
+        volume = 0.8
+    },
+
     -- Debug settings
     debug = {
         enabled = true,
         showColliders = false,
-        showFPS = true
+        showFPS = true,
+        muteAudio = false -- Set to true to disable/mute all audio during debugging
     }
 }
 

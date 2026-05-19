@@ -65,7 +65,7 @@ Eight artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens
 
 ## Enemy spawning
 
-**Pipeline:** **`SpawnController.update` → `EnemySpawner.update`**. Formations (`square_corners`, `hex_star`, `tri_squares`, `diamond`, `cross`, `vee`, `box`) pulse off music weights for **BASS / MIDS / TREBLE** archetypes via `ProceduralEnemy` & friends.
+**Pipeline:** **`SpawnController.update` → `EnemySpawner.update`**. Formations (`square_corners`, `hex_star`, `tri_squares`, `diamond`, `cross`, `vee`, `box`) pulse off music weights for **BASS / MIDS / TREBLE** archetypes via `ProceduralEnemy` & friends. Regular enemies use melee-only AI — projectile shooting was removed from `ProceduralEnemy` to keep the enemy count scalable.
 
 The legacy **`GridAttackSystem`** marching wave layer still exists (`src/systems/GridAttackSystem.lua`) but its **update/draw calls are intentionally commented out** inside `PlayingState` (“DISABLED FOR TESTING” markers).
 
@@ -89,11 +89,11 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 |--------|----------------|
 | **`BootLoader`** | Startup probes + orderly system `init()` |
 | **`GameConfig` / `StateManager`** | Global services + bookkeeping for registered gameplay states |
-| **`SongLibrary` + `MusicReactor`** | Random track ingest, BPM-ish estimate, synthesized band ramps feeding spawn weights |
+| **`SongLibrary` + `MusicReactor`** | Random track ingest, BPM-ish estimate, synthesized band ramps feeding spawn weights; master volume initialized from `Config.sound.volume` |
 | **`SpawnController`** | Kill counters, orb & power-up drops after deaths, bosses every 100 kills |
 | **`EnemySpawner`** | Spatial formations reacting to spectral intensity |
 | **`GridAttackSystem`** | Alternate flank waves *(presently disabled hooks)* |
-| **`SimpleGrid` + shader bg** | `BackgroundShader` (GLSL + **moonshine glow**) draws the playable backdrop; **`SimpleGrid`** overlays beat ripples (**T** pulses) |
+| **`SimpleGrid` + shader bg** | `BackgroundShader` (GLSL + **moonshine glow**) draws the playable backdrop; **`SimpleGrid`** overlays beat ripples (**T** pulses); `splashscreen.glsl` is a separate shader used by the splash/menu/options screens |
 | **`World`** | Scroll metadata / frozen perspective grid scaffolding (mostly bypassed visually) |
 | **`ColorSystem`** | Locks primaries / applies projectile stats |
 | **`AbilitySystem` + `AbilityLibrary`** | Cooldown choreography for Dash / Blink / Shield |
@@ -112,8 +112,10 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 
 | State | Notes |
 |-------|-------|
-| `SplashScreenState` | Title + SPACE / sandbox entry |
-| `PlayingState` | Core loop orchestrator (`BackgroundShader` drawn here each frame) |
+| `SplashScreenState` | Title + SPACE / sandbox entry; rendered via `splashscreen.glsl` shader backdrop |
+| `MenuState` | Animated main menu (shader backdrop, bracket selection UI, micro-animations); routes to Playing or `OptionsState` via SETTINGS |
+| `OptionsState` | Tabbed settings screen — **AUDIO** (master volume, mute), **VIDEO** (fullscreen, vsync), **CONTROLS** (key reference diagram); returns to `MenuState` |
+| `PlayingState` | Core loop orchestrator (`BackgroundShader` drawn here each frame); delegates update/render/input/enemy-flow to `PlayingUpdateLoop`, `PlayingRenderLayers`, `PlayingInputHandlers`, `PlayingEnemyFlow` |
 | `LevelUpState` | Frozen snapshot + color cards (**shader grid not redrawn underneath right now**) |
 | `GameOverState` | Death recap path (`PlayingState` -> switch) |
 | `VictoryState` | Run completion path after the production BossSystem boss defeat animation finishes |

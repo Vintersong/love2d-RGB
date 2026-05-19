@@ -1,4 +1,4 @@
-# LÖVE2D RGB — Bullet Hell
+# CHROMATIC — Bullet Heaven
 
 A Vampire Survivors-style bullet heaven built with LÖVE2D (Lua). Auto-aim shooting, a **2-primary color commitment** tree, **music-reactive** formation spawning (`MusicReactor` → `EnemySpawner`), collectible **artifacts** with scripted **synergies** (`SynergySystem` — **18** named combos today).
 

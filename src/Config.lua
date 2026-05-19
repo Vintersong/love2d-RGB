@@ -64,7 +64,7 @@ local Config = {
 
     -- Sound settings
     sound = {
-        volume = 0.8
+        volume = 0.5
     },
 
     -- Debug settings

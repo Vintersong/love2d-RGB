@@ -43,6 +43,7 @@ local BossBehaviors = require("src.data.BossBehaviors")
 
 -- Game states
 local SplashScreen = require("src.states.SplashScreenState")
+local MenuState = require("src.states.MenuState")
 local PlayingState = require("src.states.PlayingState")
 local LevelUpState = require("src.states.LevelUpState")
 local GameOverState = require("src.states.GameOverState")
@@ -119,24 +120,24 @@ function love.load(args)
     BootLoader.initializeSystem("BackgroundShader", BackgroundShader.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("SimpleGrid", SimpleGrid.init, screenWidth, screenHeight)
 
-    -- Initialize music with random song selection
+    -- Initialize music with Song 1 selection (always play Song 1 on start)
     local musicReactor = MusicReactor:new()
-    local randomSong = SongLibrary.getRandomSong()
+    local startingSong = SongLibrary.getSongByIndex(1) or SongLibrary.getRandomSong()
 
     local success, song = pcall(function()
-        return musicReactor:loadSong(randomSong.audioPath, randomSong.structure, {
+        return musicReactor:loadSong(startingSong.audioPath, startingSong.structure, {
             skipAnalysis = Runtime.isWeb(),
-            bpm = randomSong.bpm,
+            bpm = startingSong.bpm,
             sourceType = Runtime.isWeb() and "static" or "stream"
         })
     end)
 
     if success and song then
         if Runtime.isWeb() then
-            print(string.format("[Game] Music loaded for browser playback after input: %s (%d songs available)", randomSong.name, SongLibrary.getSongCount()))
+            print(string.format("[Game] Music loaded for browser playback after input: %s (%d songs available)", startingSong.name, SongLibrary.getSongCount()))
         else
             musicReactor:play()
-            print(string.format("[Game] Music loaded and playing: %s (%d songs available)", randomSong.name, SongLibrary.getSongCount()))
+            print(string.format("[Game] Music loaded and playing: %s (%d songs available)", startingSong.name, SongLibrary.getSongCount()))
         end
         print(string.format("[Game] BPM: %.1f", musicReactor:getCurrentBPM()))
     else
@@ -150,6 +151,10 @@ function love.load(args)
     StateManager.init()
     StateManager.register("Splash", SplashScreen, {
         description = "Initial splash screen",
+        tags = {"menu", "start"}
+    })
+    StateManager.register("Menu", MenuState, {
+        description = "Main menu screen",
         tags = {"menu", "start"}
     })
     StateManager.register("Playing", PlayingState, {

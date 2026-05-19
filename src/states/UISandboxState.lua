@@ -89,7 +89,7 @@ end
 function UISandboxState:keypressed(key)
     if key == "q" then
         local StateManager = require("src.systems.StateManager")
-        StateManager.switch("Splash")
+        StateManager.switch("Menu")
         return
     end
     

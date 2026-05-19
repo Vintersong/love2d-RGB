@@ -60,12 +60,12 @@ function Runtime.quitOrReturnToTitle()
     if Runtime.isWeb() then
         local StateManager = require("src.systems.StateManager")
 
-        if StateManager.currentState == "Splash" then
+        if StateManager.currentState == "Menu" then
             love.event.push("quit", "reload")
             return
         end
 
-        StateManager.switch("Splash")
+        StateManager.switch("Menu")
         return
     end
 

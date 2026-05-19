@@ -239,7 +239,33 @@ function SplashScreen:draw()
 end
 
 function SplashScreen:keypressed(key)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
     -- Trigger fade out to MenuState when a key is pressed during fadeIn or display
+    if phase == "fadeIn" or phase == "display" then
+        phase = "fadeOut"
+        timer = 0
+    end
+end
+
+function SplashScreen:mousepressed(x, y, button)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
+    if phase == "fadeIn" or phase == "display" then
+        phase = "fadeOut"
+        timer = 0
+    end
+end
+
+function SplashScreen:touchpressed(id, x, y, dx, dy, pressure)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
     if phase == "fadeIn" or phase == "display" then
         phase = "fadeOut"
         timer = 0

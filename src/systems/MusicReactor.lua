@@ -265,6 +265,30 @@ function MusicReactor:getBassIntensity()
     return self.bassNorm or self.bass
 end
 
+function MusicReactor:getBandIntensity(index)
+    index = index or 1
+    -- Map index (1 to 32) to frequency bands with some organic variance
+    local intensity = 0.1
+    if index <= 6 then
+        -- Bass (1 to 6)
+        intensity = self:getBassIntensity()
+    elseif index <= 16 then
+        -- Mid Low / Mid High (7 to 16)
+        intensity = self:getMidIntensity()
+    elseif index <= 26 then
+        -- Treble (17 to 26)
+        intensity = self:getTrebleIntensity()
+    else
+        -- Presence (27 to 32)
+        intensity = self:getPresenceIntensity()
+    end
+    
+    -- Add small organic variance so the equalizer bars don't look completely identical per band group
+    local time = love.timer.getTime()
+    local variance = 0.12 * math.sin(time * 10 + index * 0.7)
+    return math.max(0, math.min(1, intensity + variance))
+end
+
 function MusicReactor:getMidIntensity()
     return self.midNorm or ((self.midLow + self.midHigh) / 2)
 end

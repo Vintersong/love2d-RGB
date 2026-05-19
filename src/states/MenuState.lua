@@ -31,7 +31,7 @@ local showCredits = false
 
 -- Text settings
 local titleText = "CHROMATIC"
-local titleSize = 130
+local titleSize = 75
 local subtitleSize = 24
 
 -- Fonts
@@ -42,6 +42,9 @@ local smallFont = nil
 -- Background Shader
 local bgShader = nil
 
+-- Glowing visualizer Y-tracker for selection highlighting
+local glowY = nil
+
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
@@ -49,6 +52,7 @@ function MenuState:enter(previous, data)
     selectedMenuOption = 1
     showSettings = false
     showCredits = false
+    glowY = nil
 
     if not titleFont then
         titleFont = love.graphics.newFont(titleSize)
@@ -97,6 +101,22 @@ function MenuState:update(dt)
             animProgress[i] = math.max(target, animProgress[i] - dt / 0.15)
         end
     end
+    
+    -- Smoothly interpolate glowing visualizer Y-position for active button
+    local screenHeight = Config.screen.height
+    local menuBottomLimit = screenHeight - (screenHeight * 0.1)
+    local bracketHeight = 44
+    local gap = 16
+    local numItems = #menuOptions
+    local totalMenuHeight = numItems * bracketHeight + (numItems - 1) * gap
+    local stackStartY = menuBottomLimit - totalMenuHeight
+    local selectedY = stackStartY + (selectedMenuOption - 1) * (bracketHeight + gap)
+    
+    if not glowY then
+        glowY = selectedY
+    else
+        glowY = glowY + (selectedY - glowY) * dt * 16 -- fast, highly responsive slide
+    end
 
     if phase == "fadeIn" then
         alpha = math.min(1, timer / fadeInDuration)
@@ -128,10 +148,58 @@ function MenuState:draw()
     local screenWidth = Config.screen.width
     local screenHeight = Config.screen.height
     
-    -- 1. Clear to deep space black
+    -- 1. Calculate menu layout metrics early
+    local menuBottomLimit = screenHeight - (screenHeight * 0.1)
+    local bracketHeight = 44
+    local gap = 16
+    local numItems = #menuOptions
+    local totalMenuHeight = numItems * bracketHeight + (numItems - 1) * gap
+    local stackStartY = menuBottomLimit - totalMenuHeight
+    
+    local margin = screenHeight * 0.1
+    local titleX = margin
+    local titleY = margin
+    
+    -- Calculate individual character widths and total width with a symmetrical gap
+    local widths = {}
+    local totalWidth = 0
+    local charGap = 10
+    
+    for i = 1, #titleText do
+        local char = titleText:sub(i, i)
+        widths[i] = titleFont:getWidth(char)
+        totalWidth = totalWidth + widths[i]
+    end
+    totalWidth = totalWidth + (#titleText - 1) * charGap
+    
+    local logoCenterX = titleX + totalWidth / 2
+    local menuCenter = logoCenterX
+    
+    -- Align button exactly to 5 visualizer cells/columns
+    local barWidth = 56
+    local barGap = 4
+    local startX = 2
+    local barStep = barWidth + barGap -- 60
+    
+    -- Find the column index closest to the logo center
+    local centerCol = math.floor((menuCenter - startX) / barStep) + 1
+    
+    -- Center a 5-cell wide button (2 columns left, 2 columns right, 1 middle)
+    local colStart = centerCol - 2
+    if colStart < 1 then colStart = 1 end
+    local colEnd = colStart + 4
+    if colEnd > 32 then
+        colEnd = 32
+        colStart = 32 - 4
+    end
+    
+    local btnX = startX + (colStart - 1) * barStep
+    local btnW = 5 * barWidth + 4 * barGap -- exactly 5 cells wide (296 pixels)
+    
+    -- 2. Clear to deep space black
     love.graphics.clear(0.015, 0.012, 0.02, 1)
 
-    -- 2. Draw Background Shader if loaded (Full Screen)
+    -- 3. Draw Background Shader if loaded (Full Screen)
     local musicReactor = GameConfig.getMusicReactor()
     local intensity = musicReactor and musicReactor:getOverallIntensity() or 0
     
@@ -149,12 +217,8 @@ function MenuState:draw()
         love.graphics.setShader(previousShader)
     end
 
-    -- 3. Draw Equalizer Bars Grid (LED columns - static unlit matrix at 4% opacity - Full Screen Width)
+    -- 4. Draw Equalizer Bars Grid (LED columns - static unlit matrix at 4% opacity - Full Screen Width)
     local numBars = 32
-    local barWidth = 56
-    local barGap = 4
-    local startX = 2
-    
     local segmentHeight = 12
     local segmentGap = 3
     local numSegmentsTotal = 72
@@ -167,30 +231,39 @@ function MenuState:draw()
         local g = 0.5 + 0.5 * math.sin(time * 2 + 2.09 + barOffset)
         local b = 0.5 + 0.5 * math.sin(time * 2 + 4.18 + barOffset)
         
+        -- Get real-time reactive audio intensity for this specific column
+        local barIntensity = 0.1
+        if musicReactor then
+            barIntensity = musicReactor:getBandIntensity(i) or 0.1
+        end
+        
+        -- Check if this specific column is horizontally behind the buttons (columns colStart to colEnd)
+        local isBehindButtonColumn = (i >= colStart and i <= colEnd)
+        
         for j = 1, numSegmentsTotal do
             local segmentY = screenHeight - (j * (segmentHeight + segmentGap))
-            love.graphics.setColor(r, g, b, alpha * 0.04)
+            
+            -- Check if this segment lies vertically inside the smoothly sliding selection range (glowY)
+            local isSelectedRow = false
+            if glowY then
+                isSelectedRow = (segmentY >= glowY - 2) and (segmentY + segmentHeight <= glowY + bracketHeight + 2)
+            end
+            
+            local finalAlpha = alpha * 0.04
+            -- Highlight ONLY if it is vertically on the selected row AND horizontally behind the buttons!
+            if isSelectedRow and isBehindButtonColumn then
+                -- Active glowing highlight: pulses and dances brilliantly to the column's audio frequency!
+                finalAlpha = alpha * (0.16 + 0.36 * barIntensity)
+            end
+            
+            love.graphics.setColor(r, g, b, finalAlpha)
             love.graphics.rectangle("fill", barX, segmentY, barWidth, segmentHeight, 2, 2)
         end
     end
-
-    -- 4. Draw Title (centered, on top of equalizer background)
+    
+    -- 4.6 Draw Title (on the left side, distanced equally from top and left)
     love.graphics.setFont(titleFont)
-    local titleY = 240
-    
-    -- Calculate individual character widths and total width with a symmetrical gap
-    local widths = {}
-    local totalWidth = 0
-    local charGap = 10
-    
-    for i = 1, #titleText do
-        local char = titleText:sub(i, i)
-        widths[i] = titleFont:getWidth(char)
-        totalWidth = totalWidth + widths[i]
-    end
-    totalWidth = totalWidth + (#titleText - 1) * charGap
-    
-    local startXText = (screenWidth / 2) - (totalWidth / 2)
+    local startXText = titleX
     local currentX = startXText
     
     for i = 1, #titleText do
@@ -206,11 +279,8 @@ function MenuState:draw()
         currentX = currentX + widths[i] + charGap
     end
 
-    -- 5. Draw Centered Segmented Bracket Menu Options Stack
-    local menuCenter = screenWidth / 2
-    local stackStartY = titleY + 180
-    local bracketHeight = 44
-    local gap = 16
+    -- 5. Draw Segmented Bracket Menu Options Stack
+    -- Centered to the logo but 10% left, and 10% bottom margin starting with the last item at the bottom limit
     local currentY = stackStartY
     
     for i, option in ipairs(menuOptions) do
@@ -218,9 +288,6 @@ function MenuState:draw()
         local ease = 1 - math.pow(2, -10 * progress)
         
         -- Segmented Brackets Style (Minimalist Tech)
-        local btnW = 420
-        local btnX = menuCenter - (btnW / 2)
-        
         local slideOffset = ease * 8
         local lx = btnX + slideOffset
         local rx = btnX + btnW - slideOffset
@@ -249,15 +316,16 @@ function MenuState:draw()
         
         -- Option Text
         love.graphics.setFont(smallFont)
+        local btnCenterX = btnX + btnW / 2
         if i == selectedMenuOption then
             love.graphics.setColor(0, 0, 0, alpha * 0.5)
-            love.graphics.print(option.label, menuCenter - smallFont:getWidth(option.label)/2 + 1, currentY + bracketHeight/2 - 8 + 1)
+            love.graphics.print(option.label, btnCenterX - smallFont:getWidth(option.label)/2 + 1, currentY + bracketHeight/2 - 8 + 1)
             
             love.graphics.setColor(1, 1, 1, alpha)
         else
             love.graphics.setColor(0.55, 0.6, 0.7, alpha * 0.6)
         end
-        love.graphics.print(option.label, menuCenter - smallFont:getWidth(option.label)/2, currentY + bracketHeight/2 - 8)
+        love.graphics.print(option.label, btnCenterX - smallFont:getWidth(option.label)/2, currentY + bracketHeight/2 - 8)
         
         currentY = currentY + bracketHeight + gap
     end
@@ -299,8 +367,6 @@ function MenuState:draw()
         love.graphics.setFont(smallFont)
         love.graphics.setColor(0.7, 0.7, 0.7, alpha)
         love.graphics.print("DESIGN & ART:   VINTERSONG", menuCenter - 230, 410)
-        love.graphics.print("SYSTEM ENGINE:  ANTIGRAVITY AI", menuCenter - 230, 450)
-        love.graphics.print("FRAMEWORK:      LÖVE2D / HUMP GAMESTATE", menuCenter - 230, 490)
         
         love.graphics.setColor(0.5, 0.5, 0.5, alpha)
         love.graphics.print("PRESS [SPACE / ENTER] TO EXIT OVERLAY", menuCenter - 230, 570)
@@ -311,6 +377,10 @@ function MenuState:draw()
 end
 
 function MenuState:keypressed(key)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+
     if phase ~= "active" then return end
 
     -- If overlays are open, dismiss them on return/space/escape
@@ -355,6 +425,18 @@ function MenuState:keypressed(key)
     elseif key == "escape" then
         Runtime.quitOrReturnToTitle()
         return
+    end
+end
+
+function MenuState:mousepressed(x, y, button)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
+    end
+end
+
+function MenuState:touchpressed(id, x, y, dx, dy, pressure)
+    if Runtime.isWeb() then
+        Runtime.startMusicAfterGesture()
     end
 end
 

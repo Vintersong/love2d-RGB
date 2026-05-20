@@ -47,6 +47,7 @@ local titleFont = nil
 local subtitleFont = nil
 local smallFont = nil
 local boldFont = nil
+local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
@@ -76,6 +77,9 @@ function OptionsState:enter(previous, data)
     end
     if not boldFont then
         boldFont = love.graphics.newFont("libs/hump-master/docs/_static/default.css" and 18 or 18) -- backup bold font logic
+    end
+    if not defaultFont then
+        defaultFont = love.graphics.newFont(12)
     end
 
     -- Reset animation track tables
@@ -172,7 +176,7 @@ function OptionsState:update(dt)
     elseif phase == "fadeOut" then
         alpha = math.max(0, 1 - (timer / fadeOutDuration))
         if timer >= fadeOutDuration then
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             timer = 0
             StateManager.switch("Menu")
         end

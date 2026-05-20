@@ -45,7 +45,7 @@ function ProjectileCollisionSystem.update(player, enemies, xpOrbs, powerups, exp
 
                 -- GREEN: Bounce to nearest enemy
                 if proj.canBounceToNearest then
-                    shouldRemove = ProjectileCollisionSystem.handleBounce(proj, enemies)
+                    shouldRemove = ProjectileCollisionSystem.handleBounce(proj, enemies, player)
                 -- BLUE: Pierce through enemies
                 elseif proj.canPierce then
                     shouldRemove = ProjectileCollisionSystem.handlePierce(proj)
@@ -66,25 +66,36 @@ function ProjectileCollisionSystem.update(player, enemies, xpOrbs, powerups, exp
     end
 end
 
-function ProjectileCollisionSystem.handleBounce(proj, enemies)
+function ProjectileCollisionSystem.handleBounce(proj, enemies, player)
     proj.currentBounces = (proj.currentBounces or 0) + 1
 
     if proj.currentBounces >= (proj.maxBounces or 1) then
         return true -- Remove projectile
     end
 
-    -- Find nearest enemy that hasn't been hit yet
+    -- Find nearest enemy to the player that hasn't been hit yet using spatial query
     local nearestEnemy = nil
-    local nearestDist = math.huge
+    local nearestDistSq = math.huge
+    local searchRadius = 1000 -- large radius to cover the screen
 
-    for _, otherEnemy in ipairs(enemies) do
-        if not proj.hitEnemies[otherEnemy] and not otherEnemy.dead and not otherEnemy.inactive then
-            local dx = otherEnemy.x - proj.x
-            local dy = otherEnemy.y - proj.y
-            local dist = math.sqrt(dx * dx + dy * dy)
+    if CollisionSystem.world and player then
+        local items = CollisionSystem.world:queryRect(
+            player.x - searchRadius,
+            player.y - searchRadius,
+            searchRadius * 2,
+            searchRadius * 2,
+            function(item)
+                return item.type == "enemy" and not item.dead and not item.inactive and not proj.hitEnemies[item]
+            end
+        )
 
-            if dist < nearestDist then
-                nearestDist = dist
+        for _, otherEnemy in ipairs(items) do
+            local dx = otherEnemy.x - player.x
+            local dy = otherEnemy.y - player.y
+            local distSq = dx * dx + dy * dy
+
+            if distSq < nearestDistSq then
+                nearestDistSq = distSq
                 nearestEnemy = otherEnemy
             end
         end

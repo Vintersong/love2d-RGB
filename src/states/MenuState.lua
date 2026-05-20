@@ -38,6 +38,7 @@ local subtitleSize = 24
 local titleFont = nil
 local subtitleFont = nil
 local smallFont = nil
+local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
@@ -62,6 +63,9 @@ function MenuState:enter(previous, data)
     end
     if not smallFont then
         smallFont = love.graphics.newFont(16)
+    end
+    if not defaultFont then
+        defaultFont = love.graphics.newFont(12)
     end
 
     -- Reset animation track table
@@ -130,7 +134,7 @@ function MenuState:update(dt)
         alpha = math.max(0, 1 - (timer / fadeOutDuration))
         if timer >= fadeOutDuration then
             -- Reset font to default before switching
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             timer = 0
             
             -- Initialize PlayingState before switching
@@ -414,7 +418,7 @@ function MenuState:keypressed(key)
             self:enterUISandbox()
         elseif action == "settings" then
             local StateManager = require("src.systems.StateManager")
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             StateManager.switch("Options")
         elseif action == "credits" then
             showCredits = true
@@ -458,7 +462,7 @@ function MenuState:enterUISandbox()
     end
 
     -- Reset font and switch immediately to UI Sandbox
-    love.graphics.setFont(love.graphics.newFont(12))
+    love.graphics.setFont(defaultFont)
     
     local StateManager = require("src.systems.StateManager")
     StateManager.switch("UISandbox")

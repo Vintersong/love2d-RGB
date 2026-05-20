@@ -38,6 +38,7 @@ local subtitleSize = 24
 local titleFont = nil
 local subtitleFont = nil
 local smallFont = nil
+local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
@@ -62,6 +63,9 @@ function MenuState:enter(previous, data)
     end
     if not smallFont then
         smallFont = love.graphics.newFont(16)
+    end
+    if not defaultFont then
+        defaultFont = love.graphics.newFont(12)
     end
 
     -- Reset animation track table
@@ -130,7 +134,7 @@ function MenuState:update(dt)
         alpha = math.max(0, 1 - (timer / fadeOutDuration))
         if timer >= fadeOutDuration then
             -- Reset font to default before switching
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             timer = 0
             
             -- Initialize PlayingState before switching
@@ -209,6 +213,7 @@ function MenuState:draw()
             bgShader:send("resolution", {screenWidth, screenHeight})
             bgShader:send("time", love.timer.getTime())
             bgShader:send("intensity", intensity)
+            bgShader:send("bloomEnabled", 0.0)
         end)
         
         love.graphics.setShader(bgShader)
@@ -253,7 +258,7 @@ function MenuState:draw()
             -- Highlight ONLY if it is vertically on the selected row AND horizontally behind the buttons!
             if isSelectedRow and isBehindButtonColumn then
                 -- Active glowing highlight: pulses and dances brilliantly to the column's audio frequency!
-                finalAlpha = alpha * (0.16 + 0.36 * barIntensity)
+                finalAlpha = alpha * (0.08 + 0.1 * barIntensity)
             end
             
             love.graphics.setColor(r, g, b, finalAlpha)
@@ -413,7 +418,7 @@ function MenuState:keypressed(key)
             self:enterUISandbox()
         elseif action == "settings" then
             local StateManager = require("src.systems.StateManager")
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             StateManager.switch("Options")
         elseif action == "credits" then
             showCredits = true
@@ -457,7 +462,7 @@ function MenuState:enterUISandbox()
     end
 
     -- Reset font and switch immediately to UI Sandbox
-    love.graphics.setFont(love.graphics.newFont(12))
+    love.graphics.setFont(defaultFont)
     
     local StateManager = require("src.systems.StateManager")
     StateManager.switch("UISandbox")

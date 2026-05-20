@@ -32,7 +32,8 @@ local audioSettings = {
 
 local videoSettings = {
     {label = "FULLSCREEN", type = "toggle", key = "fullscreen", get = function() return Config.screen.fullscreen end, set = function(val) Config.screen.fullscreen = val end},
-    {label = "VSYNC", type = "toggle", key = "vsync", get = function() return Config.screen.vsync end, set = function(val) Config.screen.vsync = val end}
+    {label = "VSYNC", type = "toggle", key = "vsync", get = function() return Config.screen.vsync end, set = function(val) Config.screen.vsync = val end},
+    {label = "BLOOM EFFECT", type = "toggle", key = "bloomEnabled", get = function() return Config.postFX.bloomEnabled end, set = function(val) Config.postFX.bloomEnabled = val end}
 }
 
 local activeRightSelection = 1
@@ -46,6 +47,7 @@ local titleFont = nil
 local subtitleFont = nil
 local smallFont = nil
 local boldFont = nil
+local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
@@ -75,6 +77,9 @@ function OptionsState:enter(previous, data)
     end
     if not boldFont then
         boldFont = love.graphics.newFont("libs/hump-master/docs/_static/default.css" and 18 or 18) -- backup bold font logic
+    end
+    if not defaultFont then
+        defaultFont = love.graphics.newFont(12)
     end
 
     -- Reset animation track tables
@@ -120,6 +125,7 @@ function OptionsState:update(dt)
 
     -- Animate active settings list items selection progress
     local maxItems = 2
+    if tabs[activeTab].action == "video" then maxItems = 3 end
     if tabs[activeTab].action == "controls" then maxItems = 0 end
     
     for i = 1, maxItems do
@@ -170,7 +176,7 @@ function OptionsState:update(dt)
     elseif phase == "fadeOut" then
         alpha = math.max(0, 1 - (timer / fadeOutDuration))
         if timer >= fadeOutDuration then
-            love.graphics.setFont(love.graphics.newFont(12))
+            love.graphics.setFont(defaultFont)
             timer = 0
             StateManager.switch("Menu")
         end
@@ -194,6 +200,7 @@ function OptionsState:draw()
             bgShader:send("resolution", {screenWidth, screenHeight})
             bgShader:send("time", love.timer.getTime())
             bgShader:send("intensity", intensity)
+            bgShader:send("bloomEnabled", 0.0)
         end)
         
         love.graphics.setShader(bgShader)
@@ -265,7 +272,7 @@ function OptionsState:draw()
             
             local finalAlpha = alpha * 0.04
             if isSelectedRow and isBehindButtonColumn then
-                finalAlpha = alpha * (0.16 + 0.36 * barIntensity)
+                finalAlpha = alpha * (0.08 + 0.1 * barIntensity)
             end
             
             love.graphics.setColor(r, g, b, finalAlpha)
@@ -618,6 +625,11 @@ function OptionsState:applySetting(key, val)
         pcall(function()
             love.window.setVSync(val and 1 or 0)
         end)
+        
+    elseif key == "bloomEnabled" then
+        Config.postFX.bloomEnabled = val
+        local BackgroundShader = require("src.systems.BackgroundShader")
+        BackgroundShader.toggleEffect("glow", val)
     end
 end
 

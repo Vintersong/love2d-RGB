@@ -21,7 +21,11 @@ function ProjectileScheduler.update(dt, player)
         entry.delay = entry.delay - dt
         if entry.delay <= 0 then
             table.insert(player.projectiles, entry.data)
-            table.remove(ProjectileScheduler.queue, i)
+            
+            -- O(1) removal: swap with last element and nil the end
+            local lastIndex = #ProjectileScheduler.queue
+            ProjectileScheduler.queue[i] = ProjectileScheduler.queue[lastIndex]
+            ProjectileScheduler.queue[lastIndex] = nil
         end
     end
 end

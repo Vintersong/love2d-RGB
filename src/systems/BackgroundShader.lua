@@ -87,9 +87,16 @@ function BackgroundShader.init(screenWidth, screenHeight)
         BackgroundShader.effect.vignette.radius = 0.85
         BackgroundShader.effect.vignette.opacity = 0.5
         BackgroundShader.effect.vignette.softness = 0.5
+        
+        -- Apply initial bloom configuration
+        local Config = require("src.Config")
+        if not Config.postFX.bloomEnabled then
+            BackgroundShader.effect.disable("glow")
+        end
     end
 
     -- Set initial uniforms using canvas dimensions
+    local Config = require("src.Config")
     BackgroundShader.shader:send("resolution", {canvasWidth, canvasHeight})
     BackgroundShader.shader:send("time", 0)
     BackgroundShader.shader:send("bass", 0)
@@ -97,6 +104,7 @@ function BackgroundShader.init(screenWidth, screenHeight)
     BackgroundShader.shader:send("treble", 0)
     BackgroundShader.shader:send("intensity", 0)
     BackgroundShader.shader:send("playerLevel", 1)  -- Start at level 1
+    BackgroundShader.shader:send("bloomEnabled", Config.postFX.bloomEnabled and 1.0 or 0.0)
 
     print(string.format("[BackgroundShader] Initialized grid canvas %dx%d (%d x %d cells) on screen %dx%d",
         canvasWidth, canvasHeight, gridCols, gridRows, screenWidth, screenHeight))
@@ -111,6 +119,10 @@ function BackgroundShader.update(dt, musicReactor, player)
 
     -- Update time uniform
     BackgroundShader.shader:send("time", BackgroundShader.time)
+    
+    -- Dynamically send bloom settings uniform
+    local Config = require("src.Config")
+    BackgroundShader.shader:send("bloomEnabled", Config.postFX.bloomEnabled and 1.0 or 0.0)
 
     -- Update music-reactive uniforms
     if musicReactor then
@@ -152,6 +164,13 @@ function BackgroundShader.draw()
 
     if BackgroundShader.effect then
         -- Draw the canvas through moonshine effect at 0,0 (fills entire screen)
+        local Config = require("src.Config")
+        if Config.postFX.bloomEnabled then
+            BackgroundShader.effect.enable("glow")
+        else
+            BackgroundShader.effect.disable("glow")
+        end
+        
         BackgroundShader.effect(function()
             love.graphics.setColor(1, 1, 1, 1)
             love.graphics.draw(BackgroundShader.canvas, 0, 0)

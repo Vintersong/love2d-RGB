@@ -1,6 +1,7 @@
 extern vec2 resolution;
 extern float time;
 extern float intensity;
+extern float bloomEnabled;
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
     // Normalize coordinates
@@ -24,7 +25,13 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     float radialGlow = smoothstep(1.2, 0.1, dist);
     
     // Final composite color
-    vec3 finalColor = mix(bgColor, activeColor, radialGlow * (0.3 + beatPulse));
+    vec3 finalColor;
+    if (bloomEnabled > 0.5) {
+        finalColor = mix(bgColor, activeColor, radialGlow * (0.3 + beatPulse));
+    } else {
+        // Muted, non-distracting version: very subtle dark purple/black gradient without bright glowing vaporwave colors or pulsing intensity
+        finalColor = mix(bgColor, activeColor * 0.15, radialGlow * 0.15);
+    }
     
     // Add a dark vignette around screen edges to frame the text
     float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);

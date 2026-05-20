@@ -8,6 +8,7 @@ uniform float treble;         // Treble intensity (0-1)
 uniform float intensity;      // Overall music intensity (0-1)
 uniform vec2 resolution;      // Screen resolution
 uniform float playerLevel;    // Player level for color progression (1-30+)
+uniform float bloomEnabled;   // 1.0 = enabled, 0.0 = disabled
 
 // Lerp between two colors
 vec3 lerpColor(vec3 color1, vec3 color2, float t) {
@@ -128,6 +129,10 @@ float getSymmetricalFill(vec2 cellId, vec2 screenCenter) {
 
 // Get mandala color for this cell
 vec3 getMandalaColor(vec2 cellId, float time, vec2 screenCenter, float level, float bass, float mids, float treble) {
+    if (bloomEnabled < 0.5) {
+        return vec3(0.0);  // Completely disable expanding mandala pattern when bloom/glow is off
+    }
+
     // Get mandala pattern intensity
     float pattern = getMandalaPattern(cellId, time, screenCenter, bass, mids, treble);
 
@@ -185,11 +190,16 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     finalColor = mix(finalColor, gridColor, grid);
     
     // Add music reactivity using all frequency bands
-    float reactivity = (bass * 0.4 + mids * 0.3 + treble * 0.3) * intensity * 0.15;
+    float reactivity = 0.0;
+    if (bloomEnabled > 0.5) {
+        reactivity = (bass * 0.4 + mids * 0.3 + treble * 0.3) * intensity * 0.15;
+    }
     finalColor += gridColor * reactivity;
     
-    // Pulse grid brightness with overall intensity
-    finalColor *= (1.0 + intensity * 0.2);
+    // Pulse grid brightness with overall intensity only when bloom/glow is enabled
+    if (bloomEnabled > 0.5) {
+        finalColor *= (1.0 + intensity * 0.2);
+    }
     
     // Subtle vignette
     vec2 uv = screen_coords / resolution;

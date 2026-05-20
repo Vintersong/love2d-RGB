@@ -209,6 +209,7 @@ function MenuState:draw()
             bgShader:send("resolution", {screenWidth, screenHeight})
             bgShader:send("time", love.timer.getTime())
             bgShader:send("intensity", intensity)
+            bgShader:send("bloomEnabled", 0.0)
         end)
         
         love.graphics.setShader(bgShader)
@@ -253,7 +254,7 @@ function MenuState:draw()
             -- Highlight ONLY if it is vertically on the selected row AND horizontally behind the buttons!
             if isSelectedRow and isBehindButtonColumn then
                 -- Active glowing highlight: pulses and dances brilliantly to the column's audio frequency!
-                finalAlpha = alpha * (0.16 + 0.36 * barIntensity)
+                finalAlpha = alpha * (0.08 + 0.1 * barIntensity)
             end
             
             love.graphics.setColor(r, g, b, finalAlpha)

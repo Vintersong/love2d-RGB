@@ -57,6 +57,7 @@ local Config = {
 
     -- Post-FX shader settings
     postFX = {
+        bloomEnabled = true,
         chromasep = { enabled = true, angle = 0.15, radius = 1.5 },
         filmgrain = { enabled = true, opacity = 0.15, size = 1 },
         vignette  = { enabled = true, radius = 0.85, opacity = 0.5, softness = 0.5 },
@@ -72,7 +73,7 @@ local Config = {
         enabled = true,
         showColliders = false,
         showFPS = true,
-        muteAudio = false -- Set to true to disable/mute all audio during debugging
+        muteAudio = true -- Set to true to disable/mute all audio during debugging
     }
 }
 

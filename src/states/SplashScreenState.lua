@@ -143,6 +143,7 @@ function SplashScreen:draw()
             bgShader:send("resolution", {screenWidth, screenHeight})
             bgShader:send("time", love.timer.getTime())
             bgShader:send("intensity", intensity)
+            bgShader:send("bloomEnabled", Config.postFX.bloomEnabled and 1.0 or 0.0)
         end)
         
         love.graphics.setShader(bgShader)
@@ -180,7 +181,11 @@ function SplashScreen:draw()
             -- Segment state opacity (Lit vs Unlit background placeholder)
             local segmentAlpha
             if j <= numActive then
-                segmentAlpha = alpha * 0.75 -- Lit segment glow
+                if Config.postFX.bloomEnabled then
+                    segmentAlpha = alpha * 0.75 -- Lit segment glow
+                else
+                    segmentAlpha = alpha * 0.25 -- Much more muted, non-distracting
+                end
             else
                 segmentAlpha = alpha * 0.05 -- Unlit grid cell backing extending all the way to the top
             end

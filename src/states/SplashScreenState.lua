@@ -15,8 +15,8 @@ local phase = "fadeIn" -- fadeIn -> display -> fadeOut
 
 -- Text settings
 local titleText = "CHROMATIC"
-local subtitleText = "Press ANY KEY to Start"
-local titleSize = 130
+local subtitleText = "Press ANY KEY to continue."
+local titleSize = 150
 local subtitleSize = 24
 
 -- Fonts (created once)
@@ -234,7 +234,7 @@ function SplashScreen:draw()
     love.graphics.setFont(subtitleFont)
     local subtitleWidth = subtitleFont:getWidth(subtitleText)
     local subtitleX = (screenWidth - subtitleWidth) / 2
-    local subtitleY = titleY + 150
+    local subtitleY = titleY + 200
 
     love.graphics.setColor(1, 1, 1, alpha * 0.5)
     love.graphics.print(subtitleText, subtitleX, subtitleY)

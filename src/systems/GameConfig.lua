@@ -12,8 +12,8 @@ GameConfig.screenHeight = 1080
 -- Music reactor instance (set during initialization)
 GameConfig.musicReactor = nil
 
--- Debug mode follows the canonical static config unless explicitly changed.
-GameConfig.debugMode = Config.debug.enabled
+-- Debug mode is off by default and can be toggled at runtime from the main menu.
+GameConfig.debugMode = false
 
 -- Boss system color (used for visual effects)
 GameConfig.currentShipColor = nil

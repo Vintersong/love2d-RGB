@@ -17,6 +17,7 @@ local menuOptions = {
     {label = "START GAME", action = "startGame", style = "bracket"},
     {label = "UI SANDBOX", action = "uiSandbox", style = "bracket"},
     {label = "SETTINGS", action = "settings", style = "bracket"},
+    {label = "DEBUG MODE: OFF", action = "toggleDebug", style = "bracket"},
     {label = "CREDITS", action = "credits", style = "bracket"},
     {label = "QUIT", action = "quit", style = "bracket"}
 }
@@ -52,6 +53,14 @@ local MENU_GRID_ACTIVE_BASE_ALPHA = 0.14
 local MENU_GRID_ACTIVE_AUDIO_ALPHA = 0.18
 local MENU_GRID_ACTIVE_MAX_ALPHA = 0.32
 
+local function refreshDynamicMenuLabels()
+    for _, option in ipairs(menuOptions) do
+        if option.action == "toggleDebug" then
+            option.label = "DEBUG MODE: " .. (GameConfig.isDebugMode() and "ON" or "OFF")
+        end
+    end
+end
+
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
@@ -78,6 +87,7 @@ function MenuState:enter(previous, data)
     for i = 1, #menuOptions do
         animProgress[i] = 0
     end
+    refreshDynamicMenuLabels()
 
     -- Load shader safely
     if not bgShader then
@@ -427,6 +437,9 @@ function MenuState:keypressed(key)
             local StateManager = require("src.systems.StateManager")
             love.graphics.setFont(defaultFont)
             StateManager.switch("Options")
+        elseif action == "toggleDebug" then
+            GameConfig.setDebugMode(not GameConfig.isDebugMode())
+            refreshDynamicMenuLabels()
         elseif action == "credits" then
             showCredits = true
         elseif action == "quit" then

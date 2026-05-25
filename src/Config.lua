@@ -65,7 +65,7 @@ local Config = {
 
     -- Sound settings
     sound = {
-        volume = 0.5
+        volume = 0.3
     },
 
     -- Debug settings
@@ -73,7 +73,7 @@ local Config = {
         enabled = true,
         showColliders = false,
         showFPS = true,
-        muteAudio = true -- Set to true to disable/mute all audio during debugging
+        muteAudio = false -- Set to true to disable/mute all audio during debugging
     }
 }
 

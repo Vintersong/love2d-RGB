@@ -352,6 +352,37 @@ function MenuState:draw()
         currentY = currentY + bracketHeight + gap
     end
 
+    -- 5.5 Draw controls map panel on main menu
+    local mapW = 520
+    local mapH = 250
+    local mapX = screenWidth - mapW - margin
+    local mapY = screenHeight - mapH - margin
+
+    love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.85)
+    love.graphics.rectangle("fill", mapX, mapY, mapW, mapH, 10, 10)
+
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(0, 0.85, 1, alpha * 0.28)
+    love.graphics.rectangle("line", mapX, mapY, mapW, mapH, 10, 10)
+
+    love.graphics.setFont(subtitleFont)
+    love.graphics.setColor(0.85, 0.9, 0.95, alpha)
+    love.graphics.print("CONTROL MAP", mapX + 24, mapY + 18)
+
+    love.graphics.setFont(smallFont)
+    love.graphics.setColor(0.6, 0.8, 1, alpha * 0.85)
+    love.graphics.print("Gameplay", mapX + 24, mapY + 56)
+    love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
+    love.graphics.print("MOVE  W A S D", mapX + 24, mapY + 80)
+    love.graphics.print("DASH  SPACE   |  BLINK  E   |  SHIELD  Q", mapX + 24, mapY + 102)
+    love.graphics.print("SUPERNOVA  L-SHIFT   |   PAUSE  P / ESC", mapX + 24, mapY + 124)
+    love.graphics.print("AIM  MOUSE CURSOR   (AUTO-FIRE)", mapX + 24, mapY + 146)
+
+    love.graphics.setColor(0.6, 0.8, 1, alpha * 0.85)
+    love.graphics.print("Menu", mapX + 24, mapY + 176)
+    love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
+    love.graphics.print("NAVIGATE  UP / DOWN   |   SELECT  ENTER / SPACE", mapX + 24, mapY + 200)
+
     -- 6. Draw Settings Overlay if open
     if showSettings then
         love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.95)

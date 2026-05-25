@@ -555,7 +555,7 @@ function OptionsState:keypressed(key)
         local currentAction = tabs[activeTab].action
         local currentList = (currentAction == "audio") and audioSettings or videoSettings
         
-        if key == "escape" or key == "left" then
+        if key == "escape" then
             focusOnRight = false
         elseif key == "up" then
             activeRightSelection = activeRightSelection - 1

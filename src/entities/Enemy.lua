@@ -14,6 +14,61 @@ local function lerpColor(color1, color2, t)
     }
 end
 
+local function rgbToHsv(r, g, b)
+    local maxVal = math.max(r, g, b)
+    local minVal = math.min(r, g, b)
+    local delta = maxVal - minVal
+
+    local h = 0
+    local s = 0
+    local v = maxVal
+
+    if maxVal > 0 then
+        s = delta / maxVal
+    end
+
+    if delta > 0 then
+        if maxVal == r then
+            h = ((g - b) / delta) % 6
+        elseif maxVal == g then
+            h = ((b - r) / delta) + 2
+        else
+            h = ((r - g) / delta) + 4
+        end
+        h = h / 6
+    end
+
+    return h, s, v
+end
+
+local function hsvToRgb(h, s, v)
+    if s <= 0 then
+        return v, v, v
+    end
+
+    local scaled = h * 6
+    local i = math.floor(scaled)
+    local f = scaled - i
+    local p = v * (1 - s)
+    local q = v * (1 - s * f)
+    local t = v * (1 - s * (1 - f))
+    local sector = i % 6
+
+    if sector == 0 then return v, t, p end
+    if sector == 1 then return q, v, p end
+    if sector == 2 then return p, v, t end
+    if sector == 3 then return p, q, v end
+    if sector == 4 then return t, p, v end
+    return v, p, q
+end
+
+local function rotateColorHue180(color)
+    local h, s, v = rgbToHsv(color[1], color[2], color[3])
+    local shiftedHue = (h + 0.5) % 1
+    local r, g, b = hsvToRgb(shiftedHue, s, v)
+    return {r, g, b}
+end
+
 -- Calculate enemy color based on player level
 local function getEnemyColorByLevel(playerLevel)
     playerLevel = playerLevel or 1
@@ -27,22 +82,26 @@ local function getEnemyColorByLevel(playerLevel)
     -- Normalize level for cycling (50-60 uses same progression as 1-10, etc.)
     local cycleLevel = ((playerLevel - 1) % 40) + 1
     
+    local baseColor
     if cycleLevel <= 10 then
         -- Pink to Purple
         local t = (cycleLevel - 1) / 9
-        return lerpColor(pink, purple, t)
+        baseColor = lerpColor(pink, purple, t)
     elseif cycleLevel <= 20 then
         -- Purple to Cyan
         local t = (cycleLevel - 10) / 10
-        return lerpColor(purple, cyan, t)
+        baseColor = lerpColor(purple, cyan, t)
     elseif cycleLevel <= 30 then
         -- Cyan to Orange
         local t = (cycleLevel - 20) / 10
-        return lerpColor(cyan, orange, t)
+        baseColor = lerpColor(cyan, orange, t)
     else
         -- Orange (30-40)
-        return orange
+        baseColor = orange
     end
+
+    -- Keep level progression in sync with background, but shift hue 180 degrees for contrast.
+    return rotateColorHue180(baseColor)
 end
 
 -- Calculate how many rings enemy should have based on level
@@ -93,6 +152,7 @@ local function drawOuterRings(shape, width, ringCount, playerLevel)
     })
 end
 
+
 function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.x = x or 0
     self.y = y or 0
@@ -120,16 +180,17 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     self.overlayColor = levelColor  -- Level-based vaporwave color
     self.overlayAlpha = 0.5
     self.projectileColor = levelColor
+
     
     -- Type-specific properties
     if self.enemyType == "BASS" then
         -- Bass enemies: Large, slow, tanky
         self.width = 35
         self.height = 35
-        self.speed = 60
-        self.hp = 180
-        self.maxHp = 180
-        self.damage = 40
+        self.speed = 50
+        self.hp = 150
+        self.maxHp = 150
+        self.damage = 30
         self.expReward = 50
         self.shape = "square"
         self.frequencyType = "bass"
@@ -139,10 +200,10 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         -- Mids enemies: Standard balanced
         self.width = 18
         self.height = 18
-        self.speed = 140
-        self.hp = 60
-        self.maxHp = 60
-        self.damage = 25
+        self.speed = 120
+        self.hp = 50
+        self.maxHp = 50
+        self.damage = 20
         self.expReward = 30
         self.shape = "hexagon"  -- Changed from circle to hexagon
         self.frequencyType = "mids"
@@ -152,10 +213,10 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
         -- Treble enemies: Small, fast, fragile (IMPROVED VISIBILITY)
         self.width = 18  -- Increased from 10
         self.height = 18  -- Increased from 10
-        self.speed = 180  -- Slowed from 100
-        self.hp = 40  -- Increased from 25
-        self.maxHp = 40
-        self.damage = 15
+        self.speed = 160  -- Slowed from 100
+        self.hp = 30  -- Increased from 25
+        self.maxHp = 30
+        self.damage = 10
         self.expReward = 20
         self.shape = "triangle"  -- Changed from diamond to triangle
         self.frequencyType = "treble"
@@ -177,9 +238,9 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     elseif self.enemyType == "formation" then
         -- Legacy formation enemies: blocky, slower, tankier
         self.speed = 40
-        self.hp = 70
-        self.maxHp = 70
-        self.damage = 30
+        self.hp = 50
+        self.maxHp = 50
+        self.damage = 20
         self.expReward = 30
         self.baseColor = {1, 1, 1}  -- White base
         self.overlayColor = levelColor  -- Use level-based color
@@ -189,9 +250,9 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     elseif self.enemyType == "flanker" then
         -- Legacy flanking enemies: arrow, faster, weaker
         self.speed = 120
-        self.hp = 45
-        self.maxHp = 45
-        self.damage = 20
+        self.hp = 35
+        self.maxHp = 35
+        self.damage = 10
         self.expReward = 20
         self.baseColor = {1, 1, 1}  -- White base
         self.overlayColor = levelColor  -- Use level-based color

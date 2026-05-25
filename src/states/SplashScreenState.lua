@@ -19,6 +19,10 @@ local subtitleText = "Press ANY KEY to continue."
 local titleSize = 150
 local subtitleSize = 24
 
+-- Shimmer/Pulsing settings
+local minScale = 125 / 150  -- Calculate scale ratio (approx 0.8333)
+local pulseSpeed = 4.0      -- Adjust this to make the grow/shrink loop faster or slower
+
 -- Fonts (created once)
 local titleFont = nil
 local subtitleFont = nil
@@ -157,11 +161,11 @@ function SplashScreen:draw()
     local barWidth = 56
     local barGap = 4
     local startX = 2
-    
+
     local segmentHeight = 12
     local segmentGap = 3
-    local numSegmentsTotal = 72 -- Covers full height: 72 * 15 = 1080 pixels (top of the screen)
-    local numSegmentsActiveMax = 36 -- Active reactive segments only fill up to the middle maximum: 36 * 15 = 540 pixels
+    local numSegmentsTotal = 72 -- Covers full height
+    local numSegmentsActiveMax = 36 -- Active reactive segments max height
     local time = love.timer.getTime()
     
     for i = 1, numBars do
@@ -187,7 +191,7 @@ function SplashScreen:draw()
                     segmentAlpha = alpha * 0.25 -- Much more muted, non-distracting
                 end
             else
-                segmentAlpha = alpha * 0.05 -- Unlit grid cell backing extending all the way to the top
+                segmentAlpha = alpha * 0.05 -- Unlit grid cell backing
             end
             
             love.graphics.setColor(r, g, b, segmentAlpha)
@@ -195,11 +199,11 @@ function SplashScreen:draw()
         end
     end
 
-    -- 3. Draw Title (centered, on top of equalizer background)
+    -- 3. Draw Title (centered, on top of equalizer background with per-letter shimmer size scaling)
     love.graphics.setFont(titleFont)
     local titleY = 350
     
-    -- Calculate individual character widths and total width with a symmetrical gap
+    -- Calculate individual character widths and total width based on base size (150)
     local widths = {}
     local totalWidth = 0
     local charGap = 10 -- Symmetrical extra spacing between characters
@@ -211,23 +215,43 @@ function SplashScreen:draw()
     end
     totalWidth = totalWidth + (#titleText - 1) * charGap
     
-    -- Center the entire string on the screen
+    -- Center position baseline
     local startXText = (screenWidth - totalWidth) / 2
     local currentX = startXText
     
     for i = 1, #titleText do
         local char = titleText:sub(i, i)
-        local charOffset = (i - 1) * 0.4 -- Smooth color shift across characters
+        local charOffset = (i - 1) * 0.4 -- Smooth color/size shift shift offset across characters
         
+        -- Color cycling
         local r = 0.5 + 0.5 * math.sin(time * 2 + charOffset)
         local g = 0.5 + 0.5 * math.sin(time * 2 + 2.09 + charOffset)
         local b = 0.5 + 0.5 * math.sin(time * 2 + 4.18 + charOffset)
         
-        love.graphics.setColor(r, g, b, alpha)
-        love.graphics.print(char, currentX, titleY)
+        -- Calculate dynamic shimmer scale factor looping between 1.0 (150) and minScale (125)
+        local pulseFactor = 0.5 + 0.5 * math.sin(time * pulseSpeed + charOffset)
+        local currentScale = minScale + (1.0 - minScale) * pulseFactor
         
-        -- Move to the next character position using its natural width plus the gap
-        currentX = currentX + widths[i] + charGap
+        -- Determine local center coordinates for this character to scale from its center origin
+        local charW = widths[i]
+        local charH = titleFont:getHeight()
+        local centerX = currentX + charW / 2
+        local centerY = titleY + charH / 2
+        
+        love.graphics.push()
+            -- Move origin to character center, scale, then translate back
+            love.graphics.translate(centerX, centerY)
+            love.graphics.scale(currentScale, currentScale)
+            love.graphics.translate(-charW / 2, -charH / 2)
+            
+            love.graphics.setColor(r, g, b, alpha)
+            -- Print at local origin since matrix translation handles world space
+            love.graphics.print(char, 0, 0)
+        love.graphics.pop()
+        
+        -- Advance cursor tracking standard width + gap
+        currentX = currentX + charW + charGap
+
     end
 
     -- 4. Draw Subtitle
@@ -248,7 +272,6 @@ function SplashScreen:keypressed(key)
         Runtime.startMusicAfterGesture()
     end
 
-    -- Trigger fade out to MenuState when a key is pressed during fadeIn or display
     if phase == "fadeIn" or phase == "display" then
         phase = "fadeOut"
         timer = 0

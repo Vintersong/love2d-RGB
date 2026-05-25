@@ -34,7 +34,7 @@ local Config = {
     gameplay = {
         xpOrbMagnetRange = 150,
         maxEnemiesOnScreen = 500,
-        difficultyScaling = 1.05, -- Enemy health multiplier per level
+        difficultyScaling = 0.75, -- Enemy health multiplier per level
         cellSize = 128 -- Spatial hash cell size
     },
 

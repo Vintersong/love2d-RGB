@@ -46,6 +46,12 @@ local bgShader = nil
 -- Glowing visualizer Y-tracker for selection highlighting
 local glowY = nil
 
+-- Equalizer highlight tuning for selected menu rows
+local MENU_GRID_IDLE_ALPHA = 0.04
+local MENU_GRID_ACTIVE_BASE_ALPHA = 0.14
+local MENU_GRID_ACTIVE_AUDIO_ALPHA = 0.18
+local MENU_GRID_ACTIVE_MAX_ALPHA = 0.32
+
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
@@ -254,11 +260,12 @@ function MenuState:draw()
                 isSelectedRow = (segmentY >= glowY - 2) and (segmentY + segmentHeight <= glowY + bracketHeight + 2)
             end
             
-            local finalAlpha = alpha * 0.04
+            local finalAlpha = alpha * MENU_GRID_IDLE_ALPHA
             -- Highlight ONLY if it is vertically on the selected row AND horizontally behind the buttons!
             if isSelectedRow and isBehindButtonColumn then
-                -- Active glowing highlight: pulses and dances brilliantly to the column's audio frequency!
-                finalAlpha = alpha * (0.08 + 0.1 * barIntensity)
+                -- Brighter active glow that still preserves legibility and avoids clipping.
+                local selectedAlpha = MENU_GRID_ACTIVE_BASE_ALPHA + MENU_GRID_ACTIVE_AUDIO_ALPHA * math.max(0, barIntensity)
+                finalAlpha = alpha * math.min(MENU_GRID_ACTIVE_MAX_ALPHA, selectedAlpha)
             end
             
             love.graphics.setColor(r, g, b, finalAlpha)

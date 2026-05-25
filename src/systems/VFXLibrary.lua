@@ -262,7 +262,9 @@ function VFXLibrary.spawnSynergyEffect(synergyName, x, y)
             startAlpha = effectDef.alpha.start,
             endAlpha = effectDef.alpha.finish,
             color = {effectDef.color[1], effectDef.color[2], effectDef.color[3]},
+            angle = angle,
             rotation = angle,
+            rotationSpeed = effectDef.rotate and ((math.random() - 0.5) * 8) or 0,
             
             rainbow = effectDef.rainbow,
             laser = effectDef.laser,
@@ -330,7 +332,7 @@ function VFXLibrary.update(dt)
             end
             
             -- Update rotation
-            particle.rotation = particle.rotation + particle.rotationSpeed * dt
+            particle.rotation = (particle.rotation or 0) + (particle.rotationSpeed or 0) * dt
             
             -- Interpolate size
             particle.size = particle.startSize + (particle.endSize - particle.startSize) * lifeProgress
@@ -340,7 +342,7 @@ function VFXLibrary.update(dt)
             
             -- Rainbow effect
             if particle.rainbow then
-                local hue = (lifeProgress + (particle.angle / (math.pi * 2))) % 1
+                local hue = (lifeProgress + ((particle.angle or 0) / (math.pi * 2))) % 1
                 particle.color = VFXLibrary.hsvToRgb(hue, 1, 1)
             end
             

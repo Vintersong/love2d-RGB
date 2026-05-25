@@ -40,6 +40,7 @@ local MathUtils = require("src.systems.MathUtils")
 local BehaviorSelector = require("src.systems.BehaviorSelector")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
 local BossBehaviors = require("src.data.BossBehaviors")
+local CustomCursor = require("src.systems.CustomCursor")
 
 -- Game states
 local SplashScreen = require("src.states.SplashScreenState")
@@ -59,6 +60,9 @@ local screenHeight = Config.screen.height
 
 function love.load(args)
     Runtime.init(args)
+
+    -- Apply custom glowing cursor (hardware cursor image).
+    CustomCursor.init()
 
     -- Register systems for validation
     BootLoader.registerSystem("ColorSystem", ColorSystem, {"init", "getDominantColor", "getProjectileColor"})

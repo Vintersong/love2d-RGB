@@ -96,6 +96,8 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
                         })
                         return
                     end
+                elseif player.onInvulnerableHit then
+                    pcall(player.onInvulnerableHit, player, proj.damage or 0, "boss_projectile")
                 end
                 table.remove(BossCoordinator.bossProjectiles, i)
             end

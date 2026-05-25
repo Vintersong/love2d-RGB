@@ -24,7 +24,14 @@ function HealthSystem.unregister(entity)
 end
 
 function HealthSystem.takeDamage(entity, amount)
-    if entity.dead or entity.invulnerable then
+    if entity.dead then
+        return false
+    end
+
+    if entity.invulnerable then
+        if entity.onInvulnerableHit then
+            pcall(entity.onInvulnerableHit, entity, amount, "generic")
+        end
         return false
     end
     

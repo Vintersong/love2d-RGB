@@ -48,6 +48,8 @@ function Player:init(x, y, weapon)
     self.invulnerableTime = 0
     self.invulnerableDuration = 1.0  -- 1 second invulnerability after hit
     self.damageFlashTime = 0
+    self.blockedHitVfxCooldown = 0.08
+    self.blockedHitVfxTimer = 0
 
     -- Register player abilities with AbilitySystem
     AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD", "LIGHTNING_BOLT"})
@@ -81,6 +83,11 @@ function Player:update(dt, enemies)
     -- Update damage flash
     if self.damageFlashTime > 0 then
         self.damageFlashTime = self.damageFlashTime - dt
+    end
+
+    -- Throttle shield-hit VFX while continuously colliding with enemies.
+    if self.blockedHitVfxTimer > 0 then
+        self.blockedHitVfxTimer = self.blockedHitVfxTimer - dt
     end
 
     -- Update active artifact ability cooldown
@@ -389,6 +396,32 @@ end
 function Player:useShield()
     local success = AbilitySystem.activate(self, "SHIELD", AbilityLibrary.SHIELD, {})
     return success
+end
+
+-- Called when an incoming hit is absorbed by invulnerability.
+function Player:onInvulnerableHit(amount, source)
+    -- Show hit sparks only for active shield, not for dash i-frames.
+    if not AbilitySystem.isActive(self, "SHIELD") then
+        return
+    end
+
+    if self.blockedHitVfxTimer > 0 then
+        return
+    end
+    self.blockedHitVfxTimer = self.blockedHitVfxCooldown
+
+    local ColorSystem = require("src.systems.ColorSystem")
+    local VFXLibrary = require("src.systems.VFXLibrary")
+    local dominant = ColorSystem.getDominantColor()
+    local color = {0.25, 0.95, 1.0}
+    if dominant then
+        local rgb = ColorSystem.getColorRGB(dominant)
+        if rgb then
+            color = {rgb[1], rgb[2], rgb[3]}
+        end
+    end
+
+    VFXLibrary.spawnImpactBurst(self.x + self.width / 2, self.y + self.height / 2, color, 8)
 end
 
 -- Check collision with enemies during dash (called from PlayingState)

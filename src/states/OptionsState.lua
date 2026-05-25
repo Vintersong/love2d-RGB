@@ -466,11 +466,12 @@ function OptionsState:draw()
         local bindH = 50
         
         local bindings = {
-            {action = "MOVE UP / LEFT / DOWN / RIGHT", keys = {"W", "A", "S", "D"}, extra = "Or ARROW keys"},
+            {action = "MOVE", keys = {"W", "A", "S", "D"}, extra = "Directional movement"},
             {action = "AIM SHIP / SHOOT PROJECTILES", keys = {"MOUSE CURSOR"}, extra = "Shoots automatically"},
-            {action = "TRIGGER SPEED BOOST (DASH)", keys = {"SPACE", "L-SHIFT"}, extra = "1.0s Cooldown"},
-            {action = "ACTIVATE SUPERNOVA ULTIMATE", keys = {"L-SHIFT"}, extra = "When hyper-charged"},
-            {action = "PAUSE / RETRIEVE MENUS", keys = {"P", "ESC"}, extra = "Freezes state"}
+            {action = "DASH BOOST", keys = {"SPACE"}, extra = "1.5s cooldown"},
+            {action = "BLINK TELEPORT / SHIELD", keys = {"E", "Q"}, extra = "Blink 5.0s | Shield 10.0s"},
+            {action = "SUPERNOVA ABILITY", keys = {"L-SHIFT"}, extra = "When active artifact is charged"},
+            {action = "PAUSE MENU", keys = {"P", "ESC"}, extra = "Freezes gameplay"}
         }
         
         for i, bind in ipairs(bindings) do

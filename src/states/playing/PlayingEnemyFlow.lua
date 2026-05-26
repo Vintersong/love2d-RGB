@@ -95,7 +95,7 @@ function PlayingEnemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
         if enemy.dead then
             CollisionSystem.remove(enemy)
             table.remove(state.enemies, i)
-            local EnemySpawner = require("src.systems.EnemySpawner")
+            local EnemySpawner = require("src.spawning.EnemySpawner")
             EnemySpawner.returnToPool(enemy)
         end
     end
@@ -104,7 +104,7 @@ function PlayingEnemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
     for _, enemy in ipairs(collidingEnemies) do
         local died = AttackSystem.enemyContactDamage(enemy, state.player, dt)
         if died then
-            local StateManager = require("src.systems.StateManager")
+            local StateManager = require("src.core.StateManager")
             StateManager.switch("GameOver", {
                 player = state.player,
                 enemies = state.enemies,
@@ -127,7 +127,7 @@ function PlayingEnemyFlow.updateEnemyProjectileCollisions(state, deps)
                     local died = HealthSystem.takeDamage(state.player, proj.damage)
                     table.remove(enemy.projectiles, i)
                     if died then
-                        local StateManager = require("src.systems.StateManager")
+                        local StateManager = require("src.core.StateManager")
                         StateManager.switch("GameOver", {
                             player = state.player,
                             enemies = state.enemies,

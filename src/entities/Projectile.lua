@@ -1,9 +1,9 @@
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 local Projectile = class{__includes = Entity}
-local ShapeLibrary = require("src.systems.ShapeLibrary")
-local MathUtils = require("src.systems.MathUtils")
-local GameConfig = require("src.systems.GameConfig")
+local ShapeLibrary = require("src.render.ShapeLibrary")
+local MathUtils = require("src.utils.MathUtils")
+local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
 
 local function getScreenSize()

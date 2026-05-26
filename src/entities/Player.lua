@@ -14,8 +14,9 @@ local Player = class{__includes = Entity}
 local PlayerInput = require("src.entities.PlayerInput")
 local PlayerCombat = require("src.entities.PlayerCombat")
 local PlayerRender = require("src.entities.PlayerRender")
-local AbilitySystem = require("src.systems.AbilitySystem")
+local AbilitySystem = require("src.combat.AbilitySystem")
 local AbilityLibrary = require("src.data.AbilityLibrary")
+local SFXLibrary = require("src.audio.SFXLibrary")
 
 function Player:init(x, y, weapon)
     self.x = x or 400
@@ -92,8 +93,8 @@ function Player:update(dt, enemies)
 
     -- Update active artifact ability cooldown
     if self.abilityState.activeAbility == "SUPERNOVA" then
-        local ArtifactManager = require("src.systems.ArtifactManager")
-        local ColorSystem = require("src.systems.ColorSystem")
+        local ArtifactManager = require("src.gameplay.ArtifactManager")
+        local ColorSystem = require("src.gameplay.ColorSystem")
         local color = ColorSystem.getDominantColor() or "RED"
         ArtifactManager.updateSupernovaCooldowns(dt)
         self.abilityState.maxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
@@ -112,7 +113,7 @@ function Player:update(dt, enemies)
     AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
 
     -- Artifact updates
-    local ArtifactManager = require("src.systems.ArtifactManager")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local haloLevel = ArtifactManager.getLevel("HALO")
 
     -- Spawn continuous VFX for active artifacts
@@ -123,14 +124,14 @@ function Player:update(dt, enemies)
 
         -- HALO: Color-based aura VFX
         if haloLevel > 0 then
-            local VFXLibrary = require("src.systems.VFXLibrary")
+            local VFXLibrary = require("src.effects.VFXLibrary")
             VFXLibrary.spawnArtifactEffect("HALO", centerX, centerY)
         end
     end
 
     -- Update HALO artifact aura effects (passive)
     if haloLevel > 0 then
-        local ColorSystem = require("src.systems.ColorSystem")
+        local ColorSystem = require("src.gameplay.ColorSystem")
         local dominantColor = ColorSystem.getDominantColor()
         if dominantColor then
             local HaloArtifact = require("src.artifacts.HaloArtifact")
@@ -155,9 +156,9 @@ end
 
 function Player:drawAura()
     -- Draw HALO aura ring if artifact is active (delegated to HaloArtifact)
-    local ArtifactManager = require("src.systems.ArtifactManager")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     if ArtifactManager.getLevel("HALO") > 0 then
-        local ColorSystem = require("src.systems.ColorSystem")
+        local ColorSystem = require("src.gameplay.ColorSystem")
         local dominantColor = ColorSystem.getDominantColor()
         local HaloArtifact = require("src.artifacts.HaloArtifact")
         HaloArtifact.draw(self, dominantColor)
@@ -186,11 +187,11 @@ end
 
 -- Release subsystem-owned references before discarding this player.
 function Player:destroy()
-    local AbilitySystem = require("src.systems.AbilitySystem")
+    local AbilitySystem = require("src.combat.AbilitySystem")
 
     AbilitySystem.unregister(self)
 
-    local CollisionSystem = package.loaded["src.systems.CollisionSystem"]
+    local CollisionSystem = package.loaded["src.combat.CollisionSystem"]
     if CollisionSystem then
         CollisionSystem.remove(self)
     end
@@ -338,8 +339,8 @@ function Player:useActiveAbility(enemies)
     if (self.abilityState.cooldown or self.abilityCooldown or 0) > 0 then return false end
 
     if activeAbility == "SUPERNOVA" then
-        local ArtifactManager = require("src.systems.ArtifactManager")
-        local ColorSystem = require("src.systems.ColorSystem")
+        local ArtifactManager = require("src.gameplay.ArtifactManager")
+        local ColorSystem = require("src.gameplay.ColorSystem")
         local color = ColorSystem.getDominantColor() or "RED"
         local level = ArtifactManager.getLevel("SUPERNOVA")
         if level <= 0 then
@@ -382,6 +383,11 @@ end
 
 -- Use dash (SPACE key - permanent ability)
 function Player:useDash()
+    if not AbilitySystem.isReady(self, "DASH") then
+        return false
+    end
+
+    SFXLibrary.play("playerDash")
     local success = AbilitySystem.activate(self, "DASH", AbilityLibrary.DASH, {})
     return success
 end
@@ -410,8 +416,8 @@ function Player:onInvulnerableHit(amount, source)
     end
     self.blockedHitVfxTimer = self.blockedHitVfxCooldown
 
-    local ColorSystem = require("src.systems.ColorSystem")
-    local VFXLibrary = require("src.systems.VFXLibrary")
+    local ColorSystem = require("src.gameplay.ColorSystem")
+    local VFXLibrary = require("src.effects.VFXLibrary")
     local dominant = ColorSystem.getDominantColor()
     local color = {0.25, 0.95, 1.0}
     if dominant then

@@ -16,7 +16,7 @@ QUICK_STATUS.md
 STATE_MANAGER_GUIDE.md
 CLEANUP_COMPLETE.md
 
-# Note: README.md, Feedback.md, and CODE_QUALITY_ANALYSIS.md are intentionally tracked
+# Note: README.md, DESIGN_DOC.md, PITCH_DECK.md, and Feedback.md are intentionally tracked.
 UI_SANDBOX_README.md
 UI_SANDBOX_LAYOUTS.md
 UI_SANDBOX_INDEX.md
@@ -26,3 +26,4 @@ UI_SANDBOX_GETTING_STARTED.md
 UI_SANDBOX_FILE_MANIFEST.md
 COMPLETION_REPORT.md
 UI_SANDBOX_QUICK_REF.md
+_deprecated/

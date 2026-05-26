@@ -3,8 +3,8 @@
 
 local MenuState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
-local GameConfig = require("src.systems.GameConfig")
+local Runtime = require("src.core.Runtime")
+local GameConfig = require("src.core.GameConfig")
 
 -- State variables
 local alpha = 0
@@ -158,7 +158,7 @@ function MenuState:update(dt)
             PlayingState.startNewRun()
 
             -- Switch to PlayingState
-            local StateManager = require("src.systems.StateManager")
+            local StateManager = require("src.core.StateManager")
             StateManager.switch("Playing")
         end
     end
@@ -465,7 +465,7 @@ function MenuState:keypressed(key)
         elseif action == "uiSandbox" then
             self:enterUISandbox()
         elseif action == "settings" then
-            local StateManager = require("src.systems.StateManager")
+            local StateManager = require("src.core.StateManager")
             love.graphics.setFont(defaultFont)
             StateManager.switch("Options")
         elseif action == "toggleDebug" then
@@ -515,7 +515,7 @@ function MenuState:enterUISandbox()
     -- Reset font and switch immediately to UI Sandbox
     love.graphics.setFont(defaultFont)
     
-    local StateManager = require("src.systems.StateManager")
+    local StateManager = require("src.core.StateManager")
     StateManager.switch("UISandbox")
 end
 

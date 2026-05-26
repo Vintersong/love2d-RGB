@@ -3,8 +3,8 @@
 -- Extracted from Player.lua for better separation of concerns
 
 local PlayerRender = {}
-local ShapeLibrary = require("src.systems.ShapeLibrary")
-local MathUtils = require("src.systems.MathUtils")
+local ShapeLibrary = require("src.render.ShapeLibrary")
+local MathUtils = require("src.utils.MathUtils")
 
 local function getProjectileList(player)
     local combatState = player.combatState or {projectiles = player.projectiles or {}}
@@ -53,8 +53,8 @@ local function getTargetInfo(player)
 end
 
 local function prepareProjectileVisuals(player)
-    local ColorSystem = require("src.systems.ColorSystem")
-    local ArtifactManager = require("src.systems.ArtifactManager")
+    local ColorSystem = require("src.gameplay.ColorSystem")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local projColor = ColorSystem.getProjectileColor()
 
     for _, proj in ipairs(getProjectileList(player)) do

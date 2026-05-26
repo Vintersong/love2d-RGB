@@ -396,7 +396,7 @@ end
 
 -- Process halo damage/healing effects on enemies (called from game state)
 function HaloArtifact.processEffects(enemy, player, onKillCallback)
-    local HealthSystem = require("src.systems.HealthSystem")
+    local HealthSystem = require("src.combat.HealthSystem")
 
     -- RED HALO: Fire pulse damage
     if enemy.inFireAura and player.redHalo then

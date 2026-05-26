@@ -3,7 +3,7 @@
 
 local GameOverState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
+local Runtime = require("src.core.Runtime")
 
 GameOverState.player = nil
 GameOverState.enemies = {}
@@ -19,7 +19,7 @@ end
 
 function GameOverState:update(dt)
     -- Keep background systems running
-    local World = require("src.systems.World")
+    local World = require("src.gameplay.World")
     if self.musicReactor then
         self.musicReactor:update(dt)
     end
@@ -27,7 +27,7 @@ function GameOverState:update(dt)
 end
 
 function GameOverState:draw()
-    local World = require("src.systems.World")
+    local World = require("src.gameplay.World")
     World.draw()
 
     -- Draw frozen game state
@@ -82,12 +82,12 @@ function GameOverState:drawGameOverScreen()
 end
 
 function GameOverState:keypressed(key)
-    local StateManager = require("src.systems.StateManager")
+    local StateManager = require("src.core.StateManager")
 
     if key == "escape" then
         Runtime.quitOrReturnToTitle()
     elseif key == "c" then
-        local CollisionSystem = require("src.systems.CollisionSystem")
+        local CollisionSystem = require("src.combat.CollisionSystem")
         local Config = require("src.Config")
         CollisionSystem.init(Config.gameplay.cellSize)
 
@@ -98,7 +98,7 @@ function GameOverState:keypressed(key)
 
         -- Clear enemies and powerups
         local PlayingState = require("src.states.PlayingState")
-        local BossSystem = require("src.systems.BossSystem")
+        local BossSystem = require("src.boss.BossSystem")
         BossSystem.reset()
 
         PlayingState.player = self.player

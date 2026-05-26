@@ -3,7 +3,7 @@
 
 local LevelUpState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
+local Runtime = require("src.core.Runtime")
 
 -- Shared data from PlayingState
 LevelUpState.player = nil
@@ -22,9 +22,9 @@ end
 
 function LevelUpState:update(dt)
     -- Pause gameplay but keep visual updates
-    local World = require("src.systems.World")
-    local FloatingTextSystem = require("src.systems.FloatingTextSystem")
-    local VFXLibrary = require("src.systems.VFXLibrary")
+    local World = require("src.gameplay.World")
+    local FloatingTextSystem = require("src.effects.FloatingTextSystem")
+    local VFXLibrary = require("src.effects.VFXLibrary")
 
     if self.returnData.musicReactor then
         self.returnData.musicReactor:update(dt)
@@ -37,7 +37,7 @@ end
 
 function LevelUpState:draw()
     -- Draw frozen game state in background
-    local World = require("src.systems.World")
+    local World = require("src.gameplay.World")
     World.draw()
 
     self.player:draw()
@@ -52,8 +52,8 @@ function LevelUpState:draw()
 end
 
 function LevelUpState:drawColorSelect()
-    local ColorSystem = require("src.systems.ColorSystem")
-    local ArtifactManager = require("src.systems.ArtifactManager")
+    local ColorSystem = require("src.gameplay.ColorSystem")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local screenWidth = Config.screen.width
     local screenHeight = Config.screen.height
 
@@ -382,7 +382,7 @@ function LevelUpState:drawColorSelect()
 end
 
 function LevelUpState:keypressed(key)
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ColorSystem = require("src.gameplay.ColorSystem")
 
     -- ESC exits on desktop and returns to title on web.
     if key == "escape" then
@@ -455,7 +455,7 @@ function LevelUpState:keypressed(key)
 
         -- Stay on the level-up screen if a large XP burst queued another choice
         if not self.player:canLevelUp() then
-            local StateManager = require("src.systems.StateManager")
+            local StateManager = require("src.core.StateManager")
             StateManager.pop()
         end
     end

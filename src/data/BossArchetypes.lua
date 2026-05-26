@@ -5,7 +5,7 @@ local BossArchetypes = {}
 
 local Projectile = require("src.entities.Projectile")
 local BulletPatterns = require("src.data.BulletPatterns")
-local MathUtils = require("src.systems.MathUtils")
+local MathUtils = require("src.utils.MathUtils")
 
 -- Helper: create Projectile objects from pattern data tables
 local function patternToProjectiles(patternProjectiles, bossProjectiles, damage, color)

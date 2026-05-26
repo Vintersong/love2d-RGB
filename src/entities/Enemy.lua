@@ -1,8 +1,8 @@
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
 local Enemy = class{__includes = Entity}
-local ShapeLibrary = require("src.systems.ShapeLibrary")
-local MathUtils = require("src.systems.MathUtils")
+local ShapeLibrary = require("src.render.ShapeLibrary")
+local MathUtils = require("src.utils.MathUtils")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
 
 -- Helper function: Lerp between two colors

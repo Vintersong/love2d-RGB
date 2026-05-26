@@ -7,7 +7,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     local enemyFlow = deps.enemyFlow
 
     if key == "escape" or key == "p" then
-        local StateManager = require("src.systems.StateManager")
+        local StateManager = require("src.core.StateManager")
         StateManager.push("Pause", {
             player = state.player,
             musicReactor = state.musicReactor
@@ -22,7 +22,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
         return
     end
 
-    local GameConfig = require("src.systems.GameConfig")
+    local GameConfig = require("src.core.GameConfig")
     local debugEnabled = GameConfig.isDebugMode()
 
     if debugEnabled and key == "t" then
@@ -117,7 +117,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     end
 
     if debugEnabled then
-        local DebugMenu = require("src.systems.DebugMenu")
+        local DebugMenu = require("src.debug.DebugMenu")
         DebugMenu.keypressed(key, state.player, state.enemies, state.musicReactor)
     end
 end

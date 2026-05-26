@@ -5,8 +5,8 @@
 local PlayerInput = {}
 
 -- Get required systems
-local AbilitySystem = require("src.systems.AbilitySystem")
-local GameConfig = require("src.systems.GameConfig")
+local AbilitySystem = require("src.combat.AbilitySystem")
+local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
 
 local function getScreenSize()

@@ -2,7 +2,7 @@
 -- Color-specific behaviors for MIRROR artifact
 
 local MirrorArtifact = {}
-local MathUtils = require("src.systems.MathUtils")
+local MathUtils = require("src.utils.MathUtils")
 
 -- RED MIRROR: Fire projectiles from both sides
 MirrorArtifact.RED = {

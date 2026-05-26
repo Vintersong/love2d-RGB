@@ -3,7 +3,7 @@
 
 local VictoryState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
+local Runtime = require("src.core.Runtime")
 
 VictoryState.player = nil
 VictoryState.enemies = {}
@@ -21,7 +21,7 @@ end
 
 function VictoryState:update(dt)
     -- Keep background systems running
-    local World = require("src.systems.World")
+    local World = require("src.gameplay.World")
     if self.musicReactor then
         self.musicReactor:update(dt)
     end
@@ -29,7 +29,7 @@ function VictoryState:update(dt)
 end
 
 function VictoryState:draw()
-    local World = require("src.systems.World")
+    local World = require("src.gameplay.World")
     World.draw()
 
     -- Draw frozen game state
@@ -48,7 +48,7 @@ function VictoryState:draw()
 end
 
 function VictoryState:drawVictoryScreen()
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ColorSystem = require("src.gameplay.ColorSystem")
     local screenWidth = Config.screen.width
     local screenHeight = Config.screen.height
 
@@ -125,7 +125,7 @@ function VictoryState:drawVictoryScreen()
 end
 
 function VictoryState:keypressed(key)
-    local StateManager = require("src.systems.StateManager")
+    local StateManager = require("src.core.StateManager")
 
     if key == "escape" then
         Runtime.quitOrReturnToTitle()

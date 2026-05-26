@@ -57,7 +57,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
     PickupSystem.updatePowerups(dt, state.player, state.enemies, state.powerups, centerX, centerY)
 
     if state.player:canLevelUp() then
-        local StateManager = require("src.systems.StateManager")
+        local StateManager = require("src.core.StateManager")
         StateManager.push("LevelUp", {
             player = state.player,
             enemies = state.enemies,
@@ -76,7 +76,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
     local activeBossBefore = BossCoordinator.getActiveBoss()
     BossCoordinator.update(dt, state.player, state.player.projectiles, state.bossProjectiles, state.musicReactor, state.enemies)
     if activeBossBefore and not activeBossBefore.alive and not BossCoordinator.getActiveBoss() then
-        local StateManager = require("src.systems.StateManager")
+        local StateManager = require("src.core.StateManager")
         StateManager.switch("Victory", {
             player = state.player,
             enemies = state.enemies,

@@ -11,15 +11,15 @@ local AbilityLibrary = {}
 
 -- Get required systems (lazy-loaded to avoid circular dependencies)
 local function getVFXLibrary()
-    return require("src.systems.VFXLibrary")
+    return require("src.effects.VFXLibrary")
 end
 
 local function getColorSystem()
-    return require("src.systems.ColorSystem")
+    return require("src.gameplay.ColorSystem")
 end
 
 local function getFloatingTextSystem()
-    return require("src.systems.FloatingTextSystem")
+    return require("src.effects.FloatingTextSystem")
 end
 
 -- ============================================================================
@@ -137,7 +137,7 @@ AbilityLibrary.DASH = {
         entity.y = entity.y + moveY
 
         -- Keep in bounds
-        local GameConfig = require("src.systems.GameConfig")
+        local GameConfig = require("src.core.GameConfig")
         local Config = require("src.Config")
         local screenWidth, screenHeight = GameConfig.getScreenSize()
         screenWidth = screenWidth or Config.screen.width
@@ -305,7 +305,7 @@ AbilityLibrary.SHIELD = {
     duration = 3.0,
 
     onActivate = function(entity, state, context)
-        local ShieldEffect = require("src.systems.ShieldEffect")
+        local ShieldEffect = require("src.effects.ShieldEffect")
         local ColorSystem = getColorSystem()
 
         state.timer = 0
@@ -341,7 +341,7 @@ AbilityLibrary.SHIELD = {
     onUpdate = function(entity, state, dt, context)
         state.timer = state.timer + dt
 
-        local ShieldEffect = require("src.systems.ShieldEffect")
+        local ShieldEffect = require("src.effects.ShieldEffect")
         local centerX = entity.x + entity.width / 2
         local centerY = entity.y + entity.height / 2
         ShieldEffect.setPosition(centerX, centerY)
@@ -354,7 +354,7 @@ AbilityLibrary.SHIELD = {
 
     onDeactivate = function(entity, state, context)
         entity.invulnerable = false
-        local ShieldEffect = require("src.systems.ShieldEffect")
+        local ShieldEffect = require("src.effects.ShieldEffect")
         ShieldEffect.despawn()
         print("[Shield] Shield ended")
     end
@@ -369,8 +369,8 @@ AbilityLibrary.LIGHTNING_BOLT = {
     cooldown = 3.0,
 
     onActivate = function(entity, state, context)
-        local LightningEffect = require("src.systems.LightningEffect")
-        local HealthSystem = require("src.systems.HealthSystem")
+        local LightningEffect = require("src.effects.LightningEffect")
+        local HealthSystem = require("src.combat.HealthSystem")
 
         local centerX = entity.x + entity.width / 2
         local centerY = entity.y + entity.height / 2

@@ -4,7 +4,7 @@
 local BossBehaviors = {}
 local Projectile = require("src.entities.Projectile")
 local BulletPatterns = require("src.data.BulletPatterns")
-local MathUtils = require("src.systems.MathUtils")
+local MathUtils = require("src.utils.MathUtils")
 
 local function bossOrigin(boss)
     return {x = boss.x, y = boss.y}

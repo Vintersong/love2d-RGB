@@ -3,8 +3,8 @@
 -- Extracted from Player.lua for better separation of concerns
 
 local PlayerCombat = {}
-local MathUtils = require("src.systems.MathUtils")
-local GameConfig = require("src.systems.GameConfig")
+local MathUtils = require("src.utils.MathUtils")
+local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
 
 local function getCombatState(player)
@@ -126,8 +126,8 @@ end
 
 -- Apply artifact effects to projectiles when they're created
 function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY, enemies)
-    local ArtifactManager = require("src.systems.ArtifactManager")
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
+    local ColorSystem = require("src.gameplay.ColorSystem")
     local dominantColor = ColorSystem.getDominantColor()
 
     if not dominantColor then
@@ -170,8 +170,8 @@ end
 
 -- Update projectile artifact effects (per-frame)
 function PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
-    local ArtifactManager = require("src.systems.ArtifactManager")
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
+    local ColorSystem = require("src.gameplay.ColorSystem")
     local dominantColor = ColorSystem.getDominantColor()
 
     if not dominantColor then
@@ -320,7 +320,7 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
     local combatState = getCombatState(player)
 
     -- Spawn PRISM split VFX
-    local VFXLibrary = require("src.systems.VFXLibrary")
+    local VFXLibrary = require("src.effects.VFXLibrary")
     VFXLibrary.spawnArtifactEffect("PRISM", parentProj.x, parentProj.y)
 
     -- Create split projectiles in a spread pattern

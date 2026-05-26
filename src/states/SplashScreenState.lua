@@ -3,8 +3,8 @@
 
 local SplashScreen = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
-local GameConfig = require("src.systems.GameConfig")
+local Runtime = require("src.core.Runtime")
+local GameConfig = require("src.core.GameConfig")
 
 -- Animation state
 local alpha = 0
@@ -124,7 +124,7 @@ function SplashScreen:update(dt)
         if timer >= fadeOutDuration then
             timer = 0
             -- Switch to MenuState
-            local StateManager = require("src.systems.StateManager")
+            local StateManager = require("src.core.StateManager")
             StateManager.switch("Menu")
         end
     end

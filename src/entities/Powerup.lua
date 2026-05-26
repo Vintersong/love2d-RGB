@@ -213,12 +213,12 @@ function Powerup:collect(player)
     self.collected = true
     
     -- Use ArtifactManager to handle leveling
-    local ArtifactManager = require("src.systems.ArtifactManager")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local result = ArtifactManager.collect(self.type, player.weapon, player)
     
     -- Check for synergies with current color build (only on first collection)
     if result and result.success and result.level == 1 then
-        local SynergySystem = require("src.systems.SynergySystem")
+        local SynergySystem = require("src.gameplay.SynergySystem")
         local synergyMessage = SynergySystem.checkAndActivate(self.type, player.weapon, player)
         
         if synergyMessage then

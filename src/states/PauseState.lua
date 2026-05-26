@@ -3,7 +3,7 @@
 
 local PauseState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
+local Runtime = require("src.core.Runtime")
 
 PauseState.previousState = nil
 PauseState.musicReactor = nil
@@ -56,7 +56,7 @@ function PauseState:draw()
 end
 
 function PauseState:keypressed(key)
-    local StateManager = require("src.systems.StateManager")
+    local StateManager = require("src.core.StateManager")
 
     if key == "p" or key == "escape" then
         StateManager.pop()

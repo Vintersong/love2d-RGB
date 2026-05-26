@@ -74,9 +74,9 @@ function PlayingRenderLayers.draw(state, deps)
     UISystem.drawPlayerHUD(state.player)
     FloatingTextSystem.draw()
 
-    local GameConfig = require("src.systems.GameConfig")
+    local GameConfig = require("src.core.GameConfig")
     if GameConfig.isDebugMode() then
-        local DebugMenu = require("src.systems.DebugMenu")
+        local DebugMenu = require("src.debug.DebugMenu")
         DebugMenu.draw(state.player)
     end
 end

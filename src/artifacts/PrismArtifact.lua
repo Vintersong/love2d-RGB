@@ -2,7 +2,7 @@
 -- Color-specific behaviors for PRISM artifact
 
 local PrismArtifact = {}
-local MathUtils = require("src.systems.MathUtils")
+local MathUtils = require("src.utils.MathUtils")
 
 local function getShotAngleAndOrigin(projectiles, targetX, targetY, player)
     local originX = projectiles[1] and projectiles[1].x or (player.x + (player.width or 0) / 2)

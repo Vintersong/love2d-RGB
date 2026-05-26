@@ -3,9 +3,9 @@
 
 local OptionsState = {}
 local Config = require("src.Config")
-local Runtime = require("src.systems.Runtime")
-local GameConfig = require("src.systems.GameConfig")
-local StateManager = require("src.systems.StateManager")
+local Runtime = require("src.core.Runtime")
+local GameConfig = require("src.core.GameConfig")
+local StateManager = require("src.core.StateManager")
 
 -- Transition states
 local alpha = 0
@@ -629,7 +629,7 @@ function OptionsState:applySetting(key, val)
         
     elseif key == "bloomEnabled" then
         Config.postFX.bloomEnabled = val
-        local BackgroundShader = require("src.systems.BackgroundShader")
+        local BackgroundShader = require("src.render.BackgroundShader")
         BackgroundShader.toggleEffect("glow", val)
     end
 end

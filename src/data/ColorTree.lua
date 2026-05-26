@@ -1,5 +1,5 @@
 -- LEGACY MODULE
--- Color progression is currently implemented by src.systems.ColorSystem.
+-- Color progression is currently implemented by src.gameplay.ColorSystem.
 -- This data tree is preserved for reference and future migration work.
 -- Complete RGB Color Upgrade Tree
 -- Each color choice unlocks new paths and combinations

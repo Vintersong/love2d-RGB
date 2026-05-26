@@ -1,5 +1,5 @@
 local class = require("libs.hump-master.class")
-local MathUtils = require("src.systems.MathUtils")
+local MathUtils = require("src.utils.MathUtils")
 local Weapon = class{}
 
 function Weapon:init(weaponType)
@@ -64,7 +64,7 @@ function Weapon:fire(x, y, targetX, targetY)
 end
 
 function Weapon:createProjectiles(x, y, targetX, targetY)
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ColorSystem = require("src.gameplay.ColorSystem")
     -- NEW ColorSystem API: Use getDominantColor() and commitment tracking
     local dominantColor = ColorSystem.getDominantColor()
     local hasRed = ColorSystem.primary.RED.level > 0
@@ -76,7 +76,7 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
     
     -- Spawn LENS VFX if damage boost is active
     if self.lensBonus and self.lensBonus > 0 then
-        local VFXLibrary = require("src.systems.VFXLibrary")
+        local VFXLibrary = require("src.effects.VFXLibrary")
         VFXLibrary.spawnArtifactEffect("LENS", x, y, targetX, targetY)
     end
     
@@ -330,7 +330,7 @@ end
 
 function Weapon:calculateProjectileColor()
     -- Get color from ColorSystem (tracks primary color choice)
-    local ColorSystem = require("src.systems.ColorSystem")
+    local ColorSystem = require("src.gameplay.ColorSystem")
     return ColorSystem.getProjectileColor()
 end
 

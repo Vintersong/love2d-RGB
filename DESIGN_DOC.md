@@ -10,7 +10,7 @@ RGB is an auto-shooting bullet-hell roguelite built around a single design quest
 
 Every level-up is a color choice. Color shapes your projectiles, your dash behavior, your artifact synergies, and your identity. The player commits to a two-primary color path early, locking out the third primary permanently. That constraint is the game.
 
-Runtime source of truth: the root `src/systems/ColorSystem.lua` is the canonical color system. The `donor/` folder is reference-only prototype material; donor color behavior and donor entrypoints are not part of the root game.
+Runtime source of truth: `src/gameplay/ColorSystem.lua` is the canonical color system. Selected old donor prototype ideas live under `reference/donor/` as non-runtime reference material.
 
 ---
 
@@ -57,7 +57,7 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 | T | Trigger `SimpleGrid` wave pulse (dev) |
 | L | Grant +50 EXP |
 
-Separate **Debug menu** overlays and hotkeys are available via [`DebugMenu`](src/systems/DebugMenu.lua) when debug mode is enabled.
+Separate **Debug menu** overlays and hotkeys are available via [`DebugMenu`](src/debug/DebugMenu.lua) when debug mode is enabled.
 
 ---
 
@@ -130,7 +130,7 @@ Artifacts are passive collectibles dropped during play. There are 8 distinct art
 
 When the player holds an artifact and has matching active colors, the **SynergySystem** triggers a unique named synergy — a bonus effect that stacks on top of the artifact's base behavior.
 
-Each synergy activates exactly once per run (no double-triggers). **Eighteen named synergies** are defined in [`SynergySystem.lua`](src/systems/SynergySystem.lua). Artifact **type strings** passed into `SynergySystem.checkAndActivate` may use internal keys (`AURORA` vs `HALO`) that do not rename the player-facing Halo / Diffusion artifacts in the roster — confirm against pickup types in [`Powerup.lua`](src/entities/Powerup.lua) when auditing balance.
+Each synergy activates exactly once per run (no double-triggers). **Eighteen named synergies** are defined in [`SynergySystem.lua`](src/gameplay/SynergySystem.lua). Artifact **type strings** passed into `SynergySystem.checkAndActivate` may use internal keys (`AURORA` vs `HALO`) that do not rename the player-facing Halo / Diffusion artifacts in the roster — confirm against pickup types in [`Powerup.lua`](src/entities/Powerup.lua) when auditing balance.
 
 **Full synergy roster (artifact type × color)**
 
@@ -187,11 +187,11 @@ Enemies spawn in coordinated geometric formations rather than solo or random clu
 
 ### 6.3 Boss Encounters
 
-Gameplay uses **`BossSystem.activeBoss`**, spawned from [`SpawnController`](src/systems/SpawnController.lua) when `enemyKillCount` is divisible by **100** (tracked on enemy deaths — not the dormant `BossSystem.checkSpawn`/wave-interval path).
+Gameplay uses **`BossSystem.activeBoss`**, spawned from [`SpawnController`](src/spawning/SpawnController.lua) when `enemyKillCount` is divisible by **100** (tracked on enemy deaths — not the dormant `BossSystem.checkSpawn`/wave-interval path).
 
 - **HP:** **2000** (`BossSystem.spawnBoss`): killable sustained fight with cone projectile pressure.
 - **Flow:** Drops in from above, phases `entering` → `combat` → falling `defeated`; projectiles originate from BossSystem helpers.
-- **Legacy note:** [`Boss.lua`](src/entities/Boss.lua) entity (**9999** HP arc) persists for **debug / tooling** (e.g. [`DebugMenu`](src/systems/DebugMenu.lua)); it is **not** the BossSystem arena boss.
+- **Legacy note:** [`Boss.lua`](src/entities/Boss.lua) entity (**9999** HP arc) persists for **debug / tooling** (e.g. [`DebugMenu`](src/debug/DebugMenu.lua)); it is **not** the BossSystem arena boss.
 
 ---
 
@@ -276,7 +276,7 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 
 ```
 main.lua                      — Boot: SongLibrary RNG, BootLoader sanity checks, registers core states via StateManager
-conf.lua                      - Root window/debug config; donor conf/main are intentionally absent
+conf.lua                      - Root window/debug config
 src/
   data/                       — Static data tables
     ColorTree.lua             - Descriptive/reference RGB tree data
@@ -319,7 +319,7 @@ src/
 
 - Desktop (Windows/macOS/Linux) via LÖVE2D binary.
 - Web browser via love.js (uses compatibility mode to avoid SharedArrayBuffer requirement).
-- Canonical runtime is root `main.lua` / `conf.lua` / `src/`; `donor/` is reference-only and should not be used as an alternate runnable entrypoint.
+- Canonical runtime is root `main.lua` / `conf.lua` / `src/`; `reference/donor/` is non-runtime idea-mining material only.
 
 ---
 
@@ -327,10 +327,10 @@ src/
 
 ### Implemented
 
-- Canonical runtime color progression in [`ColorSystem`](src/systems/ColorSystem.lua): 2-primary commitment, secondary unlocks, dominant color, and projectile stat effects.
+- Canonical runtime color progression in [`ColorSystem`](src/gameplay/ColorSystem.lua): 2-primary commitment, secondary unlocks, dominant color, and projectile stat effects.
 - Color-reactive Dash, Blink (`E`), Shield (`Q`) via [`AbilityLibrary`](src/data/AbilityLibrary.lua).
 - Eight artifacts leveling to 5 (`ArtifactManager`); passive behaviors across modules (`src/artifacts/*`).
-- **18** scripted synergies triggered through [`SynergySystem.checkAndActivate`](src/systems/SynergySystem.lua) on artifact pickups (`Powerup` types aligned with synergy keys — see HUD note for `HALO` vs `AURORA`).
+- **18** scripted synergies triggered through [`SynergySystem.checkAndActivate`](src/gameplay/SynergySystem.lua) on artifact pickups (`Powerup` types aligned with synergy keys — see HUD note for `HALO` vs `AURORA`).
 - Spawn pipeline: **`SpawnController` → `EnemySpawner`**, formations listed in §6.2, BPM / band multipliers hooked to music.
 - **BossSystem** bosses every **100** kills at **2000 HP** until defeated animation completes.
 - **BackgroundShader**: GLSL fill pass + moonshine bloom drawn every [`PlayingState:draw`](src/states/PlayingState.lua).

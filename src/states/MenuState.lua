@@ -5,6 +5,7 @@ local MenuState = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
+local SFXLibrary = require("src.audio.SFXLibrary")
 
 -- State variables
 local alpha = 0
@@ -51,7 +52,7 @@ local glowY = nil
 local MENU_GRID_IDLE_ALPHA = 0.04
 local MENU_GRID_ACTIVE_BASE_ALPHA = 0.14
 local MENU_GRID_ACTIVE_AUDIO_ALPHA = 0.18
-local MENU_GRID_ACTIVE_MAX_ALPHA = 0.32
+local MENU_GRID_ACTIVE_MAX_ALPHA = 1.0
 
 local function refreshDynamicMenuLabels()
     for _, option in ipairs(menuOptions) do
@@ -455,9 +456,11 @@ function MenuState:keypressed(key)
     if key == "up" then
         selectedMenuOption = selectedMenuOption - 1
         if selectedMenuOption < 1 then selectedMenuOption = #menuOptions end
+        SFXLibrary.play("menuMove")
     elseif key == "down" then
         selectedMenuOption = selectedMenuOption + 1
         if selectedMenuOption > #menuOptions then selectedMenuOption = 1 end
+        SFXLibrary.play("menuMove")
     elseif key == "return" or key == "space" then
         local action = menuOptions[selectedMenuOption].action
         if action == "startGame" then

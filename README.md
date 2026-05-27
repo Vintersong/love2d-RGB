@@ -6,7 +6,7 @@ A Vampire Survivors-style bullet heaven built with LÖVE2D (Lua). Auto-aim shoot
 
 On boot, **`SongLibrary`** picks **one of two authored tracks at random**, loads its structure table, and runs BPM detection (`main.lua`). Splash screen: **SPACE** starts a run; **U** jumps into **`UISandboxState`** for HUD experiments.
 
-Canonical runtime entrypoints are the root **`main.lua`**, **`conf.lua`**, and **`src/`** tree. The **`donor/`** folder is reference-only prototype material; its color logic and old entrypoints are not part of the runnable root game.
+Canonical runtime entrypoints are the root **`main.lua`**, **`conf.lua`**, and **`src/`** tree. A few old donor prototype ideas live under **`reference/donor/`** as non-runtime reference material.
 
 ---
 
@@ -37,7 +37,7 @@ Debug hotkeys (**PlayingState**, development prototype; gated by `Config.debug.e
 | T | Pulse **SimpleGrid** wave animation (visual dev test) |
 | L | Grant +50 player EXP |
 
-`DebugMenu` adds its **own** overlay/help hotkeys (`src/systems/DebugMenu.lua`) on top of the above when debug mode is enabled.
+`DebugMenu` adds its **own** overlay/help hotkeys (`src/debug/DebugMenu.lua`) on top of the above when debug mode is enabled.
 
 ---
 
@@ -59,7 +59,7 @@ Dash bonuses change with dominant color combinations (speed buff, heals, piercin
 
 Eight artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens, Diffusion, Diffraction, Refraction, Supernova). Duplicate pickups raise each up to **Lv5**.
 
-[`SynergySystem.lua`](src/systems/SynergySystem.lua) houses **18** named triggers (pairs like `LENS + BLUE → Laser Focus`, `SUPERNOVA + MAGENTA → Chain Reaction`). Pickup enums include **`AURORA`** as its own orb type alongside **`HALO`**; synergy keys follow those enums — skim design doc §5 before renaming types or orbs.
+[`SynergySystem.lua`](src/gameplay/SynergySystem.lua) houses **18** named triggers (pairs like `LENS + BLUE → Laser Focus`, `SUPERNOVA + MAGENTA → Chain Reaction`). Pickup enums include **`AURORA`** as its own orb type alongside **`HALO`**; synergy keys follow those enums — skim design doc §5 before renaming types or orbs.
 
 ---
 
@@ -67,7 +67,7 @@ Eight artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens
 
 **Pipeline:** **`SpawnController.update` → `EnemySpawner.update`**. Formations (`square_corners`, `hex_star`, `tri_squares`, `diamond`, `cross`, `vee`, `box`) pulse off music weights for **BASS / MIDS / TREBLE** archetypes via `ProceduralEnemy` & friends. Regular enemies use melee-only AI — projectile shooting was removed from `ProceduralEnemy` to keep the enemy count scalable.
 
-The legacy **`GridAttackSystem`** marching wave layer still exists (`src/systems/GridAttackSystem.lua`) but its **update/draw calls are intentionally commented out** inside `PlayingState` (“DISABLED FOR TESTING” markers).
+The legacy **`GridAttackSystem`** marching wave layer still exists (`src/combat/GridAttackSystem.lua`) but its **update/draw calls are intentionally commented out** inside `PlayingState` (“DISABLED FOR TESTING” markers).
 
 ---
 
@@ -139,9 +139,8 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 
 - Prefer **`DESIGN_DOC.md`** for mechanical depth; **`PITCH_DECK.md`** for stakeholder framing — both documents were refreshed to match **`src/`** at the time this README synced.
 - `Feedback.md` still tracks experiential papercuts (**post-upgrade delay**, **dash clarity**).
-- `_deprecated/` is historical baggage only.
-- `donor/` is reference-only prototype code; do not port donor color-system behavior into the canonical root game.
-- `src/data/ColorTree.lua` is now an archived legacy data tree; active color progression lives in `src/systems/ColorSystem.lua`.
+- `reference/donor/` contains selected old prototype code for idea-mining only; do not port donor color-system behavior into the canonical root game.
+- `src/data/ColorTree.lua` is now an archived legacy data tree; active color progression lives in `src/gameplay/ColorSystem.lua`.
 - `src/data/BossArchetypes.lua` is legacy compatibility only; canonical boss AI comes from `src/data/BossBehaviors.lua`.
 - `src/` **+** root `main.lua` / `conf.lua` remain authoritative for behavior.
 
@@ -159,7 +158,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-web.ps1 -GenerateWebA
 
 This creates `dist/rgb.love` and `dist/web/`. If `ffmpeg` is available, WAV music is converted to `assets/music_web/*.ogg` for the web package; otherwise the package keeps the WAV files so it still runs. The GitHub Pages workflow installs `ffmpeg`, assembles `dist/web`, downloads love.js, and deploys the static site.
 
-In GitHub, set **Settings -> Pages -> Build and deployment -> Source** to **GitHub Actions**. If it is set to **Deploy from a branch**, GitHub runs Jekyll across the whole repo and will fail on vendored Markdown files such as `donor/libs/moonshine/README.md`; that branch-root mode also does not publish the generated love.js build.
+In GitHub, set **Settings -> Pages -> Build and deployment -> Source** to **GitHub Actions**. If it is set to **Deploy from a branch**, GitHub runs Jekyll across the whole repo instead of publishing the generated love.js package; that branch-root mode also does not publish the generated build.
 
 ---
 

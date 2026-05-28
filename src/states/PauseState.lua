@@ -5,9 +5,6 @@ local PauseState = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 
-PauseState.previousState = nil
-PauseState.musicReactor = nil
-
 function PauseState:enter(previous, data)
     self.previousState = previous
     self.musicReactor = data and data.musicReactor or nil

@@ -3,25 +3,143 @@
 
 local LevelUpState = {}
 local Config = require("src.Config")
-local Runtime = require("src.core.Runtime")
+local ColorSystem = require("src.gameplay.ColorSystem")
+local ArtifactManager = require("src.gameplay.ArtifactManager")
 
--- Shared data from PlayingState
-LevelUpState.player = nil
-LevelUpState.enemies = {}
-LevelUpState.musicReactor = nil
-LevelUpState.returnData = {}
+local CARD_START_Y = 200  -- y offset for the level-up overlay header
+local CARD_OFFSET_Y = 250 -- cards sit this many pixels below CARD_START_Y
+
+-- Static per-color card definitions
+local CARD_DEFS = {
+    {
+        code = "r", label = "RED",
+        bg = {0.3, 0, 0}, border = {1, 0, 0},
+        isSecondary = false,
+        isIntensityFn = function(CS) return CS.primary.RED and CS.primary.RED.level >= 9 end,
+        initial   = {"Spread Shot", "2-6 projectiles", "in a cone"},
+        normal    = {"+1 projectile", "+2 damage", "More spread!"},
+        intensity = {"INTENSITY!", "+1 projectile", "Extra power!"},
+    },
+    {
+        code = "g", label = "GREEN",
+        bg = {0, 0.3, 0}, border = {0, 1, 0},
+        isSecondary = false,
+        isIntensityFn = function(CS) return CS.primary.GREEN and CS.primary.GREEN.level >= 9 end,
+        initial   = {"Bounce Shot", "60-100% chance", "to chain"},
+        normal    = {"+8% bounce", "+3 damage", "More chains!"},
+        intensity = {"INTENSITY!", "+1 bounce", "Chain master!"},
+    },
+    {
+        code = "b", label = "BLUE",
+        bg = {0, 0, 0.3}, border = {0, 0.3, 1},
+        isSecondary = false,
+        isIntensityFn = function(CS) return CS.primary.BLUE and CS.primary.BLUE.level >= 9 end,
+        initial   = {"Pierce Shot", "2-5 pierces", "per projectile"},
+        normal    = {"+1 pierce", "+3 damage", "More punch!"},
+        intensity = {"INTENSITY!", "+2 pierce", "Ultra punch!"},
+    },
+    {
+        code = "y", label = "YELLOW",
+        bg = {0.3, 0.3, 0}, border = {1, 1, 0},
+        isSecondary = true,
+        isIntensityFn = function(CS) return CS.secondary.YELLOW and CS.secondary.YELLOW.level >= 9 end,
+        locked    = {"LOCKED!", "Level 10 req."},
+        normal    = {"Red + Green", "Spread shots", "Bounce chains"},
+        intensity = {"INTENSITY!", "+spread volley", "+bounce chains"},
+    },
+    {
+        code = "m", label = "MAGENTA",
+        bg = {0.3, 0, 0.3}, border = {1, 0, 1},
+        isSecondary = true,
+        isIntensityFn = function(CS) return CS.secondary.MAGENTA and CS.secondary.MAGENTA.level >= 9 end,
+        locked    = {"LOCKED!", "Level 10 req."},
+        normal    = {"+0.4 splits", "+2 damage", "Explode more!"},
+        intensity = {"INTENSITY!", "+1 split", "More chaos!"},
+    },
+    {
+        code = "c", label = "CYAN",
+        bg = {0, 0.3, 0.3}, border = {0, 1, 1},
+        isSecondary = true,
+        isIntensityFn = function(CS) return CS.secondary.CYAN and CS.secondary.CYAN.level >= 9 end,
+        locked    = {"LOCKED!", "Level 10 req."},
+        normal    = {"+3° homing", "+2 damage", "Track better!"},
+        intensity = {"INTENSITY!", "+6° homing", "Perfect aim!"},
+    },
+}
+
+local function buildKeyMap(validChoices)
+    local function isValid(color)
+        for _, c in ipairs(validChoices) do
+            if c == color then return true end
+        end
+        return false
+    end
+
+    local keyMap = {}
+    if ColorSystem.commitment.primary1 then
+        if ColorSystem.commitment.primary2 then
+            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
+            keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
+            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
+            if secondaryCode then keyMap[3] = secondaryCode end
+        else
+            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
+            local slot = 2
+            for _, choice in ipairs({"r", "g", "b"}) do
+                if choice ~= keyMap[1] and isValid(choice) then
+                    keyMap[slot] = choice
+                    slot = slot + 1
+                end
+            end
+        end
+    else
+        keyMap[1] = "r"
+        keyMap[2] = "g"
+        keyMap[3] = "b"
+    end
+    return keyMap
+end
+
+local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory)
+    love.graphics.setColor(def.bg[1], def.bg[2], def.bg[3], 0.7)
+    love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
+    love.graphics.setColor(def.border[1], def.border[2], def.border[3])
+    love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
+    love.graphics.print(def.label, cardX - cardWidth/2 + 10, cardY + 15, 0, 1.5, 1.5)
+    love.graphics.setColor(1, 1, 1, 0.9)
+
+    local lines
+    if def.isSecondary and #colorHistory < 10 then
+        lines = def.locked
+    elseif #colorHistory == 0 then
+        lines = def.initial or def.normal
+    elseif isIntensity then
+        lines = def.intensity
+    else
+        lines = def.normal
+    end
+
+    for i, line in ipairs(lines) do
+        love.graphics.print(line, cardX - cardWidth/2 + 10, cardY + 35 + (i * 25), 0, 1.0, 1.0)
+    end
+
+    if keyNum then
+        love.graphics.print("[Press " .. keyNum .. "]", cardX - cardWidth/2 + 10, cardY + cardHeight - 35, 0, 1.0, 1.0)
+    end
+end
 
 function LevelUpState:enter(previous, data)
-    -- Store data to pass back when returning to playing
+    self.previousState = previous
     if data then
         self.player = data.player
         self.enemies = data.enemies or {}
         self.returnData = data
+    else
+        self.returnData = {}
     end
 end
 
 function LevelUpState:update(dt)
-    -- Pause gameplay but keep visual updates
     local World = require("src.gameplay.World")
     local FloatingTextSystem = require("src.effects.FloatingTextSystem")
     local VFXLibrary = require("src.effects.VFXLibrary")
@@ -36,49 +154,33 @@ function LevelUpState:update(dt)
 end
 
 function LevelUpState:draw()
-    -- Draw frozen game state in background
-    local World = require("src.gameplay.World")
-    World.draw()
-
-    self.player:draw()
-
-    -- Draw enemies
-    for _, enemy in ipairs(self.enemies) do
-        enemy:draw(self.returnData.musicReactor)
+    if self.previousState and self.previousState.draw then
+        self.previousState:draw()
     end
-
-    -- Draw level up overlay
     self:drawColorSelect()
 end
 
 function LevelUpState:drawColorSelect()
-    local ColorSystem = require("src.gameplay.ColorSystem")
-    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local screenWidth = Config.screen.width
     local screenHeight = Config.screen.height
 
-    -- Semi-transparent overlay
     love.graphics.setColor(0, 0, 0, 0.8)
     love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
 
     local centerX = screenWidth / 2
-    local startY = 200
+    local startY = CARD_START_Y
 
-    -- Title
     love.graphics.setColor(1, 1, 0)
     love.graphics.print("🎉 LEVEL UP! 🎉", centerX - 180, startY, 0, 3.5, 3.5)
 
-    -- Current level
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Level " .. self.player.level, centerX - 60, startY + 90, 0, 2, 2)
 
-    -- Current path (if any)
     if ColorSystem.commitment.primary1 then
         local pathName = ColorSystem.getCurrentPath()
         love.graphics.setColor(0, 0.94, 1)
         love.graphics.print("Current Path: " .. pathName, centerX - 180, startY + 130, 0, 1.5, 1.5)
 
-        -- Show secondary unlock progress for the committed primary pair
         local secondaryName = ColorSystem.getCommittedSecondaryName()
         local secondary = secondaryName and ColorSystem.secondary[secondaryName] or nil
         if secondary and not secondary.unlocked then
@@ -90,21 +192,15 @@ function LevelUpState:drawColorSelect()
                 love.graphics.print(secondaryName .. " UNLOCKED!", centerX - 180, startY + 165, 0, 1.5, 1.5)
             elseif pCount >= 10 or sCount >= 10 then
                 love.graphics.setColor(1, 0.7, 0)
-                local needed = ""
-                if pCount < 10 then
-                    needed = (10 - pCount) .. " more " .. req1
-                else
-                    needed = (10 - sCount) .. " more " .. req2
-                end
+                local needed = pCount < 10 and ((10 - pCount) .. " more " .. req1)
+                                           or  ((10 - sCount) .. " more " .. req2)
                 love.graphics.print(secondaryName .. " unlock in: " .. needed, centerX - 220, startY + 165, 0, 1.5, 1.5)
             end
         end
     end
 
-    -- Get valid choices for this level
     local validChoices = ColorSystem.getValidChoices(self.player.level)
 
-    -- Helper function to check if a color is valid
     local function isValid(color)
         for _, c in ipairs(validChoices) do
             if c == color then return true end
@@ -112,9 +208,8 @@ function LevelUpState:drawColorSelect()
         return false
     end
 
-    -- Instructions
     love.graphics.setColor(1, 1, 1)
-    local instructionText = ""
+    local instructionText
     if #ColorSystem.colorHistory == 0 then
         instructionText = "Choose your weapon type:"
     elseif self.player.level == 10 and #validChoices > 1 then
@@ -124,339 +219,106 @@ function LevelUpState:drawColorSelect()
     end
     love.graphics.print(instructionText, centerX - 250, startY + 200, 0, 1.5, 1.5)
 
-    -- Display collected artifacts (on right side)
     local artifacts = ArtifactManager.getCollectedArtifacts()
     if #artifacts > 0 then
         local artifactX = screenWidth - 350
         local artifactY = startY + 250
-
         love.graphics.setColor(0.5, 1, 1)
         love.graphics.print("💎 Collected Artifacts:", artifactX, artifactY, 0, 1.3, 1.3)
         artifactY = artifactY + 35
-
         for _, artifact in ipairs(artifacts) do
             love.graphics.setColor(0.7, 0.9, 1)
             local levelText = string.format("Lv%d/%d", artifact.level, artifact.maxLevel)
-            love.graphics.print(string.format("%s %s", artifact.name, levelText),
-                artifactX, artifactY, 0, 1.1, 1.1)
+            love.graphics.print(string.format("%s %s", artifact.name, levelText), artifactX, artifactY, 0, 1.1, 1.1)
             artifactY = artifactY + 28
         end
     end
 
-    -- Card layout
     local cardY = startY + 250
     local cardWidth = 220
     local cardHeight = 180
     local cardSpacing = 250
 
-    -- Build key mapping based on progression (same logic as keypressed)
-    local keyMap = {}
-    if ColorSystem.commitment.primary1 then
-        if ColorSystem.commitment.primary2 then
-            -- Both primaries committed - map to 1 and 2
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
-            -- Position 3 = committed secondary color
-            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
-            if secondaryCode then
-                keyMap[3] = secondaryCode
-            end
-        else
-            -- Only first primary chosen
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            local remainingSlot = 2
-            for _, choice in ipairs({"r", "g", "b"}) do
-                if choice ~= keyMap[1] and isValid(choice) then
-                    keyMap[remainingSlot] = choice
-                    remainingSlot = remainingSlot + 1
-                end
-            end
-        end
-    else
-        keyMap[1] = "r"
-        keyMap[2] = "g"
-        keyMap[3] = "b"
-    end
-    
-    -- Helper to get key number for a color
+    local keyMap = buildKeyMap(validChoices)
+
     local function getKeyForColor(color)
         for key, mappedColor in pairs(keyMap) do
-            if mappedColor == color then
-                return key
-            end
+            if mappedColor == color then return key end
         end
         return nil
     end
-    
-    -- Helper to get card position index (0-based for centering)
+
     local cardIndex = 0
-
-    -- Red option card
-    if isValid("r") then
-        local keyNum = getKeyForColor("r")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.primary.RED and ColorSystem.primary.RED.level >= 9
-
-        love.graphics.setColor(0.3, 0, 0, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(1, 0, 0)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("🔴 RED", cardX - 50, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory == 0 then
-            love.graphics.print("Spread Shot", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("2-6 projectiles", cardX - 75, cardY + 85, 0, 0.9, 0.9)
-            love.graphics.print("in a cone", cardX - 50, cardY + 105, 0, 0.9, 0.9)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+1 projectile", cardX - 70, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("Extra power!", cardX - 65, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("+1 projectile", cardX - 70, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+2 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("More spread!", cardX - 65, cardY + 105, 0, 0.9, 0.9)
+    for _, def in ipairs(CARD_DEFS) do
+        if isValid(def.code) then
+            local keyNum = getKeyForColor(def.code)
+            local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
+            local isIntensity = def.isIntensityFn(ColorSystem)
+            drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory)
+            cardIndex = cardIndex + 1
         end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
     end
+end
 
-    -- Green option card
-    if isValid("g") then
-        local keyNum = getKeyForColor("g")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.primary.GREEN and ColorSystem.primary.GREEN.level >= 9
+function LevelUpState:selectColor(colorCode)
+    local validChoices = ColorSystem.getValidChoices(self.player.level)
+    for _, valid in ipairs(validChoices) do
+        if valid == colorCode then
+            self.player:levelUp()
+            ColorSystem.addColor(self.player.weapon, colorCode)
+            ColorSystem.applyEffects(self.player.weapon)
 
-        love.graphics.setColor(0, 0.3, 0, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(0, 1, 0)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("🟢 GREEN", cardX - 60, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory == 0 then
-            love.graphics.print("Bounce Shot", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("60-100% chance", cardX - 75, cardY + 85, 0, 0.9, 0.9)
-            love.graphics.print("to chain", cardX - 45, cardY + 105, 0, 0.9, 0.9)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+1 bounce", cardX - 60, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("Chain master!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("+8% bounce", cardX - 65, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+3 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("More chains!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
+            if not self.player:canLevelUp() then
+                local StateManager = require("src.core.StateManager")
+                StateManager.pop()
+            end
+            return
         end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
-    end
-
-    -- Blue option card
-    if isValid("b") then
-        local keyNum = getKeyForColor("b")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.primary.BLUE and ColorSystem.primary.BLUE.level >= 9
-
-        love.graphics.setColor(0, 0, 0.3, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(0, 0.3, 1)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("🔵 BLUE", cardX - 55, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory == 0 then
-            love.graphics.print("Pierce Shot", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("2-5 pierces", cardX - 60, cardY + 85, 0, 0.9, 0.9)
-            love.graphics.print("per projectile", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+2 pierce", cardX - 55, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("Ultra punch!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("+1 pierce", cardX - 55, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+3 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("More punch!", cardX - 65, cardY + 105, 0, 0.9, 0.9)
-        end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
-    end
-
-    -- Yellow option card (secondary)
-    if isValid("y") then
-        local keyNum = getKeyForColor("y")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.secondary.YELLOW and ColorSystem.secondary.YELLOW.level >= 9
-
-        love.graphics.setColor(0.3, 0.3, 0, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(1, 1, 0)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("� YELLOW", cardX - 65, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory < 10 then
-            love.graphics.print("LOCKED!", cardX - 45, cardY + 55, 0, 1.2, 1.2)
-            love.graphics.print("Level 10 req.", cardX - 75, cardY + 85, 0, 0.8, 0.8)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+spread volley", cardX - 75, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("+bounce chains", cardX - 75, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("Red + Green", cardX - 70, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("Spread shots", cardX - 65, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("Bounce chains", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
-    end
-
-    -- Magenta option card
-    if isValid("m") then
-        local keyNum = getKeyForColor("m")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.secondary.MAGENTA and ColorSystem.secondary.MAGENTA.level >= 9
-
-        love.graphics.setColor(0.3, 0, 0.3, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(1, 0, 1)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("� MAGENTA", cardX - 70, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory < 10 then
-            love.graphics.print("LOCKED!", cardX - 45, cardY + 55, 0, 1.2, 1.2)
-            love.graphics.print("Level 10 req.", cardX - 75, cardY + 85, 0, 0.8, 0.8)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+1 split", cardX - 50, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("More chaos!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("+0.4 splits", cardX - 65, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+2 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("Explode more!", cardX - 75, cardY + 105, 0, 0.9, 0.9)
-        end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
-    end
-
-    -- Cyan option card
-    if isValid("c") then
-        local keyNum = getKeyForColor("c")
-        local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-        local isIntensity = ColorSystem.secondary.CYAN and ColorSystem.secondary.CYAN.level >= 9
-
-        love.graphics.setColor(0, 0.3, 0.3, 0.7)
-        love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.setColor(0, 1, 1)
-        love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-        love.graphics.print("🔵 CYAN", cardX - 55, cardY + 15, 0, 1.5, 1.5)
-        love.graphics.setColor(1, 1, 1, 0.9)
-
-        if #ColorSystem.colorHistory < 10 then
-            love.graphics.print("LOCKED!", cardX - 45, cardY + 55, 0, 1.2, 1.2)
-            love.graphics.print("Level 10 req.", cardX - 75, cardY + 85, 0, 0.8, 0.8)
-        elseif isIntensity then
-            love.graphics.print("INTENSITY!", cardX - 60, cardY + 55, 0, 1.1, 1.1)
-            love.graphics.print("+6° homing", cardX - 65, cardY + 85, 0, 1.0, 1.0)
-            love.graphics.print("Perfect aim!", cardX - 70, cardY + 105, 0, 0.9, 0.9)
-        else
-            love.graphics.print("+3° homing", cardX - 65, cardY + 55, 0, 1.0, 1.0)
-            love.graphics.print("+2 damage", cardX - 60, cardY + 80, 0, 1.0, 1.0)
-            love.graphics.print("Track better!", cardX - 75, cardY + 105, 0, 0.9, 0.9)
-        end
-        if keyNum then
-            love.graphics.print("[Press " .. keyNum .. "]", cardX - 55, cardY + 145, 0, 1.0, 1.0)
-        end
-        cardIndex = cardIndex + 1
     end
 end
 
 function LevelUpState:keypressed(key)
-    local ColorSystem = require("src.gameplay.ColorSystem")
+    if key == "escape" then return end
 
-    -- ESC exits on desktop and returns to title on web.
-    if key == "escape" then
-        Runtime.quitOrReturnToTitle()
-        return
-    end
-
-    -- Get valid choices based on current level and color history
     local validChoices = ColorSystem.getValidChoices(self.player.level)
-    local function isValidChoice(choice)
-        for _, valid in ipairs(validChoices) do
-            if valid == choice then
-                return true
-            end
+    local keyMap = buildKeyMap(validChoices)
+
+    if key == "1" and keyMap[1] then
+        self:selectColor(keyMap[1])
+    elseif key == "2" and keyMap[2] then
+        self:selectColor(keyMap[2])
+    elseif key == "3" and keyMap[3] then
+        self:selectColor(keyMap[3])
+    end
+end
+
+function LevelUpState:mousepressed(x, y, button)
+    if button ~= 1 then return end
+
+    local validChoices = ColorSystem.getValidChoices(self.player.level)
+    local function isValid(color)
+        for _, c in ipairs(validChoices) do
+            if c == color then return true end
         end
         return false
     end
 
-    local colorChosen = nil
-    
-    -- Build ordered choice map based on progression
-    -- Initially: 1=RED, 2=GREEN, 3=BLUE
-    -- After primary chosen: 1=Primary, 2/3=Remaining initial colors
-    -- After secondary unlocked: 1=Primary, 2=Primary, 3=Secondary
-    local keyMap = {}
-    
-    if ColorSystem.commitment.primary1 then
-        -- After first choice
-        if ColorSystem.commitment.primary2 then
-            -- After commitment
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
-            -- Position 3 = committed secondary color if available
-            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
-            if secondaryCode then
-                keyMap[3] = secondaryCode
-            end
-        else
-            -- Only primary chosen, before commitment
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            -- Positions 2 and 3 = other initial colors (remaining r/g/b)
-            local remainingSlot = 2
-            for _, choice in ipairs({"r", "g", "b"}) do
-                if choice ~= keyMap[1] and isValidChoice(choice) then
-                    keyMap[remainingSlot] = choice
-                    remainingSlot = remainingSlot + 1
-                end
-            end
-        end
-    else
-        -- First choice: always R=1, G=2, B=3
-        keyMap[1] = "r"
-        keyMap[2] = "g"
-        keyMap[3] = "b"
-    end
-    
-    -- Map number keys to colors based on keyMap
-    if key == "1" and keyMap[1] and isValidChoice(keyMap[1]) then
-        colorChosen = keyMap[1]
-    elseif key == "2" and keyMap[2] and isValidChoice(keyMap[2]) then
-        colorChosen = keyMap[2]
-    elseif key == "3" and keyMap[3] and isValidChoice(keyMap[3]) then
-        colorChosen = keyMap[3]
-    end
+    local centerX = Config.screen.width / 2
+    local cardY   = CARD_START_Y + CARD_OFFSET_Y
+    local cardWidth   = 220
+    local cardHeight  = 180
+    local cardSpacing = 250
 
-    if colorChosen then
-        self.player:levelUp()  -- Increment level and spend XP for this level
-        ColorSystem.addColor(self.player.weapon, colorChosen)
-        ColorSystem.applyEffects(self.player.weapon)
-
-        -- Stay on the level-up screen if a large XP burst queued another choice
-        if not self.player:canLevelUp() then
-            local StateManager = require("src.core.StateManager")
-            StateManager.pop()
+    local cardIndex = 0
+    for _, def in ipairs(CARD_DEFS) do
+        if isValid(def.code) then
+            local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
+            if x >= cardX - cardWidth/2 and x <= cardX + cardWidth/2
+            and y >= cardY and y <= cardY + cardHeight then
+                self:selectColor(def.code)
+                return
+            end
+            cardIndex = cardIndex + 1
         end
     end
 end

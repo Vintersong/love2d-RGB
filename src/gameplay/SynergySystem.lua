@@ -11,6 +11,59 @@ SynergySystem.activeSynergies = {}
 SynergySystem.definitions = {
     -- PRISM synergies (projectile splitting)
     PRISM = {
+        CYAN = {
+            name = "Orbit Freeze",
+            description = "When an orbiting shot triggers its freeze, the chill chains to nearby enemies",
+            effect = function(weapon, player)
+                weapon.prismOrbitChainFreeze = true
+                weapon.orbitFreezeChainRadius = 80
+                weapon.orbitFreezeChainDuration = 2.0
+                return "Orbit Freeze! Freeze chains to nearby enemies"
+            end,
+            visualEffect = {
+                color = {0.4, 1, 1},
+                particle = "chain_frost"
+            }
+        },
+        MAGENTA = {
+            name = "Seeking Volley",
+            description = "Wall shots home toward the nearest enemy after firing",
+            effect = function(weapon, player)
+                weapon.prismWallHoming = true
+                weapon.prismHomingStrength = 1.5
+                return "Seeking Volley! Wall shots track enemies"
+            end,
+            visualEffect = {
+                color = {1, 0.3, 1},
+                particle = "homing_trail"
+            }
+        },
+        BLUE = {
+            name = "Prism Array",
+            description = "Growing pierce shots fracture into three piercing shards at maximum size",
+            effect = function(weapon, player)
+                weapon.prismFracture = true
+                weapon.prismFractureCount = 3
+                return "Prism Array! Max-size shots shatter into shards"
+            end,
+            visualEffect = {
+                color = {0.4, 0.7, 1},
+                particle = "fracture_shards"
+            }
+        },
+        GREEN = {
+            name = "Orbit Siphon",
+            description = "Orbiting projectiles drain life on each hit, healing the player",
+            effect = function(weapon, player)
+                weapon.prismOrbitHeal = true
+                weapon.orbitHealPerHit = 2
+                return "Orbit Siphon! Orbiting shots restore HP"
+            end,
+            visualEffect = {
+                color = {0.3, 1, 0.4},
+                particle = "drain_orbit"
+            }
+        },
         RED = {
             name = "Rainbow Cascade",
             description = "Spread projectiles split again on hit",
@@ -40,6 +93,49 @@ SynergySystem.definitions = {
     
     -- LENS synergies (damage focus)
     LENS = {
+        CYAN = {
+            name = "Glacial Convergence",
+            description = "The frost pull shot chains its slow to three nearby enemies on impact",
+            effect = function(weapon, player)
+                weapon.lensChainSlow = true
+                weapon.chainSlowCount = 3
+                weapon.chainSlowRange = 120
+                return "Glacial Convergence! Frost shot chains slow to 3 enemies"
+            end,
+            visualEffect = {
+                color = {0.35, 0.9, 1},
+                particle = "frost_chain"
+            }
+        },
+        YELLOW = {
+            name = "Thunderball",
+            description = "Merged electric shot explodes on impact, leaving a damaging lightning field",
+            effect = function(weapon, player)
+                weapon.lensThunderball = true
+                weapon.thunderfieldRadius = 80
+                weapon.thunderfieldDPS = 15
+                weapon.thunderfieldDuration = 2.0
+                return "Thunderball! Merged shot leaves a lightning field"
+            end,
+            visualEffect = {
+                color = {1, 1, 0.25},
+                particle = "thunder_field"
+            }
+        },
+        GREEN = {
+            name = "Singularity Shot",
+            description = "Enemies pulled to close range by the gravitational field take bonus damage",
+            effect = function(weapon, player)
+                weapon.lensPullBonus = true
+                weapon.lensPullDamageBonus = 0.5
+                weapon.lensPullBonusRange = 40
+                return "Singularity Shot! Pulled enemies take +50% damage"
+            end,
+            visualEffect = {
+                color = {0.4, 1, 0.5},
+                particle = "gravity_crush"
+            }
+        },
         RED = {
             name = "Focal Burst",
             description = "Spread projectiles converge then explode",
@@ -83,6 +179,60 @@ SynergySystem.definitions = {
     
     -- MIRROR synergies (reflection)
     MIRROR = {
+        MAGENTA = {
+            name = "Phantom Echo",
+            description = "The temporal echo clone fires a homing copy of the shot at full damage",
+            effect = function(weapon, player)
+                weapon.mirrorPhantomHoming = true
+                weapon.phantomHomingStrength = 2.0
+                weapon.phantomFullDamage = true
+                return "Phantom Echo! Echo clones home at full damage"
+            end,
+            visualEffect = {
+                color = {1, 0.25, 0.9},
+                particle = "phantom_trail"
+            }
+        },
+        YELLOW = {
+            name = "Arc Flash",
+            description = "Electric dual-wall shots discharge on hit, stunning the target briefly",
+            effect = function(weapon, player)
+                weapon.mirrorArcStun = true
+                weapon.mirrorStunDuration = 0.4
+                return "Arc Flash! Mirror shots stun on impact"
+            end,
+            visualEffect = {
+                color = {1, 1, 0.3},
+                particle = "arc_discharge"
+            }
+        },
+        BLUE = {
+            name = "Prismatic Shards",
+            description = "Split projectiles each gain an extra pierce, cutting through more enemies",
+            effect = function(weapon, player)
+                weapon.mirrorSplitPierce = true
+                weapon.mirrorSplitPierceBonus = 1
+                return "Prismatic Shards! Split shots pierce through enemies"
+            end,
+            visualEffect = {
+                color = {0.5, 0.8, 1},
+                particle = "shard_pierce"
+            }
+        },
+        RED = {
+            name = "Searing Reflection",
+            description = "Mirrored projectiles leave fire trails that burn on contact",
+            effect = function(weapon, player)
+                weapon.mirrorFireTrail = true
+                weapon.mirrorTrailDamage = 8
+                weapon.mirrorTrailDuration = 2.0
+                return "Searing Reflection! Mirror shots ignite trails"
+            end,
+            visualEffect = {
+                color = {1, 0.4, 0.1},
+                particle = "trail_fire"
+            }
+        },
         GREEN = {
             name = "Kaleidoscope",
             description = "Bounces create mirror reflections",
@@ -113,6 +263,75 @@ SynergySystem.definitions = {
     
     -- HALO synergies (shield)
     HALO = {
+        CYAN = {
+            name = "Glacial Ward",
+            description = "Enemies killed inside the frost aura leave ice patches that slow others",
+            effect = function(weapon, player)
+                player.haloGlacialPatches = true
+                player.glacialPatchRadius = 60
+                player.glacialPatchSlow = 0.4
+                player.glacialPatchDuration = 4.0
+                return "Glacial Ward! Aura kills leave slowing ice patches"
+            end,
+            visualEffect = {
+                color = {0.3, 0.95, 1},
+                particle = "ice_patch"
+            }
+        },
+        MAGENTA = {
+            name = "Temporal Ward",
+            description = "Enemies inside the time bubble take 25% increased damage from all sources",
+            effect = function(weapon, player)
+                player.haloTemporalAmp = true
+                player.temporalDamageBonus = 0.25
+                return "Temporal Ward! Time bubble amplifies all damage taken"
+            end,
+            visualEffect = {
+                color = {1, 0.2, 1},
+                particle = "time_distort"
+            }
+        },
+        YELLOW = {
+            name = "Storm Halo",
+            description = "Each pulse kill discharges a lightning bolt to the nearest additional enemy",
+            effect = function(weapon, player)
+                player.haloStormChain = true
+                player.haloChainRange = 150
+                player.haloChainDamage = weapon.damage * 0.3
+                return "Storm Halo! Pulse kills chain lightning"
+            end,
+            visualEffect = {
+                color = {1, 1, 0.2},
+                particle = "chain_bolt"
+            }
+        },
+        GREEN = {
+            name = "Harvest Ring",
+            description = "Enemies killed inside the drain aura release a burst of healing energy",
+            effect = function(weapon, player)
+                player.haloHarvestOrbs = true
+                player.haloHarvestHeal = 8
+                return "Harvest Ring! Aura kills heal the player"
+            end,
+            visualEffect = {
+                color = {0.2, 1, 0.4},
+                particle = "harvest_burst"
+            }
+        },
+        RED = {
+            name = "Inferno Ring",
+            description = "Enemies killed inside the fire aura explode, damaging nearby foes",
+            effect = function(weapon, player)
+                player.haloKillExplosion = true
+                player.haloExplosionRadius = 60
+                player.haloExplosionDamage = weapon.damage * 0.4
+                return "Inferno Ring! Aura kills detonate"
+            end,
+            visualEffect = {
+                color = {1, 0.3, 0.1},
+                particle = "detonation"
+            }
+        },
         BLUE = {
             name = "Orbital Pierce",
             description = "Shield shoots piercing beams",
@@ -131,6 +350,49 @@ SynergySystem.definitions = {
     
     -- AURORA synergies (health regen)
     AURORA = {
+        MAGENTA = {
+            name = "Temporal Regen",
+            description = "Each HP regen tick ripples outward, briefly slowing nearby enemies",
+            effect = function(weapon, player)
+                player.auroraTemporalSlow = true
+                player.temporalSlowRadius = 120
+                player.temporalSlowAmount = 0.3
+                player.temporalSlowDuration = 1.0
+                return "Temporal Regen! Regen ticks slow nearby enemies"
+            end,
+            visualEffect = {
+                color = {1, 0.3, 0.9},
+                particle = "time_ripple"
+            }
+        },
+        BLUE = {
+            name = "Ion Surge",
+            description = "Each HP regen tick ionizes projectiles, granting a brief pierce charge",
+            effect = function(weapon, player)
+                player.auroraIonSurge = true
+                player.ionPierceBonus = 1
+                player.ionPierceDuration = 0.5
+                return "Ion Surge! Regen ticks grant pierce charge"
+            end,
+            visualEffect = {
+                color = {0.5, 0.7, 1},
+                particle = "ion_pulse"
+            }
+        },
+        RED = {
+            name = "Ignite Aura",
+            description = "While the aurora regen is active, nearby enemies are set on fire",
+            effect = function(weapon, player)
+                player.auroraIgnite = true
+                player.auroraIgniteRadius = 100
+                player.auroraIgniteDPS = 8
+                return "Ignite Aura! Regen field burns enemies"
+            end,
+            visualEffect = {
+                color = {1, 0.5, 0.1},
+                particle = "flame_aura"
+            }
+        },
         GREEN = {
             name = "Chain Lightning",
             description = "Bounces leave electric trails",
@@ -178,6 +440,48 @@ SynergySystem.definitions = {
     
     -- DIFFRACTION synergies (XP magnet)
     DIFFRACTION = {
+        MAGENTA = {
+            name = "Gravity Collapse",
+            description = "Cone shots curve toward the nearest enemy after the initial spread angle",
+            effect = function(weapon, player)
+                weapon.diffractionHomingCone = true
+                weapon.coneHomingStrength = 1.5
+                return "Gravity Collapse! Cone shots bend toward enemies"
+            end,
+            visualEffect = {
+                color = {1, 0.2, 0.85},
+                particle = "bend_trail"
+            }
+        },
+        BLUE = {
+            name = "Resonance Wave",
+            description = "Radial shots gain pierce; each enemy pierced adds +15% damage to remaining hits",
+            effect = function(weapon, player)
+                weapon.diffractionPierceScaling = true
+                weapon.pierceDamageBonus = 0.15
+                weapon.pierceCount = (weapon.pierceCount or 1) + 1
+                return "Resonance Wave! Pierce shots amplify on each hit"
+            end,
+            visualEffect = {
+                color = {0.4, 0.65, 1},
+                particle = "resonance_ring"
+            }
+        },
+        RED = {
+            name = "Scatter Burn",
+            description = "Cone spread shots leave burn zones at their travel end",
+            effect = function(weapon, player)
+                weapon.diffractionBurnZone = true
+                weapon.burnZoneRadius = 50
+                weapon.burnZoneDPS = 6
+                weapon.burnZoneDuration = 2.5
+                return "Scatter Burn! Cone shots ignite the ground"
+            end,
+            visualEffect = {
+                color = {1, 0.35, 0.1},
+                particle = "burn_zone"
+            }
+        },
         GREEN = {
             name = "Wave Echo",
             description = "Bounces create harmonic waves",
@@ -224,6 +528,62 @@ SynergySystem.definitions = {
     
     -- REFRACTION synergies (speed boost)
     REFRACTION = {
+        CYAN = {
+            name = "Cryo Refraction",
+            description = "Every orbital hit leaves a frost patch that slows enemies passing through",
+            effect = function(weapon, player)
+                weapon.refractionFrostPatches = true
+                weapon.frostPatchRadius = 50
+                weapon.frostPatchSlow = 0.4
+                weapon.frostPatchDuration = 2.0
+                return "Cryo Refraction! Orbital hits leave frost patches"
+            end,
+            visualEffect = {
+                color = {0.4, 1, 1},
+                particle = "frost_patch"
+            }
+        },
+        YELLOW = {
+            name = "Lightning Spiral",
+            description = "Kills by the spinning orbital chain lightning to three nearby enemies",
+            effect = function(weapon, player)
+                weapon.refractionLightningKill = true
+                weapon.lightningChainCount = 3
+                weapon.lightningChainDamage = weapon.damage * 0.5
+                return "Lightning Spiral! Orbital kills chain to 3 enemies"
+            end,
+            visualEffect = {
+                color = {1, 1, 0.2},
+                particle = "kill_lightning"
+            }
+        },
+        GREEN = {
+            name = "Bio-Orbital",
+            description = "Orbital satellites restore health to the player on each hit",
+            effect = function(weapon, player)
+                weapon.refractionHealSatellites = true
+                weapon.satelliteHealPerHit = 2
+                return "Bio-Orbital! Satellites restore HP on hit"
+            end,
+            visualEffect = {
+                color = {0.3, 1, 0.45},
+                particle = "heal_satellite"
+            }
+        },
+        RED = {
+            name = "Burning Spiral",
+            description = "Spiral projectile arms leave fire trails that deal damage over time",
+            effect = function(weapon, player)
+                weapon.refractionFireArms = true
+                weapon.spiralTrailDPS = 5
+                weapon.spiralTrailDuration = 1.0
+                return "Burning Spiral! Spiral arms ignite air trails"
+            end,
+            visualEffect = {
+                color = {1, 0.4, 0.2},
+                particle = "spiral_fire"
+            }
+        },
         BLUE = {
             name = "Light Ray",
             description = "Pierce projectiles bend and multi-hit",
@@ -255,6 +615,63 @@ SynergySystem.definitions = {
     
     -- SUPERNOVA synergies (screen clear)
     SUPERNOVA = {
+        CYAN = {
+            name = "Glacial Nova",
+            description = "The explosion leaves a massive slow field that lingers on the battlefield",
+            effect = function(weapon, player)
+                weapon.supernovaGlacialField = true
+                weapon.glacialFieldRadius = 300
+                weapon.glacialFieldSlow = 0.6
+                weapon.glacialFieldDuration = 8.0
+                return "Glacial Nova! Explosion leaves a vast slow field"
+            end,
+            visualEffect = {
+                color = {0.3, 0.9, 1},
+                particle = "cryo_field"
+            }
+        },
+        YELLOW = {
+            name = "Solar Storm",
+            description = "Screen clear spawns orbiting electric balls that persist and damage enemies",
+            effect = function(weapon, player)
+                weapon.supernovaSolarStorm = true
+                weapon.solarOrbCount = 3
+                weapon.solarOrbDuration = 15
+                weapon.solarOrbDPS = 20
+                return "Solar Storm! Screen clear spawns electric orbs"
+            end,
+            visualEffect = {
+                color = {1, 0.95, 0.2},
+                particle = "solar_orbs"
+            }
+        },
+        BLUE = {
+            name = "Shockfront",
+            description = "The explosion launches a piercing ring wave that tears through enemies",
+            effect = function(weapon, player)
+                weapon.supernovaShockwave = true
+                weapon.shockwaveSpeed = 400
+                weapon.shockwaveDamage = 100
+                return "Shockfront! Explosion sends a piercing ring outward"
+            end,
+            visualEffect = {
+                color = {0.5, 0.75, 1},
+                particle = "shockwave_ring"
+            }
+        },
+        GREEN = {
+            name = "Life Nova",
+            description = "Screen clear heals the player for each enemy destroyed in the blast",
+            effect = function(weapon, player)
+                weapon.supernovaHeal = true
+                weapon.supernovaHealPerKill = 10
+                return "Life Nova! Screen clear restores HP per kill"
+            end,
+            visualEffect = {
+                color = {0.3, 1, 0.4},
+                particle = "nova_heal"
+            }
+        },
         RED = {
             name = "Solar Flare",
             description = "Screen clear leaves fire projectiles",

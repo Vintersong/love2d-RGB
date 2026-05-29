@@ -1,9 +1,5 @@
 local gradient = require("src.render.Gradient")
 
-if type(gradient) == "boolean" then
-    gradient = love.gradient
-end
-
 local ShieldEffect = {}
 
 local active = nil

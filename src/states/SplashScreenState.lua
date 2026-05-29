@@ -5,6 +5,7 @@ local SplashScreen = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
+local Gradient = require("src.render.Gradient")
 
 -- Animation state
 local alpha = 0
@@ -18,6 +19,7 @@ local titleText = "CHROMATIC"
 local subtitleText = "Press ANY KEY to continue."
 local titleSize = 150
 local subtitleSize = 24
+local studioText = "Smooth Brain Designs"
 
 -- Shimmer/Pulsing settings
 local minScale = 125 / 150  -- Calculate scale ratio (approx 0.8333)
@@ -200,8 +202,9 @@ function SplashScreen:draw()
     end
 
     -- 3. Draw Title (centered, on top of equalizer background with per-letter shimmer size scaling)
-    love.graphics.setFont(titleFont)
     local titleY = 350
+    if titleFont then
+    love.graphics.setFont(titleFont)
     
     -- Calculate individual character widths and total width based on base size (150)
     local widths = {}
@@ -233,6 +236,7 @@ function SplashScreen:draw()
         local currentScale = minScale + (1.0 - minScale) * pulseFactor
         
         -- Determine local center coordinates for this character to scale from its center origin
+        
         local charW = widths[i]
         local charH = titleFont:getHeight()
         local centerX = currentX + charW / 2
@@ -251,19 +255,52 @@ function SplashScreen:draw()
         
         -- Advance cursor tracking standard width + gap
         currentX = currentX + charW + charGap
-
-    end
+        end
+    end -- titleFont
 
     -- 4. Draw Subtitle
-    love.graphics.setFont(subtitleFont)
-    local subtitleWidth = subtitleFont:getWidth(subtitleText)
-    local subtitleX = (screenWidth - subtitleWidth) / 2
-    local subtitleY = titleY + 200
+    if subtitleFont then
+        love.graphics.setFont(subtitleFont)
+        local subtitleWidth = subtitleFont:getWidth(subtitleText)
+        local subtitleX = (screenWidth - subtitleWidth) / 2
+        local subtitleY = titleY + 200
 
-    love.graphics.setColor(1, 1, 1, alpha * 0.5)
-    love.graphics.print(subtitleText, subtitleX, subtitleY)
+        love.graphics.setColor(1, 1, 1, alpha * 0.5)
+        love.graphics.print(subtitleText, subtitleX, subtitleY)
+    end
+  
+    -- 4.5 Studio name background: 3 stacked segment-sized bars with left→right Gradient
+    local studioTopBarY = screenHeight - 5 * (segmentHeight + segmentGap)
+    local blockHeight = 3 * segmentHeight + 2 * segmentGap
+
+    Gradient.draw(
+        function()
+            for row = 0, 2 do
+                local barY = studioTopBarY + row * (segmentHeight + segmentGap)
+                love.graphics.rectangle("fill", 0, barY, screenWidth, segmentHeight, 2, 2)
+            end
+        end,
+        "linear",
+        screenWidth / 2, studioTopBarY + blockHeight / 2,
+        screenWidth / 2, blockHeight / 2,
+        {0, 0, 0, 0},
+        {0, 0, 0, alpha * 0.65}
+    )
+
+    -- 5. Draw Studio Name (bottom-right, centered on the 3-bar block)
+    if subtitleFont then
+        love.graphics.setFont(subtitleFont)
+        
+        local studioWidth = subtitleFont:getWidth(studioText)
+        local studioX = screenWidth - studioWidth - 24
+        local studioY = studioTopBarY + (blockHeight - subtitleFont:getHeight()) / 2
+
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.print(studioText, studioX, studioY)
+    end
 
     -- Reset color and font
+    
     love.graphics.setColor(1, 1, 1, 1)
 end
 

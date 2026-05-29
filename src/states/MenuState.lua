@@ -6,6 +6,7 @@ local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local SFXLibrary = require("src.audio.SFXLibrary")
+local ShipRenderer = require("src.render.ShipRenderer")
 
 -- State variables
 local alpha = 0
@@ -44,6 +45,9 @@ local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
+
+-- Ship display
+local shipRenderer = nil
 
 -- Glowing visualizer Y-tracker for selection highlighting
 local glowY = nil
@@ -89,6 +93,10 @@ function MenuState:enter(previous, data)
         animProgress[i] = 0
     end
     refreshDynamicMenuLabels()
+
+    if not shipRenderer then
+        shipRenderer = ShipRenderer:new({color = {1.0, 0.35, 0.75, 1.0}})
+    end
 
     -- Load shader safely
     if not bgShader then
@@ -237,6 +245,11 @@ function MenuState:draw()
         love.graphics.setColor(1, 1, 1, alpha)
         love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
         love.graphics.setShader(previousShader)
+    end
+
+    -- 3.5 Draw Ship (centered on screen, facing up)
+    if shipRenderer then
+        shipRenderer:draw(screenWidth / 2, screenHeight / 2, 1.0, alpha, -math.pi / 2)
     end
 
     -- 4. Draw Equalizer Bars Grid (LED columns - static unlit matrix at 4% opacity - Full Screen Width)

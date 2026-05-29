@@ -89,3 +89,5 @@ function love.gradient.draw(drawFunc, gradientType, centerX, centerY, radialWidt
 	love.graphics.pop()
 	love.graphics.setStencilTest()
 end
+
+return love.gradient

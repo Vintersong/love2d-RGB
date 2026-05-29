@@ -14,23 +14,13 @@ local fadeInDuration = 0.3
 local fadeOutDuration = 0.8
 local timer = 0
 local phase = "fadeIn" -- fadeIn -> active -> fadeOut
+local pendingAction = nil -- "startGame" | "continue"
 
-local menuOptions = {
-    {label = "START GAME", action = "startGame", style = "bracket"},
-    {label = "UI SANDBOX", action = "uiSandbox", style = "bracket"},
-    {label = "SETTINGS", action = "settings", style = "bracket"},
-    {label = "DEBUG MODE: OFF", action = "toggleDebug", style = "bracket"},
-    {label = "CREDITS", action = "credits", style = "bracket"},
-    {label = "QUIT", action = "quit", style = "bracket"}
-}
+local menuOptions = {}
 local selectedMenuOption = 1
 
 -- Animation transition trackers for each menu option
 local animProgress = {}
-
--- Interactive Overlay states
-local showSettings = false
-local showCredits = false
 
 -- Text settings
 local titleText = "CHROMATIC"
@@ -58,22 +48,25 @@ local MENU_GRID_ACTIVE_BASE_ALPHA = 0.14
 local MENU_GRID_ACTIVE_AUDIO_ALPHA = 0.18
 local MENU_GRID_ACTIVE_MAX_ALPHA = 1.0
 
-local function refreshDynamicMenuLabels()
-    for _, option in ipairs(menuOptions) do
-        if option.action == "toggleDebug" then
-            option.label = "DEBUG MODE: " .. (GameConfig.isDebugMode() and "ON" or "OFF")
-        end
+local function buildMenuOptions()
+    menuOptions = {}
+    if GameConfig.hasActiveRun() then
+        table.insert(menuOptions, {label = "CONTINUE", action = "continue", style = "bracket"})
     end
+    table.insert(menuOptions, {label = "START GAME", action = "startGame", style = "bracket"})
+    table.insert(menuOptions, {label = "SETTINGS", action = "settings", style = "bracket"})
+    table.insert(menuOptions, {label = "QUIT", action = "quit", style = "bracket"})
 end
 
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
     phase = "fadeIn"
+    pendingAction = nil
     selectedMenuOption = 1
-    showSettings = false
-    showCredits = false
     glowY = nil
+
+    buildMenuOptions()
 
     if not titleFont then
         titleFont = love.graphics.newFont(titleSize)
@@ -92,7 +85,6 @@ function MenuState:enter(previous, data)
     for i = 1, #menuOptions do
         animProgress[i] = 0
     end
-    refreshDynamicMenuLabels()
 
     if not shipRenderer then
         shipRenderer = ShipRenderer:new({color = {1.0, 0.35, 0.75, 1.0}})
@@ -158,17 +150,17 @@ function MenuState:update(dt)
     elseif phase == "fadeOut" then
         alpha = math.max(0, 1 - (timer / fadeOutDuration))
         if timer >= fadeOutDuration then
-            -- Reset font to default before switching
             love.graphics.setFont(defaultFont)
             timer = 0
-            
-            -- Initialize PlayingState before switching
-            local PlayingState = require("src.states.PlayingState")
-            PlayingState.startNewRun()
 
-            -- Switch to PlayingState
             local StateManager = require("src.core.StateManager")
-            StateManager.switch("Playing")
+            if pendingAction == "continue" then
+                StateManager.switch("Playing")
+            else
+                local PlayingState = require("src.states.PlayingState")
+                PlayingState.startNewRun()
+                StateManager.switch("Playing")
+            end
         end
     end
 end
@@ -397,48 +389,6 @@ function MenuState:draw()
     love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
     love.graphics.print("NAVIGATE  UP / DOWN   |   SELECT  ENTER / SPACE", mapX + 24, mapY + 200)
 
-    -- 6. Draw Settings Overlay if open
-    if showSettings then
-        love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.95)
-        love.graphics.rectangle("fill", menuCenter - 250, 320, 500, 320, 10, 10)
-        
-        love.graphics.setColor(0, 0.85, 1, alpha)
-        love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", menuCenter - 250, 320, 500, 320, 10, 10)
-        
-        love.graphics.setFont(subtitleFont)
-        love.graphics.print("SYSTEM SETTINGS", menuCenter - 230, 340)
-        
-        love.graphics.setFont(smallFont)
-        love.graphics.setColor(0.7, 0.7, 0.7, alpha)
-        love.graphics.print("MASTER VOLUME:  80%  (Reactive stream)", menuCenter - 230, 410)
-        love.graphics.print("INPUT METHOD:   KEYBOARD / MOUSE", menuCenter - 230, 450)
-        love.graphics.print("SYSTEM COMM:    CONNECTIVITY STABLE", menuCenter - 230, 490)
-        
-        love.graphics.setColor(0.5, 0.5, 0.5, alpha)
-        love.graphics.print("PRESS [SPACE / ENTER] TO EXIT OVERLAY", menuCenter - 230, 570)
-    end
-
-    -- 7. Draw Credits Overlay if open
-    if showCredits then
-        love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.95)
-        love.graphics.rectangle("fill", menuCenter - 250, 320, 500, 320, 10, 10)
-        
-        love.graphics.setColor(0.9, 0, 0.6, alpha)
-        love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", menuCenter - 250, 320, 500, 320, 10, 10)
-        
-        love.graphics.setFont(subtitleFont)
-        love.graphics.print("CREDITS", menuCenter - 230, 340)
-        
-        love.graphics.setFont(smallFont)
-        love.graphics.setColor(0.7, 0.7, 0.7, alpha)
-        love.graphics.print("DESIGN & ART:   VINTERSONG", menuCenter - 230, 410)
-        
-        love.graphics.setColor(0.5, 0.5, 0.5, alpha)
-        love.graphics.print("PRESS [SPACE / ENTER] TO EXIT OVERLAY", menuCenter - 230, 570)
-    end
-
     -- Reset default color
     love.graphics.setColor(1, 1, 1, 1)
 end
@@ -450,22 +400,6 @@ function MenuState:keypressed(key)
 
     if phase ~= "active" then return end
 
-    -- If overlays are open, dismiss them on return/space/escape
-    if showSettings then
-        if key == "return" or key == "space" or key == "escape" then
-            showSettings = false
-        end
-        return
-    end
-
-    if showCredits then
-        if key == "return" or key == "space" or key == "escape" then
-            showCredits = false
-        end
-        return
-    end
-
-    -- Menu controls
     if key == "up" then
         selectedMenuOption = selectedMenuOption - 1
         if selectedMenuOption < 1 then selectedMenuOption = #menuOptions end
@@ -476,25 +410,17 @@ function MenuState:keypressed(key)
         SFXLibrary.play("menuMove")
     elseif key == "return" or key == "space" then
         local action = menuOptions[selectedMenuOption].action
-        if action == "startGame" then
+        if action == "continue" then
+            self:continueGame()
+        elseif action == "startGame" then
             self:startGame()
-        elseif action == "uiSandbox" then
-            self:enterUISandbox()
         elseif action == "settings" then
             local StateManager = require("src.core.StateManager")
             love.graphics.setFont(defaultFont)
             StateManager.switch("Options")
-        elseif action == "toggleDebug" then
-            GameConfig.setDebugMode(not GameConfig.isDebugMode())
-            refreshDynamicMenuLabels()
-        elseif action == "credits" then
-            showCredits = true
         elseif action == "quit" then
             Runtime.quitOrReturnToTitle()
         end
-        return
-    elseif key == "u" then
-        self:enterUISandbox()
         return
     elseif key == "escape" then
         Runtime.quitOrReturnToTitle()
@@ -518,21 +444,18 @@ function MenuState:startGame()
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
     end
-
+    pendingAction = "startGame"
     phase = "fadeOut"
     timer = 0
 end
 
-function MenuState:enterUISandbox()
+function MenuState:continueGame()
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
     end
-
-    -- Reset font and switch immediately to UI Sandbox
-    love.graphics.setFont(defaultFont)
-    
-    local StateManager = require("src.core.StateManager")
-    StateManager.switch("UISandbox")
+    pendingAction = "continue"
+    phase = "fadeOut"
+    timer = 0
 end
 
 return MenuState

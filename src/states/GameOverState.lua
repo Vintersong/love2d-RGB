@@ -4,12 +4,14 @@
 local GameOverState = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
+local GameConfig = require("src.core.GameConfig")
 
 GameOverState.player = nil
 GameOverState.enemies = {}
 GameOverState.musicReactor = nil
 
 function GameOverState:enter(previous, data)
+    GameConfig.setActiveRun(false)
     if data then
         self.player = data.player
         self.enemies = data.enemies or {}

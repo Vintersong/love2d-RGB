@@ -88,6 +88,7 @@ function PlayingState.startNewRun()
     PlayingState.gameTime = 0
     PlayingState.enemyKillCount = 0
     PlayingState.musicReactor = GameConfig.getMusicReactor()
+    GameConfig.setActiveRun(true)
 
     return PlayingState
 end

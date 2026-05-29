@@ -4,6 +4,7 @@
 local VictoryState = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
+local GameConfig = require("src.core.GameConfig")
 
 VictoryState.player = nil
 VictoryState.enemies = {}
@@ -11,6 +12,7 @@ VictoryState.xpOrbs = {}
 VictoryState.musicReactor = nil
 
 function VictoryState:enter(previous, data)
+    GameConfig.setActiveRun(false)
     if data then
         self.player = data.player
         self.enemies = data.enemies or {}

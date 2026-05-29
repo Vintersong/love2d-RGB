@@ -6,6 +6,7 @@ local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local StateManager = require("src.core.StateManager")
+local SFXLibrary = require("src.audio.SFXLibrary")
 
 -- Transition states
 local alpha = 0
@@ -16,10 +17,12 @@ local phase = "fadeIn" -- fadeIn -> active -> fadeOut
 
 -- Interactive states
 local tabs = {
-    {label = "AUDIO", action = "audio"},
-    {label = "VIDEO", action = "video"},
+    {label = "AUDIO",    action = "audio"},
+    {label = "VIDEO",    action = "video"},
     {label = "CONTROLS", action = "controls"},
-    {label = "BACK", action = "back"}
+    {label = "GAMEPLAY", action = "gameplay"},
+    {label = "GENERAL",  action = "general"},
+    {label = "BACK",     action = "back"}
 }
 local activeTab = 1
 local focusOnRight = false
@@ -35,6 +38,21 @@ local videoSettings = {
     {label = "VSYNC", type = "toggle", key = "vsync", get = function() return Config.screen.vsync end, set = function(val) Config.screen.vsync = val end},
     {label = "BLOOM EFFECT", type = "toggle", key = "bloomEnabled", get = function() return Config.postFX.bloomEnabled end, set = function(val) Config.postFX.bloomEnabled = val end}
 }
+
+local gameplaySettings = {}
+
+local generalSettings = {}
+
+local settingsMap = {
+    audio    = audioSettings,
+    video    = videoSettings,
+    gameplay = gameplaySettings,
+    general  = generalSettings,
+}
+
+local function getCurrentSettingsList()
+    return settingsMap[tabs[activeTab].action]
+end
 
 local activeRightSelection = 1
 
@@ -124,10 +142,9 @@ function OptionsState:update(dt)
     end
 
     -- Animate active settings list items selection progress
-    local maxItems = 2
-    if tabs[activeTab].action == "video" then maxItems = 3 end
-    if tabs[activeTab].action == "controls" then maxItems = 0 end
-    
+    local currentList = getCurrentSettingsList()
+    local maxItems = currentList and #currentList or 0
+
     for i = 1, maxItems do
         local target = (focusOnRight and i == activeRightSelection) and 1 or 0
         if rightAnimProgress[i] < target then
@@ -366,9 +383,9 @@ function OptionsState:draw()
 
     -- Dynamic Rendering based on active tab
     local action = tabs[activeTab].action
-    
-    if action == "audio" or action == "video" then
-        local currentList = (action == "audio") and audioSettings or videoSettings
+    local currentList = getCurrentSettingsList()
+
+    if currentList and #currentList > 0 then
         local rightStartY = rightY + 130
         local itemHeight = 60
         
@@ -516,6 +533,16 @@ function OptionsState:draw()
         love.graphics.setFont(smallFont)
         love.graphics.setColor(0.5, 0.5, 0.6, alpha * 0.6)
         love.graphics.print("Keyboard & Mouse controls are active automatically", rightX + 60, rightY + rightH - 50)
+
+    elseif action == "gameplay" or action == "general" then
+        -- Placeholder panel
+        love.graphics.setFont(smallFont)
+        love.graphics.setColor(0.4, 0.45, 0.55, alpha * 0.7)
+        local label = (action == "gameplay") and "GAMEPLAY SETTINGS" or "GENERAL SETTINGS"
+        love.graphics.print(label .. " — COMING SOON", rightX + 60, rightY + 130)
+
+        love.graphics.setColor(0.5, 0.5, 0.6, alpha * 0.4)
+        love.graphics.print("This section will be available in a future update.", rightX + 60, rightY + 165)
     end
 
     -- Reset color parameters
@@ -534,49 +561,65 @@ function OptionsState:keypressed(key)
         if key == "up" then
             activeTab = activeTab - 1
             if activeTab < 1 then activeTab = #tabs end
+            SFXLibrary.play("menuMove")
         elseif key == "down" then
             activeTab = activeTab + 1
             if activeTab > #tabs then activeTab = 1 end
+            SFXLibrary.play("menuMove")
         elseif key == "return" or key == "space" or key == "right" then
             local action = tabs[activeTab].action
             if action == "back" then
                 self:goBack()
-            elseif action == "controls" then
-                -- View tab only, no selectable inputs
             else
-                -- Focus details on the right panel
-                focusOnRight = true
-                activeRightSelection = 1
+                local list = getCurrentSettingsList()
+                if list and #list > 0 then
+                    focusOnRight = true
+                    activeRightSelection = 1
+                    SFXLibrary.play("menuMove")
+                end
+                -- tabs with no selectable items (controls, gameplay, general) stay in left focus
             end
         elseif key == "escape" then
             self:goBack()
         end
     else
         -- SETTINGS PANEL FOCUS MODE
-        local currentAction = tabs[activeTab].action
-        local currentList = (currentAction == "audio") and audioSettings or videoSettings
-        
+        local currentList = getCurrentSettingsList()
+        local item = currentList and currentList[activeRightSelection]
+
         if key == "escape" then
             focusOnRight = false
+            SFXLibrary.play("menuMove")
         elseif key == "up" then
-            activeRightSelection = activeRightSelection - 1
-            if activeRightSelection < 1 then activeRightSelection = #currentList end
+            if currentList and #currentList > 0 then
+                activeRightSelection = activeRightSelection - 1
+                if activeRightSelection < 1 then activeRightSelection = #currentList end
+                SFXLibrary.play("menuMove")
+            end
         elseif key == "down" then
-            activeRightSelection = activeRightSelection + 1
-            if activeRightSelection > #currentList then activeRightSelection = 1 end
+            if currentList and #currentList > 0 then
+                activeRightSelection = activeRightSelection + 1
+                if activeRightSelection > #currentList then activeRightSelection = 1 end
+                SFXLibrary.play("menuMove")
+            end
         elseif key == "return" or key == "space" then
-            local item = currentList[activeRightSelection]
-            if item.type == "toggle" then
+            if item and item.type == "toggle" then
                 local currentVal = item.get()
                 item.set(not currentVal)
                 self:applySetting(item.key, not currentVal)
             end
-        elseif key == "left" or key == "right" then
-            local item = currentList[activeRightSelection]
-            if item.type == "slider" then
-                local currentVal = item.get()
-                local delta = (key == "left") and -0.05 or 0.05
-                local newVal = math.max(0, math.min(1, currentVal + delta))
+        elseif key == "left" then
+            if item and item.type == "slider" then
+                local newVal = math.max(0, item.get() - 0.05)
+                item.set(newVal)
+                self:applySetting(item.key, newVal)
+            else
+                focusOnRight = false
+                SFXLibrary.play("menuMove")
+            end
+        elseif key == "right" then
+            if item and item.type == "slider" then
+                local newVal = math.min(1, item.get() + 0.05)
                 item.set(newVal)
                 self:applySetting(item.key, newVal)
             end

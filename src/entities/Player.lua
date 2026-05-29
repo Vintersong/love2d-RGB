@@ -155,13 +155,48 @@ function Player:update(dt, enemies)
 end
 
 function Player:drawAura()
-    -- Draw HALO aura ring if artifact is active (delegated to HaloArtifact)
     local ArtifactManager = require("src.gameplay.ArtifactManager")
+    local ColorSystem     = require("src.gameplay.ColorSystem")
+    local dominantColor   = ColorSystem.getDominantColor()
+
     if ArtifactManager.getLevel("HALO") > 0 then
-        local ColorSystem = require("src.gameplay.ColorSystem")
-        local dominantColor = ColorSystem.getDominantColor()
         local HaloArtifact = require("src.artifacts.HaloArtifact")
         HaloArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("PRISM") > 0 then
+        local PrismArtifact = require("src.artifacts.PrismArtifact")
+        PrismArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("MIRROR") > 0 then
+        local MirrorArtifact = require("src.artifacts.MirrorArtifact")
+        MirrorArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("LENS") > 0 then
+        local LensArtifact = require("src.artifacts.LensArtifact")
+        LensArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("AURORA") > 0 then
+        local AuroraArtifact = require("src.artifacts.AuroraArtifact")
+        AuroraArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("DIFFRACTION") > 0 then
+        local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
+        DiffractionArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("REFRACTION") > 0 then
+        local RefractionArtifact = require("src.artifacts.RefractionArtifact")
+        RefractionArtifact.draw(self, dominantColor)
+    end
+
+    if ArtifactManager.getLevel("SUPERNOVA") > 0 then
+        local SupernovaArtifact = require("src.artifacts.SupernovaArtifact")
+        SupernovaArtifact.draw(self, dominantColor)
     end
 end
 

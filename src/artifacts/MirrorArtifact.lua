@@ -359,4 +359,66 @@ function MirrorArtifact.update(projectiles, enemies, dt, dominantColor)
     end
 end
 
+local MIRROR_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: two flat mirror panels orbiting on opposite sides, with a sweeping glint
+function MirrorArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c   = MIRROR_COLORS[dominantColor] or {1, 1, 1}
+    local cx  = player.x + player.width  / 2
+    local cy  = player.y + player.height / 2
+    local t   = love.timer.getTime()
+
+    local orbitR   = player.width / 2 + 22
+    local panelW   = 18   -- half-width of panel
+    local panelH   = 3    -- half-height (thickness)
+    local rotAngle = t * 0.45
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    for i = 0, 1 do
+        local angle = rotAngle + i * math.pi   -- opposite sides
+
+        love.graphics.push()
+        love.graphics.rotate(angle)
+
+        local px = orbitR
+
+        -- Panel fill
+        love.graphics.setColor(c[1], c[2], c[3], 0.25)
+        love.graphics.rectangle("fill", px - panelW, -panelH, panelW * 2, panelH * 2)
+
+        -- Panel outline
+        love.graphics.setColor(c[1], c[2], c[3], 0.85)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.rectangle("line", px - panelW, -panelH, panelW * 2, panelH * 2)
+
+        -- Sweeping glint: a bright dot that travels left→right across the panel
+        local glintT  = (t * 1.4 + i * 0.5) % 1.0
+        local glintX  = px - panelW + glintT * panelW * 2
+        love.graphics.setColor(1, 1, 1, 0.9)
+        love.graphics.circle("fill", glintX, 0, 2)
+
+        love.graphics.pop()
+    end
+
+    -- Faint reflection axis connecting both panels
+    local ax1x = math.cos(rotAngle) * (orbitR - panelW)
+    local ax1y = math.sin(rotAngle) * (orbitR - panelW)
+    love.graphics.setColor(c[1], c[2], c[3], 0.18)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(-ax1x, -ax1y, ax1x, ax1y)
+
+    love.graphics.pop()
+end
+
 return MirrorArtifact

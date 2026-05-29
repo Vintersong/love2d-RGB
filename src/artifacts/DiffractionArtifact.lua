@@ -511,4 +511,53 @@ DiffractionArtifact.CYAN = {
     end
 }
 
+local DIFFRACTION_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: six arc segments expanding outward in a staggered wave sequence
+function DiffractionArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c  = DIFFRACTION_COLORS[dominantColor] or {1, 1, 1}
+    local cx = player.x + player.width  / 2
+    local cy = player.y + player.height / 2
+    local t  = love.timer.getTime()
+
+    local baseR    = player.width / 2 + 6
+    local expandR  = 36         -- how far arcs travel outward
+    local arcHalf  = 0.26       -- half-width of each arc segment in radians (~30 deg)
+    local period   = 1.4        -- seconds for one full expansion cycle
+    local segCount = 6
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    for i = 1, segCount do
+        local centerAngle = (i - 1) / segCount * math.pi * 2
+        -- stagger phase so the pulse travels around the player
+        local phase = ((t / period) + (i - 1) / segCount) % 1.0
+        local r     = baseR + phase * expandR
+        local alpha = (1 - phase) * 0.85
+
+        love.graphics.setColor(c[1], c[2], c[3], alpha)
+        love.graphics.setLineWidth(2)
+        love.graphics.arc("line", "open", 0, 0, r,
+            centerAngle - arcHalf, centerAngle + arcHalf)
+
+        -- Leading-edge dot at arc midpoint
+        love.graphics.setColor(1, 1, 1, alpha * 0.8)
+        love.graphics.circle("fill",
+            math.cos(centerAngle) * r,
+            math.sin(centerAngle) * r, 1.5)
+    end
+
+    love.graphics.pop()
+end
+
 return DiffractionArtifact

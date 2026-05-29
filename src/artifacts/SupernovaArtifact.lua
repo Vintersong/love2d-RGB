@@ -412,4 +412,69 @@ SupernovaArtifact.CYAN = {
     end
 }
 
+local SUPERNOVA_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: three pulsing orbital charges on a wide orbit, each with a glow halo
+-- and a short comet tail — reads as loaded bombs ready to detonate
+function SupernovaArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c  = SUPERNOVA_COLORS[dominantColor] or {1, 1, 1}
+    local cx = player.x + player.width  / 2
+    local cy = player.y + player.height / 2
+    local t  = love.timer.getTime()
+
+    local orbitR     = player.width / 2 + 32
+    local orbitSpeed = 1.2
+    local tailSteps  = 6
+    local tailSpan   = 0.55   -- radians of tail arc behind each charge
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    -- Faint orbit path
+    love.graphics.setColor(c[1], c[2], c[3], 0.12)
+    love.graphics.setLineWidth(1)
+    love.graphics.circle("line", 0, 0, orbitR)
+
+    for i = 1, 3 do
+        local baseAngle = (i - 1) / 3 * math.pi * 2 + t * orbitSpeed
+        local pulse     = 0.7 + math.sin(t * 3 + (i - 1) * math.pi * 2 / 3) * 0.3
+
+        -- Comet tail (dots trailing behind along the orbit arc)
+        for s = 1, tailSteps do
+            local frac     = s / tailSteps
+            local tailAng  = baseAngle - frac * tailSpan
+            local tx       = math.cos(tailAng) * orbitR
+            local ty       = math.sin(tailAng) * orbitR
+            love.graphics.setColor(c[1], c[2], c[3], (1 - frac) * 0.35 * pulse)
+            love.graphics.circle("fill", tx, ty, (1 - frac) * 3)
+        end
+
+        local px = math.cos(baseAngle) * orbitR
+        local py = math.sin(baseAngle) * orbitR
+
+        -- Outer glow halo
+        love.graphics.setColor(c[1], c[2], c[3], 0.18 * pulse)
+        love.graphics.circle("fill", px, py, 10 * pulse)
+
+        -- Inner glow
+        love.graphics.setColor(c[1], c[2], c[3], 0.55 * pulse)
+        love.graphics.circle("fill", px, py, 5 * pulse)
+
+        -- Bright core
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", px, py, 2.5)
+    end
+
+    love.graphics.pop()
+end
+
 return SupernovaArtifact

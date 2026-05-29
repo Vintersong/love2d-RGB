@@ -572,4 +572,71 @@ RefractionArtifact.CYAN = {
     end
 }
 
+local REFRACTION_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: three bent-ray lines rotating around the player — outer segment bends at a
+-- bright node and continues inward at a different angle (classic refraction diagram)
+function RefractionArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c  = REFRACTION_COLORS[dominantColor] or {1, 1, 1}
+    local cx = player.x + player.width  / 2
+    local cy = player.y + player.height / 2
+    local t  = love.timer.getTime()
+
+    local bendR    = player.width / 2 + 18   -- radius of the bend node
+    local outerLen = 26                        -- outer segment length
+    local innerLen = 14                        -- inner segment length
+    local bendAng  = 0.38                      -- bend angle offset (radians)
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    for i = 1, 3 do
+        local base = (i - 1) / 3 * math.pi * 2 + t * 0.4
+
+        -- Bend node position
+        local bx = math.cos(base) * bendR
+        local by = math.sin(base) * bendR
+
+        -- Outer endpoint: same orbit, offset angle (incoming ray)
+        local ox = math.cos(base + bendAng) * (bendR + outerLen)
+        local oy = math.sin(base + bendAng) * (bendR + outerLen)
+
+        -- Inner endpoint: straight toward centre (refracted ray)
+        local ix = math.cos(base) * (bendR - innerLen)
+        local iy = math.sin(base) * (bendR - innerLen)
+
+        -- Outer (incoming) segment — slightly dimmer
+        love.graphics.setColor(c[1], c[2], c[3], 0.55)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.line(ox, oy, bx, by)
+
+        -- Inner (refracted) segment — brighter
+        love.graphics.setColor(c[1], c[2], c[3], 0.9)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.line(bx, by, ix, iy)
+
+        -- Bright bend node
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", bx, by, 2.5)
+
+        -- Faint normal line at bend point (perpendicular to radius)
+        local nx = math.cos(base + math.pi / 2) * 7
+        local ny = math.sin(base + math.pi / 2) * 7
+        love.graphics.setColor(c[1], c[2], c[3], 0.2)
+        love.graphics.setLineWidth(1)
+        love.graphics.line(bx - nx, by - ny, bx + nx, by + ny)
+    end
+
+    love.graphics.pop()
+end
+
 return RefractionArtifact

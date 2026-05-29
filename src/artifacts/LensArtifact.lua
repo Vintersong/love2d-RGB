@@ -300,4 +300,58 @@ function LensArtifact.update(projectiles, enemies, dt, dominantColor)
     end
 end
 
+local LENS_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: two counterrotating ellipses creating a focusing effect, with cardinal tick marks
+function LensArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c  = LENS_COLORS[dominantColor] or {1, 1, 1}
+    local cx = player.x + player.width  / 2
+    local cy = player.y + player.height / 2
+    local t  = love.timer.getTime()
+
+    local baseR = player.width / 2 + 18
+    local pulse = 1 + math.sin(t * 2.2) * 0.06   -- gentle breathe
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    -- Two counterrotating ellipses
+    for i = 0, 1 do
+        local angle = t * 0.5 * (i == 0 and 1 or -1)
+        love.graphics.push()
+        love.graphics.rotate(angle)
+        love.graphics.setColor(c[1], c[2], c[3], 0.75)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.ellipse("line", 0, 0, baseR * pulse, baseR * 0.45 * pulse)
+        love.graphics.pop()
+    end
+
+    -- Cardinal tick marks pointing inward (optical measurement feel)
+    love.graphics.setColor(c[1], c[2], c[3], 0.9)
+    love.graphics.setLineWidth(1.5)
+    for i = 0, 3 do
+        local a    = (i / 4) * math.pi * 2
+        local near = baseR - 6
+        local far  = baseR + 6
+        love.graphics.line(
+            math.cos(a) * near, math.sin(a) * near,
+            math.cos(a) * far,  math.sin(a) * far)
+    end
+
+    -- Bright focal centre dot
+    love.graphics.setColor(1, 1, 1, 0.9)
+    love.graphics.circle("fill", 0, 0, 2.5)
+
+    love.graphics.pop()
+end
+
 return LensArtifact

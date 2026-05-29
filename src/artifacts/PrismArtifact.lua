@@ -385,4 +385,62 @@ function PrismArtifact.update(projectiles, enemies, dt, dominantColor, player)
     end
 end
 
+-- Color tints for each dominant color
+local PRISM_COLORS = {
+    RED     = {1,    0.2,  0.2 },
+    GREEN   = {0.2,  1,    0.3 },
+    BLUE    = {0.3,  0.5,  1   },
+    YELLOW  = {1,    1,    0.2 },
+    MAGENTA = {1,    0.2,  1   },
+    CYAN    = {0.2,  1,    1   },
+}
+
+-- Draw: four rotating rays that splay into a split at each tip
+function PrismArtifact.draw(player, dominantColor)
+    if not dominantColor or not player then return end
+
+    local c = PRISM_COLORS[dominantColor] or {1, 1, 1}
+    local cx = player.x + player.width  / 2
+    local cy = player.y + player.height / 2
+    local t  = love.timer.getTime()
+
+    local innerR   = player.width / 2 + 4
+    local outerR   = innerR + 28
+    local splitLen = 10
+    local splitAng = 0.28
+
+    love.graphics.push()
+    love.graphics.translate(cx, cy)
+
+    for i = 1, 4 do
+        local angle = (i / 4) * math.pi * 2 + t * 0.6
+
+        local x1 = math.cos(angle) * innerR
+        local y1 = math.sin(angle) * innerR
+        local x2 = math.cos(angle) * outerR
+        local y2 = math.sin(angle) * outerR
+
+        -- Main ray
+        love.graphics.setColor(c[1], c[2], c[3], 0.9)
+        love.graphics.setLineWidth(2)
+        love.graphics.line(x1, y1, x2, y2)
+
+        -- Split arms at tip
+        love.graphics.setColor(c[1], c[2], c[3], 0.5)
+        love.graphics.setLineWidth(1)
+        love.graphics.line(x2, y2,
+            x2 + math.cos(angle + splitAng) * splitLen,
+            y2 + math.sin(angle + splitAng) * splitLen)
+        love.graphics.line(x2, y2,
+            x2 + math.cos(angle - splitAng) * splitLen,
+            y2 + math.sin(angle - splitAng) * splitLen)
+
+        -- Bright tip dot
+        love.graphics.setColor(1, 1, 1, 0.9)
+        love.graphics.circle("fill", x2, y2, 2)
+    end
+
+    love.graphics.pop()
+end
+
 return PrismArtifact

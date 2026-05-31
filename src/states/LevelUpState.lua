@@ -5,6 +5,16 @@ local LevelUpState = {}
 local Config = require("src.Config")
 local ColorSystem = require("src.gameplay.ColorSystem")
 local ArtifactManager = require("src.gameplay.ArtifactManager")
+local TutorialSystem = require("src.gameplay.TutorialSystem")
+
+-- Valid color choices, narrowed to the tutorial's forced phase when active.
+local function getChoices(playerLevel)
+    return TutorialSystem.filterChoices(ColorSystem.getValidChoices(playerLevel))
+end
+
+-- Clickable card bounds + hovered card code, refreshed every draw.
+local cardRects = {}
+local hoveredCard = nil
 
 local CARD_START_Y = 200  -- y offset for the level-up overlay header
 local CARD_OFFSET_Y = 250 -- cards sit this many pixels below CARD_START_Y
@@ -67,36 +77,35 @@ local CARD_DEFS = {
     },
 }
 
+-- Map number keys (1..n) to the currently-valid choices. Keys are assigned in a
+-- stable color-identity order (committed primaries first, then their secondary,
+-- then the rest) but only to choices that are actually selectable, so the key
+-- shown on a card always selects that card — including during tutorial phases
+-- where only a subset is offered.
 local function buildKeyMap(validChoices)
-    local function isValid(color)
-        for _, c in ipairs(validChoices) do
-            if c == color then return true end
+    local valid = {}
+    for _, c in ipairs(validChoices) do valid[c] = true end
+
+    local order = {}
+    local seen = {}
+    local function add(code)
+        if code and valid[code] and not seen[code] then
+            order[#order + 1] = code
+            seen[code] = true
         end
-        return false
     end
 
-    local keyMap = {}
     if ColorSystem.commitment.primary1 then
-        if ColorSystem.commitment.primary2 then
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            keyMap[2] = ColorSystem.commitment.primary2:lower():sub(1,1)
-            local secondaryCode = ColorSystem.getCommittedSecondaryCode()
-            if secondaryCode then keyMap[3] = secondaryCode end
-        else
-            keyMap[1] = ColorSystem.commitment.primary1:lower():sub(1,1)
-            local slot = 2
-            for _, choice in ipairs({"r", "g", "b"}) do
-                if choice ~= keyMap[1] and isValid(choice) then
-                    keyMap[slot] = choice
-                    slot = slot + 1
-                end
-            end
-        end
-    else
-        keyMap[1] = "r"
-        keyMap[2] = "g"
-        keyMap[3] = "b"
+        add(ColorSystem.commitment.primary1:lower():sub(1, 1))
     end
+    if ColorSystem.commitment.primary2 then
+        add(ColorSystem.commitment.primary2:lower():sub(1, 1))
+        add(ColorSystem.getCommittedSecondaryCode())
+    end
+    for _, c in ipairs({"r", "g", "b", "y", "m", "c"}) do add(c) end
+
+    local keyMap = {}
+    for i, code in ipairs(order) do keyMap[i] = code end
     return keyMap
 end
 
@@ -157,7 +166,48 @@ function LevelUpState:draw()
     if self.previousState and self.previousState.draw then
         self.previousState:draw()
     end
-    self:drawColorSelect()
+    local popup = TutorialSystem.peekPopup()
+    if popup then
+        self:drawTutorialPopup(popup)
+    else
+        self:drawColorSelect()
+    end
+end
+
+function LevelUpState:drawTutorialPopup(def)
+    local screenWidth = Config.screen.width
+    local screenHeight = Config.screen.height
+
+    love.graphics.setColor(0, 0, 0, 0.88)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+
+    local panelW = 1000
+    local panelH = 360
+    local panelX = (screenWidth - panelW) / 2
+    local panelY = (screenHeight - panelH) / 2
+
+    love.graphics.setColor(0.02, 0.02, 0.03, 0.95)
+    love.graphics.rectangle("fill", panelX, panelY, panelW, panelH, 14, 14)
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(0, 0.85, 1, 0.5)
+    love.graphics.rectangle("line", panelX, panelY, panelW, panelH, 14, 14)
+
+    -- Title
+    love.graphics.setColor(1, 1, 0.85)
+    love.graphics.print(def.title, panelX + 50, panelY + 45, 0, 2.2, 2.2)
+
+    love.graphics.setColor(0, 0.85, 1, 0.3)
+    love.graphics.line(panelX + 50, panelY + 105, panelX + panelW - 50, panelY + 105)
+
+    -- Body
+    love.graphics.setColor(0.85, 0.9, 0.95, 1)
+    for i, line in ipairs(def.lines) do
+        love.graphics.print(line, panelX + 50, panelY + 130 + (i - 1) * 38, 0, 1.4, 1.4)
+    end
+
+    -- Footer
+    love.graphics.setColor(0.5, 0.55, 0.65, 0.9)
+    love.graphics.print("[Press SPACE / ENTER to continue]", panelX + 50, panelY + panelH - 50, 0, 1.2, 1.2)
 end
 
 function LevelUpState:drawColorSelect()
@@ -199,7 +249,8 @@ function LevelUpState:drawColorSelect()
         end
     end
 
-    local validChoices = ColorSystem.getValidChoices(self.player.level)
+    local validChoices = getChoices(self.player.level)
+    local recommendedCode = TutorialSystem.getRecommendedCode()
 
     local function isValid(color)
         for _, c in ipairs(validChoices) do
@@ -210,7 +261,9 @@ function LevelUpState:drawColorSelect()
 
     love.graphics.setColor(1, 1, 1)
     local instructionText
-    if #ColorSystem.colorHistory == 0 then
+    if recommendedCode then
+        instructionText = "Green light reflects — choose your second wavelength:"
+    elseif #ColorSystem.colorHistory == 0 then
         instructionText = "Choose your weapon type:"
     elseif self.player.level == 10 and #validChoices > 1 then
         instructionText = "Upgrade your path OR choose a new color to branch:"
@@ -248,6 +301,7 @@ function LevelUpState:drawColorSelect()
         return nil
     end
 
+    cardRects = {}
     local cardIndex = 0
     for _, def in ipairs(CARD_DEFS) do
         if isValid(def.code) then
@@ -255,20 +309,38 @@ function LevelUpState:drawColorSelect()
             local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
             local isIntensity = def.isIntensityFn(ColorSystem)
             drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory)
+
+            cardRects[#cardRects + 1] = {x = cardX - cardWidth/2, y = cardY, w = cardWidth, h = cardHeight, code = def.code}
+
+            -- Brighten the border of the hovered card for click affordance.
+            if hoveredCard == def.code then
+                love.graphics.setLineWidth(3)
+                love.graphics.setColor(1, 1, 1, 0.9)
+                love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
+                love.graphics.setLineWidth(1)
+            end
+
+            if recommendedCode and def.code == recommendedCode then
+                love.graphics.setColor(1, 1, 0.4)
+                love.graphics.print("RECOMMENDED", cardX - cardWidth/2 + 10, cardY - 28, 0, 1.1, 1.1)
+            end
             cardIndex = cardIndex + 1
         end
     end
 end
 
 function LevelUpState:selectColor(colorCode)
-    local validChoices = ColorSystem.getValidChoices(self.player.level)
+    local validChoices = getChoices(self.player.level)
     for _, valid in ipairs(validChoices) do
         if valid == colorCode then
             self.player:levelUp()
             ColorSystem.addColor(self.player.weapon, colorCode)
             ColorSystem.applyEffects(self.player.weapon)
+            TutorialSystem.onColorAdded(colorCode)
 
-            if not self.player:canLevelUp() then
+            -- Stay open if a tutorial popup was just queued (it must be shown even
+            -- when the player has no further level-ups banked).
+            if not self.player:canLevelUp() and not TutorialSystem.hasPopup() then
                 local StateManager = require("src.core.StateManager")
                 StateManager.pop()
             end
@@ -278,9 +350,17 @@ function LevelUpState:selectColor(colorCode)
 end
 
 function LevelUpState:keypressed(key)
+    -- A pending tutorial popup eats input until dismissed.
+    if TutorialSystem.hasPopup() then
+        if key == "space" or key == "return" or key == "escape" then
+            self:dismissTutorialPopup()
+        end
+        return
+    end
+
     if key == "escape" then return end
 
-    local validChoices = ColorSystem.getValidChoices(self.player.level)
+    local validChoices = getChoices(self.player.level)
     local keyMap = buildKeyMap(validChoices)
 
     if key == "1" and keyMap[1] then
@@ -292,35 +372,45 @@ function LevelUpState:keypressed(key)
     end
 end
 
+-- Dismiss the current tutorial popup; when the queue empties and the player has
+-- no level-up left to spend, return to gameplay.
+function LevelUpState:dismissTutorialPopup()
+    TutorialSystem.dismissPopup()
+    if not TutorialSystem.hasPopup() and not self.player:canLevelUp() then
+        require("src.core.StateManager").pop()
+    end
+end
+
+-- Code of the card under a point, or nil. Uses the bounds recorded during draw.
+local function cardAt(x, y)
+    for _, rect in ipairs(cardRects) do
+        if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then
+            return rect.code
+        end
+    end
+    return nil
+end
+
 function LevelUpState:mousepressed(x, y, button)
     if button ~= 1 then return end
 
-    local validChoices = ColorSystem.getValidChoices(self.player.level)
-    local function isValid(color)
-        for _, c in ipairs(validChoices) do
-            if c == color then return true end
-        end
-        return false
+    if TutorialSystem.hasPopup() then
+        self:dismissTutorialPopup()
+        return
     end
 
-    local centerX = Config.screen.width / 2
-    local cardY   = CARD_START_Y + CARD_OFFSET_Y
-    local cardWidth   = 220
-    local cardHeight  = 180
-    local cardSpacing = 250
-
-    local cardIndex = 0
-    for _, def in ipairs(CARD_DEFS) do
-        if isValid(def.code) then
-            local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
-            if x >= cardX - cardWidth/2 and x <= cardX + cardWidth/2
-            and y >= cardY and y <= cardY + cardHeight then
-                self:selectColor(def.code)
-                return
-            end
-            cardIndex = cardIndex + 1
-        end
+    local code = cardAt(x, y)
+    if code then
+        self:selectColor(code)
     end
+end
+
+function LevelUpState:mousemoved(x, y)
+    if TutorialSystem.hasPopup() then
+        hoveredCard = nil
+        return
+    end
+    hoveredCard = cardAt(x, y)
 end
 
 return LevelUpState

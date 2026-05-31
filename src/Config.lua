@@ -35,18 +35,11 @@ local Config = {
         xpOrbMagnetRange = 150,
         maxEnemiesOnScreen = 500,
         difficultyScaling = 0.75, -- Enemy health multiplier per level
-        cellSize = 128 -- Spatial hash cell size
-    },
-
-    -- Lightning bolt ability
-    lightning = {
-        cooldown = 3.0,
-        duration = 0.22,
-        damageMultiplier = 3.0,
-        chainCount = 3,
-        chainRange = 150,
-        maxDisplacement = 96,
-        segments = 15,
+        cellSize = 128, -- Spatial hash cell size
+        -- Guided color-theory tutorial arc. Defaults on for first-run players;
+        -- auto-disables itself after a completed run (one-off), and is togglable
+        -- in Options > GAMEPLAY. Persisted to disk via src/core/Settings.lua.
+        tutorialEnabled = true
     },
 
     -- Bullet pattern settings

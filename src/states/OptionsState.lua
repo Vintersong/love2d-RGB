@@ -7,6 +7,7 @@ local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local StateManager = require("src.core.StateManager")
 local SFXLibrary = require("src.audio.SFXLibrary")
+local Settings = require("src.core.Settings")
 
 -- Transition states
 local alpha = 0
@@ -27,6 +28,10 @@ local tabs = {
 local activeTab = 1
 local focusOnRight = false
 
+-- Clickable bounds, refreshed every draw. Left category tabs and right setting rows.
+local tabRects = {}
+local settingRects = {}
+
 -- Right-hand settings lists
 local audioSettings = {
     {label = "MUTE ALL", type = "toggle", key = "muteAudio", get = function() return Config.debug.muteAudio end, set = function(val) Config.debug.muteAudio = val end},
@@ -39,7 +44,9 @@ local videoSettings = {
     {label = "BLOOM EFFECT", type = "toggle", key = "bloomEnabled", get = function() return Config.postFX.bloomEnabled end, set = function(val) Config.postFX.bloomEnabled = val end}
 }
 
-local gameplaySettings = {}
+local gameplaySettings = {
+    {label = "TUTORIAL", type = "toggle", key = "tutorialEnabled", get = function() return Config.gameplay.tutorialEnabled end, set = function(val) Config.gameplay.tutorialEnabled = val end}
+}
 
 local generalSettings = {}
 
@@ -207,6 +214,10 @@ function OptionsState:draw()
     -- Clear to deep space black
     love.graphics.clear(0.015, 0.012, 0.02, 1)
 
+    -- Reset clickable bounds; the draw passes below repopulate them.
+    tabRects = {}
+    settingRects = {}
+
     -- Draw background shader
     local musicReactor = GameConfig.getMusicReactor()
     local intensity = musicReactor and musicReactor:getOverallIntensity() or 0
@@ -320,6 +331,8 @@ function OptionsState:draw()
         local slideOffset = ease * 8
         local lx = btnX + slideOffset
         local rx = btnX + btnW - slideOffset
+
+        tabRects[i] = {x = btnX, y = currentY, w = btnW, h = bracketHeight}
         
         -- Tab background
         love.graphics.setColor(0, 0, 0, alpha * 0.5)
@@ -392,7 +405,13 @@ function OptionsState:draw()
         for i, item in ipairs(currentList) do
             local itemY = rightStartY + (i - 1) * itemHeight
             local isSelected = (focusOnRight and i == activeRightSelection)
-            
+
+            settingRects[i] = {
+                x = rightX + 30, y = itemY - 10, w = rightW - 60, h = 44,
+                index = i, item = item, type = item.type,
+                valX = rightX + 360, sliderW = 200,
+            }
+
             -- Selection row highlight
             if isSelected then
                 love.graphics.setColor(0, 0.85, 1, alpha * 0.08)
@@ -534,12 +553,11 @@ function OptionsState:draw()
         love.graphics.setColor(0.5, 0.5, 0.6, alpha * 0.6)
         love.graphics.print("Keyboard & Mouse controls are active automatically", rightX + 60, rightY + rightH - 50)
 
-    elseif action == "gameplay" or action == "general" then
+    elseif action == "general" then
         -- Placeholder panel
         love.graphics.setFont(smallFont)
         love.graphics.setColor(0.4, 0.45, 0.55, alpha * 0.7)
-        local label = (action == "gameplay") and "GAMEPLAY SETTINGS" or "GENERAL SETTINGS"
-        love.graphics.print(label .. " — COMING SOON", rightX + 60, rightY + 130)
+        love.graphics.print("GENERAL SETTINGS — COMING SOON", rightX + 60, rightY + 130)
 
         love.graphics.setColor(0.5, 0.5, 0.6, alpha * 0.4)
         love.graphics.print("This section will be available in a future update.", rightX + 60, rightY + 165)
@@ -627,9 +645,75 @@ function OptionsState:keypressed(key)
     end
 end
 
+local function pointIn(rect, x, y)
+    return x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h
+end
+
 function OptionsState:mousepressed(x, y, button)
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
+    end
+    if phase ~= "active" or button ~= 1 then return end
+
+    -- Left category tabs
+    for i, rect in ipairs(tabRects) do
+        if pointIn(rect, x, y) then
+            activeTab = i
+            focusOnRight = false
+            SFXLibrary.play("menuMove")
+            if tabs[i].action == "back" then
+                self:goBack()
+            end
+            return
+        end
+    end
+
+    -- Right setting rows
+    for _, rect in ipairs(settingRects) do
+        if pointIn(rect, x, y) then
+            focusOnRight = true
+            activeRightSelection = rect.index
+            local item = rect.item
+            if item.type == "toggle" then
+                local newVal = not item.get()
+                item.set(newVal)
+                self:applySetting(item.key, newVal)
+                SFXLibrary.play("menuMove")
+            elseif item.type == "slider" then
+                -- Only adjust when clicking on/after the track start; clicking the
+                -- label area just focuses the row (so it can't zero the value).
+                if x >= rect.valX then
+                    local t = math.max(0, math.min(1, (x - rect.valX) / rect.sliderW))
+                    local newVal = math.floor(t * 20 + 0.5) / 20 -- snap to 5% steps
+                    item.set(newVal)
+                    self:applySetting(item.key, newVal)
+                end
+                SFXLibrary.play("menuMove")
+            end
+            return
+        end
+    end
+end
+
+function OptionsState:mousemoved(x, y)
+    if phase ~= "active" then return end
+
+    if not focusOnRight then
+        for i, rect in ipairs(tabRects) do
+            if pointIn(rect, x, y) and activeTab ~= i then
+                activeTab = i
+                SFXLibrary.play("menuMove")
+                return
+            end
+        end
+    else
+        for _, rect in ipairs(settingRects) do
+            if pointIn(rect, x, y) and activeRightSelection ~= rect.index then
+                activeRightSelection = rect.index
+                SFXLibrary.play("menuMove")
+                return
+            end
+        end
     end
 end
 
@@ -674,6 +758,10 @@ function OptionsState:applySetting(key, val)
         Config.postFX.bloomEnabled = val
         local BackgroundShader = require("src.render.BackgroundShader")
         BackgroundShader.toggleEffect("glow", val)
+
+    elseif key == "tutorialEnabled" then
+        Config.gameplay.tutorialEnabled = val
+        Settings.save() -- persist so the choice survives between sessions
     end
 end
 

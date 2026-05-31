@@ -324,13 +324,14 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
     VFXLibrary.spawnArtifactEffect("PRISM", parentProj.x, parentProj.y)
 
     -- Create split projectiles in a spread pattern
-    local splitCount = parentProj.splitCount or 2
-    local angleStep = (math.pi / 6) / (splitCount - 1)  -- ±15° spread
+    -- Clamp to >= 2 so the (splitCount - 1) divisor below can never be zero
+    -- (a splitCount of 1 would otherwise produce NaN velocities -> stuck projectiles).
+    local splitCount = math.max(2, parentProj.splitCount or 2)
     local baseAngle = MathUtils.atan2(parentProj.vy, parentProj.vx)
 
     for i = 1, splitCount do
         local offset = (i - 1) / (splitCount - 1) - 0.5  -- -0.5 to 0.5
-        local angle = baseAngle + offset * (math.pi / 6)  -- ±15°
+        local angle = baseAngle + offset * (math.pi / 6)  -- ±15° spread
 
         local speed = math.sqrt(parentProj.vx * parentProj.vx + parentProj.vy * parentProj.vy)
 

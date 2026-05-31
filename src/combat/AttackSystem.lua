@@ -48,10 +48,15 @@ end
 function AttackSystem.applyEffects(projectile, target)
     -- Root effect (YELLOW) - slow/stop enemy
     if projectile.canRoot then
+        -- Only capture originalSpeed / apply the slow on the FIRST root; re-rooting an
+        -- already-slowed enemy would otherwise save the slowed value as "original" and
+        -- compound the slow, restoring a permanently reduced speed on expiry.
+        if not target.rooted then
+            target.originalSpeed = target.speed
+            target.speed = target.speed * 0.3  -- 70% slow
+        end
         target.rooted = true
-        target.rootDuration = projectile.rootDuration or 2.0
-        target.originalSpeed = target.speed
-        target.speed = target.speed * 0.3  -- 70% slow
+        target.rootDuration = projectile.rootDuration or 2.0  -- refresh duration
     end
     
     -- Explode effect (MAGENTA) - AoE damage

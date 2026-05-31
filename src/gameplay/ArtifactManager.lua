@@ -206,11 +206,14 @@ ArtifactManager.levelDefinitions = {
         maxLevel = 5,
         artifactModule = SupernovaArtifact,
         levelEffects = {
-            [1] = {desc = "Unlock Supernova ultimate", effect = function(weapon, player) 
+            [1] = {desc = "Unlock Supernova ultimate", effect = function(weapon, player)
                 player.supernovaLevel = 1
                 player.hasSupernova = true
-                if player and player.setActiveAbility and AbilityLibrary.LIGHTNING_BOLT then
-                    player:setActiveAbility("LIGHTNING_BOLT", AbilityLibrary.LIGHTNING_BOLT.cooldown)
+                -- Bind L-Shift to the Supernova ultimate (previously mis-wired to LIGHTNING_BOLT).
+                if player and player.setActiveAbility then
+                    local ColorSystem = require("src.gameplay.ColorSystem")
+                    local color = ColorSystem.getDominantColor() or "RED"
+                    player:setActiveAbility("SUPERNOVA", ArtifactManager.getSupernovaCooldown(color, player))
                 end
             end},
             [2] = {desc = "-20% Supernova cooldown", effect = function(weapon, player) 

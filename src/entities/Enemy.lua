@@ -467,16 +467,6 @@ function Enemy:takeDamage(amount)
     return 0
 end
 
-function Enemy:checkCollision(projectile)
-    if self.dead then return false end
-    
-    -- Simple AABB collision
-    return projectile.x > self.x and
-           projectile.x < self.x + self.width and
-           projectile.y > self.y and
-           projectile.y < self.y + self.height
-end
-
 -- Reset enemy for object pooling (re-init without allocating a new table)
 function Enemy:reset(x, y, enemyType, playerLevel, formationData)
     self:init(x, y, enemyType, playerLevel, formationData)

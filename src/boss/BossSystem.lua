@@ -36,12 +36,6 @@ function BossSystem.reset()
     BossSystem.activeBoss = nil
 end
 
-function BossSystem.checkSpawn(waveNumber)
-    -- Legacy compatibility shim: boss spawning is owned by SpawnController.
-    -- Keep the function to avoid breaking stale callers.
-    return nil
-end
-
 function BossSystem.spawnBoss()
     local boss = setmetatable({}, BossSystem)
     

@@ -324,10 +324,6 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
     return projectiles
 end
 
-function Weapon:getColorString()
-    return string.format("R:%d G:%d B:%d", self.colors.r, self.colors.g, self.colors.b)
-end
-
 function Weapon:calculateProjectileColor()
     -- Get color from ColorSystem (tracks primary color choice)
     local ColorSystem = require("src.gameplay.ColorSystem")

@@ -200,7 +200,7 @@ AbilityLibrary.DASH = {
             piercedCount = piercedCount + 1
         end
 
-        if piercedCount > 0 and (state.color == "BLUE" or state.color == "PURPLE" or state.color == "CYAN") then
+        if piercedCount > 0 and (state.color == "BLUE" or state.color == "MAGENTA" or state.color == "CYAN") then
             print(string.format("[Dash] %s: Pierced %d enemies", state.color, piercedCount))
         end
     end,
@@ -226,7 +226,7 @@ AbilityLibrary.DASH = {
 
                     -- Apply color-based pierce effects
                     if state.color == "BLUE" or state.color == "YELLOW" or
-                       state.color == "PURPLE" or state.color == "CYAN" then
+                       state.color == "MAGENTA" or state.color == "CYAN" then
 
                         local damage = 20  -- Base dash damage
                         enemy.hp = enemy.hp - damage
@@ -248,10 +248,10 @@ AbilityLibrary.DASH = {
                             10
                         )
 
-                        -- PURPLE: Apply DoT
-                        if state.color == "PURPLE" then
-                            enemy.dotDamage = (enemy.dotDamage or 0) + 5
-                            enemy.dotDuration = 3.0
+                        -- MAGENTA: arcane burn — damage over time via the real DoT system
+                        if state.color == "MAGENTA" then
+                            enemy.dotStacks = enemy.dotStacks or {}
+                            table.insert(enemy.dotStacks, {duration = 3.0, damage = 5, tickRate = 0.5})
                         end
 
                         -- CYAN: Life steal
@@ -357,63 +357,6 @@ AbilityLibrary.SHIELD = {
         local ShieldEffect = require("src.effects.ShieldEffect")
         ShieldEffect.despawn()
         print("[Shield] Shield ended")
-    end
-}
-
--- ============================================================================
--- LIGHTNING BOLT ABILITY
--- ============================================================================
-
-AbilityLibrary.LIGHTNING_BOLT = {
-    name = "Lightning Bolt",
-    cooldown = 3.0,
-
-    onActivate = function(entity, state, context)
-        local LightningEffect = require("src.effects.LightningEffect")
-        local HealthSystem = require("src.combat.HealthSystem")
-
-        local centerX = entity.x + entity.width / 2
-        local centerY = entity.y + entity.height / 2
-        local mx, my = love.mouse.getPosition()
-
-        -- Calculate damage (3x weapon damage)
-        local baseDamage = 10
-        if entity.weapon then
-            baseDamage = entity.weapon:getEffectiveDamage()
-        end
-        local damage = baseDamage * 3
-
-        -- Fire chain lightning toward mouse, damaging enemies along the way
-        local enemies = context and context.enemies or {}
-        local hits = LightningEffect.fireChain(
-            centerX, centerY, mx, my, damage, enemies
-        )
-
-        -- Apply damage to hit enemies
-        for _, hit in ipairs(hits) do
-            if hit.enemy and not hit.enemy.dead then
-                HealthSystem.takeDamage(hit.enemy, hit.damage)
-                local FloatingTextSystem = getFloatingTextSystem()
-                FloatingTextSystem.add(
-                    tostring(math.floor(hit.damage)),
-                    hit.enemy.x + (hit.enemy.width or 0) / 2,
-                    hit.enemy.y,
-                    "LIGHTNING"
-                )
-            end
-        end
-
-        state.timer = 0
-        state.duration = LightningEffect.DURATION
-        print("[Lightning] Bolt fired! Hit " .. #hits .. " enemies")
-    end,
-
-    onUpdate = function(entity, state, dt, context)
-        state.timer = state.timer + dt
-        return state.timer < state.duration
-    end,
-
-    onDeactivate = function(entity, state, context)
     end
 }
 

@@ -6,7 +6,6 @@ function PlayingRenderLayers.draw(state, deps)
     local UISystem = deps.UISystem
     local FloatingTextSystem = deps.FloatingTextSystem
     local ShieldEffect = deps.ShieldEffect
-    local LightningEffect = deps.LightningEffect
     local BossCoordinator = deps.BossCoordinator
 
     BackgroundShader.draw()
@@ -68,7 +67,6 @@ function PlayingRenderLayers.draw(state, deps)
     end
 
     ShieldEffect.draw()
-    LightningEffect.draw()
     VFXLibrary.drawImpactBursts()
     state.player:drawTargetingOverlay()
     UISystem.drawPlayerHUD(state.player)

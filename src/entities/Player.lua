@@ -53,25 +53,21 @@ function Player:init(x, y, weapon)
     self.blockedHitVfxTimer = 0
 
     -- Register player abilities with AbilitySystem
-    AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD", "LIGHTNING_BOLT"})
+    AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD"})
 
     -- Active artifact ability system (for future active artifacts)
     self.abilityState = {
         activeAbility = nil,  -- Current active artifact ability
         cooldown = 0,  -- Current cooldown timer
-        maxCooldown = 0,  -- Max cooldown for UI display
-        lastEnemies = {}  -- Cache for lightning bolt ability
+        maxCooldown = 0  -- Max cooldown for UI display
     }
     self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
     self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
     self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
-    self._lastEnemies = self.abilityState.lastEnemies  -- Compatibility shim
 end
 
 function Player:update(dt, enemies)
     enemies = enemies or {}  -- Default to empty table if not provided
-    self.abilityState.lastEnemies = enemies  -- Cache for lightning bolt ability
-    self._lastEnemies = self.abilityState.lastEnemies  -- Compatibility shim
 
     -- Update invulnerability timer
     if self.invulnerable then
@@ -236,7 +232,6 @@ function Player:destroy()
     end
 
     self.nearestEnemy = nil
-    self._lastEnemies = nil
     self.projectiles = {}
     self.activeAbility = nil
     self.abilityCooldown = 0
@@ -396,9 +391,6 @@ function Player:useActiveAbility(enemies)
     if not abilityDef then return false end
 
     local context = {}
-    if activeAbility == "LIGHTNING_BOLT" then
-        context = {enemies = self.abilityState.lastEnemies or self._lastEnemies or {}}
-    end
 
     local success = AbilitySystem.activate(self, activeAbility, abilityDef, context)
     if success then
@@ -406,13 +398,6 @@ function Player:useActiveAbility(enemies)
         self.abilityCooldown = self.abilityState.cooldown
     end
 
-    return success
-end
-
--- Use lightning bolt (L-Shift key)
-function Player:useLightningBolt()
-    local enemies = self.abilityState.lastEnemies or {}
-    local success = AbilitySystem.activate(self, "LIGHTNING_BOLT", AbilityLibrary.LIGHTNING_BOLT, {enemies = enemies})
     return success
 end
 

@@ -8,7 +8,6 @@ function PlayingUpdateLoop.update(state, dt, deps)
     local World = deps.World
     local FloatingTextSystem = deps.FloatingTextSystem
     local VFXLibrary = deps.VFXLibrary
-    local LightningEffect = deps.LightningEffect
     local ShieldEffect = deps.ShieldEffect
     local AttackSystem = deps.AttackSystem
     local ProjectileCollisionSystem = deps.ProjectileCollisionSystem
@@ -37,7 +36,6 @@ function PlayingUpdateLoop.update(state, dt, deps)
     state.player:checkDashCollisions(state.enemies)
     state.player:autoFire(state.enemies, BossCoordinator.getActiveBoss())
 
-    LightningEffect.update(dt)
     ShieldEffect.update(dt)
     SpawnController.update(dt, state.player.level, state.musicReactor, state.enemies)
 
@@ -73,20 +71,10 @@ function PlayingUpdateLoop.update(state, dt, deps)
         return
     end
 
-    local activeBossBefore = BossCoordinator.getActiveBoss()
+    -- Bosses recur every 100 kills (SpawnController); defeating one returns to
+    -- normal play instead of ending the run. BossCoordinator clears the boss and
+    -- runs its exit animation on death.
     BossCoordinator.update(dt, state.player, state.player.projectiles, state.bossProjectiles, state.musicReactor, state.enemies)
-    if activeBossBefore and not activeBossBefore.alive and not BossCoordinator.getActiveBoss() then
-        local StateManager = require("src.core.StateManager")
-        StateManager.switch("Victory", {
-            player = state.player,
-            enemies = state.enemies,
-            xpOrbs = state.xpOrbs,
-            musicReactor = state.musicReactor,
-            gameTime = state.gameTime,
-            enemyKillCount = SpawnController.enemyKillCount,
-        })
-        return
-    end
 end
 
 return PlayingUpdateLoop

@@ -19,6 +19,9 @@ local pendingAction = nil -- "startGame" | "continue"
 local menuOptions = {}
 local selectedMenuOption = 1
 
+-- Clickable bounds for each menu option, refreshed every draw {x, y, w, h}.
+local optionRects = {}
+
 -- Animation transition trackers for each menu option
 local animProgress = {}
 
@@ -310,11 +313,15 @@ function MenuState:draw()
     -- 5. Draw Segmented Bracket Menu Options Stack
     -- Centered to the logo but 10% left, and 10% bottom margin starting with the last item at the bottom limit
     local currentY = stackStartY
-    
+    optionRects = {}
+
     for i, option in ipairs(menuOptions) do
         local progress = animProgress[i] or 0
         local ease = 1 - math.pow(2, -10 * progress)
-        
+
+        -- Record the full clickable bounds (brackets animate inward, hit area does not)
+        optionRects[i] = {x = btnX, y = currentY, w = btnW, h = bracketHeight}
+
         -- Segmented Brackets Style (Minimalist Tech)
         local slideOffset = ease * 8
         local lx = btnX + slideOffset
@@ -409,18 +416,7 @@ function MenuState:keypressed(key)
         if selectedMenuOption > #menuOptions then selectedMenuOption = 1 end
         SFXLibrary.play("menuMove")
     elseif key == "return" or key == "space" then
-        local action = menuOptions[selectedMenuOption].action
-        if action == "continue" then
-            self:continueGame()
-        elseif action == "startGame" then
-            self:startGame()
-        elseif action == "settings" then
-            local StateManager = require("src.core.StateManager")
-            love.graphics.setFont(defaultFont)
-            StateManager.switch("Options")
-        elseif action == "quit" then
-            Runtime.quitOrReturnToTitle()
-        end
+        self:activateOption(menuOptions[selectedMenuOption].action)
         return
     elseif key == "escape" then
         Runtime.quitOrReturnToTitle()
@@ -428,9 +424,50 @@ function MenuState:keypressed(key)
     end
 end
 
+function MenuState:activateOption(action)
+    if action == "continue" then
+        self:continueGame()
+    elseif action == "startGame" then
+        self:startGame()
+    elseif action == "settings" then
+        local StateManager = require("src.core.StateManager")
+        love.graphics.setFont(defaultFont)
+        StateManager.switch("Options")
+    elseif action == "quit" then
+        Runtime.quitOrReturnToTitle()
+    end
+end
+
+-- Index of the menu option under a point, or nil.
+local function optionAt(x, y)
+    for i, rect in ipairs(optionRects) do
+        if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then
+            return i
+        end
+    end
+    return nil
+end
+
 function MenuState:mousepressed(x, y, button)
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
+    end
+    if phase ~= "active" or button ~= 1 then return end
+
+    local i = optionAt(x, y)
+    if i then
+        selectedMenuOption = i
+        SFXLibrary.play("menuMove")
+        self:activateOption(menuOptions[i].action)
+    end
+end
+
+function MenuState:mousemoved(x, y)
+    if phase ~= "active" then return end
+    local i = optionAt(x, y)
+    if i and i ~= selectedMenuOption then
+        selectedMenuOption = i
+        SFXLibrary.play("menuMove")
     end
 end
 

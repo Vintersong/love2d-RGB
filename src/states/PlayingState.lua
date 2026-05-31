@@ -13,7 +13,7 @@ local PlayingEnemyFlow = require("src.states.playing.PlayingEnemyFlow")
 local MusicReactor, ColorSystem, SpawnController, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
 local XPParticleSystem, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
-local LightningEffect, ShieldEffect, ProjectileCollisionSystem, PickupSystem, BossCoordinator
+local ShieldEffect, ProjectileCollisionSystem, PickupSystem, BossCoordinator
 
 PlayingState.player = nil
 PlayingState.enemies = {}
@@ -43,7 +43,6 @@ local function getDeps()
         GridAttackSystem = GridAttackSystem,
         BackgroundShader = BackgroundShader,
         SimpleGrid = SimpleGrid,
-        LightningEffect = LightningEffect,
         ShieldEffect = ShieldEffect,
         ProjectileCollisionSystem = ProjectileCollisionSystem,
         PickupSystem = PickupSystem,
@@ -73,6 +72,7 @@ function PlayingState.startNewRun()
     ArtifactManager.reset()
     CollisionSystemLocal.init(Config.gameplay.cellSize)
     VFXLibraryLocal.clear()
+    require("src.gameplay.TutorialSystem").beginRun()
 
     PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
     SpawnControllerLocal.init(PlayingState.screenWidth, PlayingState.screenHeight)
@@ -109,7 +109,6 @@ function PlayingState:enter(previous, data)
         GridAttackSystem = require("src.combat.GridAttackSystem")
         BackgroundShader = require("src.render.BackgroundShader")
         SimpleGrid = require("src.gameplay.SimpleGrid")
-        LightningEffect = require("src.effects.LightningEffect")
         ShieldEffect = require("src.effects.ShieldEffect")
         ProjectileCollisionSystem = require("src.combat.ProjectileCollisionSystem")
         PickupSystem = require("src.gameplay.PickupSystem")

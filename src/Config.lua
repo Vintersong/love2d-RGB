@@ -78,6 +78,75 @@ local Config = {
         volume = 0.3
     },
 
+    -- ------------------------------------------------------------------
+    -- Design system tokens (CHROMATIC Design System — colors_and_type.css).
+    -- The game draws immediate-mode and consumes RGB floats (0-1), so every
+    -- color below is a {r, g, b} triple that maps 1:1 into
+    -- love.graphics.setColor(...). Consumed via src/render/Theme.lua.
+    -- These are the refined neon UI *targets*; gameplay build logic still
+    -- lives in src/gameplay/ColorSystem.lua.
+    -- ------------------------------------------------------------------
+    theme = {
+        colors = {
+            -- THE SIX (additive RGB identity) — hues carry game meaning.
+            red     = {1.00, 0.18, 0.33}, -- aggression / split
+            green   = {0.22, 1.00, 0.08}, -- adaptation / bounce
+            blue    = {0.18, 0.48, 1.00}, -- control / pierce
+            yellow  = {1.00, 0.90, 0.00}, -- R+G velocity / electric
+            magenta = {1.00, 0.24, 0.94}, -- R+B arcane / detonate
+            cyan    = {0.12, 0.90, 0.90}, -- G+B frost / slow
+            white   = {1.00, 1.00, 1.00}, -- R+G+B transcendence (ultimate)
+
+            -- Dim "committed but not dominant" tints (level-up card fills).
+            redDeep     = {0.302, 0.000, 0.067},
+            greenDeep   = {0.039, 0.302, 0.000},
+            blueDeep    = {0.000, 0.122, 0.302},
+            yellowDeep  = {0.302, 0.271, 0.000},
+            magentaDeep = {0.302, 0.000, 0.278},
+            cyanDeep    = {0.000, 0.302, 0.302},
+
+            -- UI ACCENT — the interface signal color (#00D9FF). Drives
+            -- brackets, focus, panel edges, sliders. Distinct from brand cyan.
+            accent    = {0.000, 0.851, 1.000},
+            accentDim = {0.000, 0.451, 0.651}, -- defocused / pressed (#0073A6)
+
+            -- NEUTRAL SCAFFOLD — near-black cool-tinted space.
+            bgVoid   = {0.015, 0.012, 0.020}, -- deepest clear color (#040305)
+            bgBase   = {0.027, 0.039, 0.059}, -- primary background (#070A0F)
+            bgRaised = {0.051, 0.063, 0.094}, -- lifted surface (#0D1018)
+
+            -- TEXT.
+            fg1 = {0.918, 0.949, 1.000}, -- primary off-white (#EAF2FF)
+            fg2 = {0.718, 0.761, 0.839}, -- secondary body (#B7C2D6)
+            fg3 = {0.494, 0.541, 0.627}, -- muted labels / captions (#7E8AA0)
+
+            -- STATUS (HP / feedback ramp).
+            ok        = {0.20, 1.00, 0.20},
+            warn      = {1.00, 1.00, 0.20},
+            danger    = {1.00, 0.20, 0.20},
+            toggleOn  = {0.00, 1.00, 0.50}, -- LED enabled pip
+            toggleOff = {1.00, 0.10, 0.40}, -- LED disabled pip
+        },
+
+        -- Bundled OFL typefaces (see assets/fonts/OFL.txt). Loaded lazily and
+        -- cached per-size by src/render/Theme.lua. Missing files fall back to
+        -- LÖVE's default font, so the game still boots if an asset is absent.
+        fonts = {
+            display    = "assets/fonts/Michroma-Regular.ttf",     -- wide techno wordmark / hero
+            ui         = "assets/fonts/ChakraPetch-Regular.ttf",  -- UI body
+            uiMedium   = "assets/fonts/ChakraPetch-Medium.ttf",   -- subtitles / labels
+            uiSemiBold = "assets/fonts/ChakraPetch-SemiBold.ttf", -- titles
+            uiBold     = "assets/fonts/ChakraPetch-Bold.ttf",     -- recap headlines
+            mono       = "assets/fonts/ShareTechMono-Regular.ttf",-- numerics / keycaps
+        },
+
+        -- Type scale (px @ 1920x1080 reference).
+        typeScale = {
+            hero = 150, title = 75, display = 48, subtitle = 24,
+            body = 18, ui = 16, small = 14, micro = 12,
+        },
+    },
+
     -- Debug settings
     debug = {
         enabled = true,

@@ -83,6 +83,18 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 
 ---
 
+## Design system (visual language)
+
+The UI follows the **CHROMATIC Design System** (a handoff bundle authored in Claude Design and implemented into `src/`). Tokens are Config-driven and consumed at runtime:
+
+- **`Config.theme`** — single source of truth for UI **color + type tokens**: the six neon brand colors (`red/green/blue/yellow/magenta/cyan` as RGB-float triples) + deep tints, the cyan UI accent (`#00D9FF` → `{0, 0.85, 1}`), near-black scaffold (`bgVoid/bgBase/bgRaised`), text ramp (`fg1`–`fg3`), and status colors (`ok/warn/danger`, toggle pips). Don't hardcode UI colors — add/reference a token here. *(Gameplay build colors still come from `ColorSystem`; these are the UI-chrome targets.)*
+- **`src/render/Theme.lua`** — runtime consumer: `Theme.color.<name>`, `Theme.setColor(name, alpha)`, and `Theme.font(role, size)` (lazily loads + caches the bundled fonts; **falls back to LÖVE's default font** if a file is missing, so boot never hard-fails on a font).
+- **Typography** — three bundled **OFL** faces in **`assets/fonts/`** (license: `assets/fonts/OFL.txt`): **Michroma** (display / wordmark), **Chakra Petch** (UI + titles, 4 weights), **Share Tech Mono** (numerics / keycaps). Sizes in `Config.theme.typeScale` (hero 150 … micro 12). Wired into Splash / Menu / Options and `FloatingTextSystem`; the in-game HUD intentionally stays on the default font (its layout is print-scale-tuned).
+- **`src/render/Icons.lua`** — the bespoke **neon line-icon set** (optics/light glyphs, 24×24), ported from the design's `icons.js`. A small SVG-path-subset renderer draws them stroke-only and **recolors to the current `love.graphics` color**: `Icons.draw(name, x, y, size, opts)` / `Icons.has(name)`. Used on artifact rows and the dash/supernova HUD glyphs. Emoji (💎 ⚡ 💧) are kept for **status**; the line set is for **abilities/artifacts**.
+- **Components** — `Shared.drawGlassPanel()` (translucent dark glass + thin cyan edge); the menu's **segmented-bracket** selection (12px corner legs, cyan + 8px expo-out inward slide, 12% white when idle); the level-up **angular cyberpunk color cards** (notched corners, neon rim, additive glow orb, centered content).
+
+---
+
 ## Systems (quick reference)
 
 | System | Responsibility |
@@ -104,6 +116,8 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 | **`CollisionSystem`** | bump.lua hashing |
 | **`VFXLibrary` / XP particle helpers / `FloatingTextSystem`** | Juice & feedback |
 | **`UISystem`** + optional **`UISandboxState`** | HUD + layout lab |
+| **`Theme`** (+ `Config.theme`) | Design-system color/type tokens + lazy font loader (`Theme.font/color/setColor`) |
+| **`Icons`** | Bespoke neon line-icon set — SVG-path renderer that recolors to the current color |
 | **`DebugMenu`** | Config-gated overlay diagnostics |
 
 ---
@@ -116,7 +130,7 @@ Production boss = **`BossSystem.activeBoss`** (spawn banner + cone spread projec
 | `MenuState` | Animated main menu (shader backdrop, bracket selection UI, micro-animations); routes to Playing or `OptionsState` via SETTINGS |
 | `OptionsState` | Tabbed settings screen — **AUDIO** (master volume, mute), **VIDEO** (fullscreen, vsync), **CONTROLS** (key reference diagram); returns to `MenuState` |
 | `PlayingState` | Core loop orchestrator (`BackgroundShader` drawn here each frame); delegates update/render/input/enemy-flow to `PlayingUpdateLoop`, `PlayingRenderLayers`, `PlayingInputHandlers`, `PlayingEnemyFlow` |
-| `LevelUpState` | Frozen snapshot + color cards (**shader grid not redrawn underneath right now**) |
+| `LevelUpState` | Frozen snapshot + **angular cyberpunk color cards** (notched corners, neon rim, additive orb); **shader grid not redrawn underneath right now** |
 | `GameOverState` | Death recap path (`PlayingState` -> switch) |
 | `VictoryState` | Run completion path after the production BossSystem boss defeat animation finishes |
 | `PauseState` | Pushed pause overlay; freezes gameplay, pauses music, supports resume/restart/quit |

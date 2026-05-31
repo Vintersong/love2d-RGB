@@ -8,6 +8,7 @@ local GameConfig = require("src.core.GameConfig")
 local StateManager = require("src.core.StateManager")
 local SFXLibrary = require("src.audio.SFXLibrary")
 local Settings = require("src.core.Settings")
+local Theme = require("src.render.Theme")
 
 -- Transition states
 local alpha = 0
@@ -91,21 +92,12 @@ function OptionsState:enter(previous, data)
     glowY = nil
     rightGlowY = nil
 
-    if not titleFont then
-        titleFont = love.graphics.newFont(75)
-    end
-    if not subtitleFont then
-        subtitleFont = love.graphics.newFont(24)
-    end
-    if not smallFont then
-        smallFont = love.graphics.newFont(16)
-    end
-    if not boldFont then
-        boldFont = love.graphics.newFont("libs/hump-master/docs/_static/default.css" and 18 or 18) -- backup bold font logic
-    end
-    if not defaultFont then
-        defaultFont = love.graphics.newFont(12)
-    end
+    -- Branded CHROMATIC type system.
+    titleFont = titleFont or Theme.font("display", Theme.scale.title)
+    subtitleFont = subtitleFont or Theme.font("uiMedium", Theme.scale.subtitle)
+    smallFont = smallFont or Theme.font("ui", Theme.scale.ui)
+    boldFont = boldFont or Theme.font("uiSemiBold", Theme.scale.body)
+    defaultFont = defaultFont or Theme.font("mono", Theme.scale.micro)
 
     -- Reset animation track tables
     for i = 1, #tabs do

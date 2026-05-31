@@ -6,6 +6,39 @@ local Config = require("src.Config")
 local ColorSystem = require("src.gameplay.ColorSystem")
 local ArtifactManager = require("src.gameplay.ArtifactManager")
 local TutorialSystem = require("src.gameplay.TutorialSystem")
+local Theme = require("src.render.Theme")
+
+-- Per-card design tokens: neon edge (brand color) + deep fill (committed tint).
+local CARD_COLORS = {
+    r = {edge = "red",     fill = "redDeep"},
+    g = {edge = "green",   fill = "greenDeep"},
+    b = {edge = "blue",    fill = "blueDeep"},
+    y = {edge = "yellow",  fill = "yellowDeep"},
+    m = {edge = "magenta", fill = "magentaDeep"},
+    c = {edge = "cyan",    fill = "cyanDeep"},
+}
+
+-- Notched-rectangle polygon (clipped top-left + bottom-right corners) matching
+-- the kit's clip-path. Returns a flat {x1,y1,...} list for love.graphics.polygon.
+local function notchedPoly(x, y, w, h, n)
+    return {
+        x + n,     y,
+        x + w,     y,
+        x + w,     y + h - n,
+        x + w - n, y + h,
+        x,         y + h,
+        x,         y + n,
+    }
+end
+
+-- Blend a color toward white by amt (0-1).
+local function lighten(c, amt)
+    return {
+        c[1] + (1 - c[1]) * amt,
+        c[2] + (1 - c[2]) * amt,
+        c[3] + (1 - c[3]) * amt,
+    }
+end
 
 -- Valid color choices, narrowed to the tutorial's forced phase when active.
 local function getChoices(playerLevel)
@@ -109,14 +142,34 @@ local function buildKeyMap(validChoices)
     return keyMap
 end
 
-local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory)
-    love.graphics.setColor(def.bg[1], def.bg[2], def.bg[3], 0.7)
-    love.graphics.rectangle("fill", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-    love.graphics.setColor(def.border[1], def.border[2], def.border[3])
-    love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-    love.graphics.print(def.label, cardX - cardWidth/2 + 10, cardY + 15, 0, 1.5, 1.5)
-    love.graphics.setColor(1, 1, 1, 0.9)
+-- Angular cyberpunk color card: notched corners, neon rim, additive orb,
+-- centered content (CHROMATIC design system — comp-color-cards).
+local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory, isHover)
+    local tok = CARD_COLORS[def.code] or {edge = "fg1", fill = "bgRaised"}
+    local edge = Theme.color[tok.edge]
+    local fill = Theme.color[tok.fill]
+    local left = cardX - cardWidth / 2
+    local notch = 22
+    local inset = 2
 
+    -- Outer notched polygon = glowing neon rim.
+    love.graphics.setColor(edge[1], edge[2], edge[3], 1)
+    love.graphics.polygon("fill", notchedPoly(left, cardY, cardWidth, cardHeight, notch))
+
+    -- Inner inset polygon = deep fill, leaving a ~2px neon edge.
+    love.graphics.setColor(fill[1], fill[2], fill[3], 0.94)
+    love.graphics.polygon("fill", notchedPoly(left + inset, cardY + inset, cardWidth - inset * 2, cardHeight - inset * 2, notch - inset))
+
+    -- Hover lifts the rim: brighter, thicker notched outline.
+    if isHover then
+        local hl = lighten(edge, 0.5)
+        love.graphics.setLineWidth(2)
+        love.graphics.setColor(hl[1], hl[2], hl[3], 0.95)
+        love.graphics.polygon("line", notchedPoly(left, cardY, cardWidth, cardHeight, notch))
+        love.graphics.setLineWidth(1)
+    end
+
+    -- Pick the content lines for this card's state.
     local lines
     if def.isSecondary and #colorHistory < 10 then
         lines = def.locked
@@ -128,12 +181,54 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
         lines = def.normal
     end
 
+    -- Additive glow orb (the signature additive-light motif).
+    local orbY = cardY + 40
+    local prevBlend = love.graphics.getBlendMode()
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(edge[1], edge[2], edge[3], 0.30)
+    love.graphics.circle("fill", cardX, orbY, 20)
+    love.graphics.setColor(edge[1], edge[2], edge[3], 0.85)
+    love.graphics.circle("fill", cardX, orbY, 10)
+    local core = lighten(edge, 0.6)
+    love.graphics.setColor(core[1], core[2], core[3], 1)
+    love.graphics.circle("fill", cardX, orbY, 4)
+    love.graphics.setBlendMode(prevBlend)
+
+    -- Centered text block: NAME, then effect title + description lines.
+    love.graphics.setFont(Theme.font("uiSemiBold", 24))
+    local nm = lighten(edge, 0.35)
+    love.graphics.setColor(nm[1], nm[2], nm[3], 1)
+    love.graphics.printf(def.label, left, cardY + 66, cardWidth, "center")
+
+    local ty = cardY + 100
     for i, line in ipairs(lines) do
-        love.graphics.print(line, cardX - cardWidth/2 + 10, cardY + 35 + (i * 25), 0, 1.0, 1.0)
+        if i == 1 then
+            love.graphics.setFont(Theme.font("uiMedium", 15))
+            love.graphics.setColor(Theme.color.fg1)
+            love.graphics.printf(line, left, ty, cardWidth, "center")
+            ty = ty + 24
+        else
+            love.graphics.setFont(Theme.font("ui", 13))
+            love.graphics.setColor(Theme.color.fg2)
+            love.graphics.printf(line, left, ty, cardWidth, "center")
+            ty = ty + 18
+        end
     end
 
+    -- Small mono keycap (keeps number-key selection discoverable without a
+    -- "[Press N]" sentence, per the centered-card redesign).
     if keyNum then
-        love.graphics.print("[Press " .. keyNum .. "]", cardX - cardWidth/2 + 10, cardY + cardHeight - 35, 0, 1.0, 1.0)
+        local capW, capH = 26, 22
+        local capX = cardX - capW / 2
+        local capY = cardY + cardHeight - capH - 12
+        love.graphics.setColor(0, 0, 0, 0.55)
+        love.graphics.rectangle("fill", capX, capY, capW, capH, 4, 4)
+        love.graphics.setColor(edge[1], edge[2], edge[3], 0.6)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", capX, capY, capW, capH, 4, 4)
+        love.graphics.setFont(Theme.font("mono", 14))
+        love.graphics.setColor(Theme.color.fg1)
+        love.graphics.printf(tostring(keyNum), capX, capY + 3, capW, "center")
     end
 end
 
@@ -166,12 +261,16 @@ function LevelUpState:draw()
     if self.previousState and self.previousState.draw then
         self.previousState:draw()
     end
+    -- Capture whatever font the gameplay layer left active and restore it after,
+    -- so the overlay's branded fonts never leak into the resumed HUD.
+    local entryFont = love.graphics.getFont()
     local popup = TutorialSystem.peekPopup()
     if popup then
         self:drawTutorialPopup(popup)
     else
         self:drawColorSelect()
     end
+    love.graphics.setFont(entryFont)
 end
 
 function LevelUpState:drawTutorialPopup(def)
@@ -220,15 +319,15 @@ function LevelUpState:drawColorSelect()
     local centerX = screenWidth / 2
     local startY = CARD_START_Y
 
-    love.graphics.setColor(1, 1, 0)
+    love.graphics.setColor(Theme.color.yellow)
     love.graphics.print("🎉 LEVEL UP! 🎉", centerX - 180, startY, 0, 3.5, 3.5)
 
-    love.graphics.setColor(1, 1, 1)
+    Theme.setColor("fg1")
     love.graphics.print("Level " .. self.player.level, centerX - 60, startY + 90, 0, 2, 2)
 
     if ColorSystem.commitment.primary1 then
         local pathName = ColorSystem.getCurrentPath()
-        love.graphics.setColor(0, 0.94, 1)
+        Theme.setColor("accent")
         love.graphics.print("Current Path: " .. pathName, centerX - 180, startY + 130, 0, 1.5, 1.5)
 
         local secondaryName = ColorSystem.getCommittedSecondaryName()
@@ -259,7 +358,7 @@ function LevelUpState:drawColorSelect()
         return false
     end
 
-    love.graphics.setColor(1, 1, 1)
+    Theme.setColor("fg1")
     local instructionText
     if recommendedCode then
         instructionText = "Green light reflects — choose your second wavelength:"
@@ -276,11 +375,11 @@ function LevelUpState:drawColorSelect()
     if #artifacts > 0 then
         local artifactX = screenWidth - 350
         local artifactY = startY + 250
-        love.graphics.setColor(0.5, 1, 1)
+        Theme.setColor("accent")
         love.graphics.print("💎 Collected Artifacts:", artifactX, artifactY, 0, 1.3, 1.3)
         artifactY = artifactY + 35
         for _, artifact in ipairs(artifacts) do
-            love.graphics.setColor(0.7, 0.9, 1)
+            Theme.setColor("fg2")
             local levelText = string.format("Lv%d/%d", artifact.level, artifact.maxLevel)
             love.graphics.print(string.format("%s %s", artifact.name, levelText), artifactX, artifactY, 0, 1.1, 1.1)
             artifactY = artifactY + 28
@@ -288,8 +387,8 @@ function LevelUpState:drawColorSelect()
     end
 
     local cardY = startY + 250
-    local cardWidth = 220
-    local cardHeight = 180
+    local cardWidth = 200
+    local cardHeight = 196
     local cardSpacing = 250
 
     local keyMap = buildKeyMap(validChoices)
@@ -308,21 +407,14 @@ function LevelUpState:drawColorSelect()
             local keyNum = getKeyForColor(def.code)
             local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
             local isIntensity = def.isIntensityFn(ColorSystem)
-            drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory)
+            drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory, hoveredCard == def.code)
 
             cardRects[#cardRects + 1] = {x = cardX - cardWidth/2, y = cardY, w = cardWidth, h = cardHeight, code = def.code}
 
-            -- Brighten the border of the hovered card for click affordance.
-            if hoveredCard == def.code then
-                love.graphics.setLineWidth(3)
-                love.graphics.setColor(1, 1, 1, 0.9)
-                love.graphics.rectangle("line", cardX - cardWidth/2, cardY, cardWidth, cardHeight)
-                love.graphics.setLineWidth(1)
-            end
-
             if recommendedCode and def.code == recommendedCode then
-                love.graphics.setColor(1, 1, 0.4)
-                love.graphics.print("RECOMMENDED", cardX - cardWidth/2 + 10, cardY - 28, 0, 1.1, 1.1)
+                love.graphics.setFont(Theme.font("uiMedium", 14))
+                love.graphics.setColor(Theme.color.yellow)
+                love.graphics.printf("RECOMMENDED", cardX - cardWidth/2, cardY - 26, cardWidth, "center")
             end
             cardIndex = cardIndex + 1
         end

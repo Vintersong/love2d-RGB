@@ -6,6 +6,7 @@ local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local Gradient = require("src.render.Gradient")
+local Theme = require("src.render.Theme")
 
 -- Animation state
 local alpha = 0
@@ -44,13 +45,9 @@ function SplashScreen:enter(previous, data)
     timer = 0
     phase = "fadeIn"
 
-    -- Create fonts once on enter
-    if not titleFont then
-        titleFont = love.graphics.newFont(titleSize)
-    end
-    if not subtitleFont then
-        subtitleFont = love.graphics.newFont(subtitleSize)
-    end
+    -- Create fonts once on enter (branded CHROMATIC type system).
+    titleFont = titleFont or Theme.font("display", titleSize)
+    subtitleFont = subtitleFont or Theme.font("uiMedium", subtitleSize)
 
     -- Load shader safely
     if not bgShader then

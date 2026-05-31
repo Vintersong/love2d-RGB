@@ -1,5 +1,7 @@
 local ArtifactPanel = {}
 local Shared = require("src.ui.Shared")
+local Theme = require("src.render.Theme")
+local Icons = require("src.render.Icons")
 
 function ArtifactPanel.drawArtifactPanel(player)
     local ArtifactManager = require("src.gameplay.ArtifactManager")
@@ -14,15 +16,10 @@ function ArtifactPanel.drawArtifactPanel(player)
     local panelY = 20
     local lineHeight = 28
 
-    love.graphics.setColor(0, 0, 0, 0.7)
     local panelHeight = math.min(60 + (#artifacts * lineHeight * 3), screenHeight - 40)
-    love.graphics.rectangle("fill", panelX - 10, panelY - 10, panelWidth + 20, panelHeight + 20)
+    Shared.drawGlassPanel(panelX - 10, panelY - 10, panelWidth + 20, panelHeight + 20)
 
-    love.graphics.setColor(0.5, 1, 1, 0.8)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", panelX - 10, panelY - 10, panelWidth + 20, panelHeight + 20)
-
-    love.graphics.setColor(0.5, 1, 1)
+    Theme.setColor("accent")
     love.graphics.print("ðŸ’Ž COLLECTED ARTIFACTS ðŸ’Ž", panelX + 30, panelY, 0, 1.4, 1.4)
     panelY = panelY + 40
 
@@ -41,38 +38,46 @@ function ArtifactPanel.drawArtifactPanel(player)
         local y = panelY + ((i - 1) * lineHeight * 3)
         local color = artifactColors[artifact.type] or {1, 1, 1}
 
+        -- Bespoke neon optics glyph, recolored to the artifact's identity color.
+        local textX = panelX
+        if Icons.has(string.lower(artifact.type)) then
+            love.graphics.setColor(color)
+            Icons.draw(string.lower(artifact.type), panelX, y + 2, 24)
+            textX = panelX + 32
+        end
+
         love.graphics.setColor(color)
         local artifactText = string.format("%s [Lv %d/%d]", artifact.name, artifact.level, artifact.maxLevel)
-        love.graphics.print(artifactText, panelX, y, 0, 1.3, 1.3)
+        love.graphics.print(artifactText, textX, y, 0, 1.3, 1.3)
 
         -- TODO(ui): Keep [WIP] badge until all artifact descriptions are finalized.
         if artifact.isWIP then
-            love.graphics.setColor(1, 1, 0)
+            Theme.setColor("warn")
             local textWidth = love.graphics.getFont():getWidth(artifactText) * 1.3
-            love.graphics.print("[WIP]", panelX + textWidth + 10, y, 0, 1.3, 1.3)
+            love.graphics.print("[WIP]", textX + textWidth + 10, y, 0, 1.3, 1.3)
         end
 
         local effectDesc = ArtifactPanel.getArtifactEffectDescription(artifact.type, artifact.level, player)
-        love.graphics.setColor(0.9, 0.9, 0.9)
-        love.graphics.print(effectDesc, panelX + 10, y + lineHeight, 0, 1.0, 1.0)
+        Theme.setColor("fg2")
+        love.graphics.print(effectDesc, textX, y + lineHeight, 0, 1.0, 1.0)
 
         if artifact.level < artifact.maxLevel then
             local barWidth = panelWidth - 20
             local barHeight = 8
             local barY = y + lineHeight * 2 + 5
 
-            love.graphics.setColor(0.2, 0.2, 0.2, 0.8)
+            Theme.setColor("bgRaised", 0.8)
             love.graphics.rectangle("fill", panelX, barY, barWidth, barHeight)
 
             local progress = artifact.level / artifact.maxLevel
             love.graphics.setColor(color[1] * 0.8, color[2] * 0.8, color[3] * 0.8)
             love.graphics.rectangle("fill", panelX, barY, barWidth * progress, barHeight)
 
-            love.graphics.setColor(0.5, 0.5, 0.5)
+            Theme.setColor("fg3")
             love.graphics.setLineWidth(1)
             love.graphics.rectangle("line", panelX, barY, barWidth, barHeight)
         else
-            love.graphics.setColor(1, 1, 0)
+            Theme.setColor("warn")
             love.graphics.print("MAX LEVEL", panelX + 120, y + lineHeight * 2 + 3, 0, 1.1, 1.1)
         end
     end

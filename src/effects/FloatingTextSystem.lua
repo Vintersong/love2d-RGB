@@ -2,14 +2,16 @@
 local FloatingTextSystem = {}
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
+local Theme = require("src.render.Theme")
 
 FloatingTextSystem.texts = {}
 
--- Cache fonts (created once, not every frame)
+-- Cache fonts (created once, not every frame). Numerics use Share Tech Mono
+-- (tabular digits) per the CHROMATIC design tokens.
 local fonts = {
-    small = love.graphics.newFont(14),
-    medium = love.graphics.newFont(18),
-    large = love.graphics.newFont(24)
+    small = Theme.font("mono", 14),
+    medium = Theme.font("mono", 18),
+    large = Theme.font("mono", 24)
 }
 
 -- Text types with different colors and behaviors

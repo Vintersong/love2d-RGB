@@ -7,6 +7,7 @@ local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local SFXLibrary = require("src.audio.SFXLibrary")
 local ShipRenderer = require("src.render.ShipRenderer")
+local Theme = require("src.render.Theme")
 
 -- State variables
 local alpha = 0
@@ -71,18 +72,12 @@ function MenuState:enter(previous, data)
 
     buildMenuOptions()
 
-    if not titleFont then
-        titleFont = love.graphics.newFont(titleSize)
-    end
-    if not subtitleFont then
-        subtitleFont = love.graphics.newFont(subtitleSize)
-    end
-    if not smallFont then
-        smallFont = love.graphics.newFont(16)
-    end
-    if not defaultFont then
-        defaultFont = love.graphics.newFont(12)
-    end
+    -- Branded type system (CHROMATIC design tokens): Michroma wordmark,
+    -- Chakra Petch UI, Share Tech Mono numerics.
+    titleFont = titleFont or Theme.font("display", titleSize)
+    subtitleFont = subtitleFont or Theme.font("uiMedium", subtitleSize)
+    smallFont = smallFont or Theme.font("ui", Theme.scale.ui)
+    defaultFont = defaultFont or Theme.font("mono", Theme.scale.micro)
 
     -- Reset animation track table
     for i = 1, #menuOptions do
@@ -220,8 +215,9 @@ function MenuState:draw()
     local btnX = startX + (colStart - 1) * barStep
     local btnW = 5 * barWidth + 4 * barGap -- exactly 5 cells wide (296 pixels)
     
-    -- 2. Clear to deep space black
-    love.graphics.clear(0.015, 0.012, 0.02, 1)
+    -- 2. Clear to deep space black (design token: bg-void)
+    local void = Theme.color.bgVoid
+    love.graphics.clear(void[1], void[2], void[3], 1)
 
     -- 3. Draw Background Shader if loaded (Full Screen)
     local musicReactor = GameConfig.getMusicReactor()
@@ -334,7 +330,8 @@ function MenuState:draw()
         -- 2. Draw bracket outlines
         love.graphics.setLineWidth(1.5)
         if i == selectedMenuOption then
-            love.graphics.setColor(0, 0.85, 1, alpha)
+            local a = Theme.color.accent
+            love.graphics.setColor(a[1], a[2], a[3], alpha)
         else
             love.graphics.setColor(1, 1, 1, alpha * 0.12)
         end
@@ -375,7 +372,8 @@ function MenuState:draw()
     love.graphics.rectangle("fill", mapX, mapY, mapW, mapH, 10, 10)
 
     love.graphics.setLineWidth(2)
-    love.graphics.setColor(0, 0.85, 1, alpha * 0.28)
+    local mapEdge = Theme.color.accent
+    love.graphics.setColor(mapEdge[1], mapEdge[2], mapEdge[3], alpha * 0.28)
     love.graphics.rectangle("line", mapX, mapY, mapW, mapH, 10, 10)
 
     love.graphics.setFont(subtitleFont)

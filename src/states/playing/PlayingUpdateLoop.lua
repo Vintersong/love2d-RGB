@@ -33,7 +33,11 @@ function PlayingUpdateLoop.update(state, dt, deps)
     local centerY = state.player.y + state.player.height / 2
 
     state.player:update(dt, state.enemies)
+    -- Wrap dash collisions in a reward sweep: dash damage now routes through
+    -- HealthSystem.takeDamage, so a dash-only kill must be picked up here for XP/drops.
+    local dashAliveBefore = enemyFlow.captureAliveEnemies(state)
     state.player:checkDashCollisions(state.enemies)
+    enemyFlow.rewardNewEnemyDeaths(state, dashAliveBefore, deps)
     state.player:autoFire(state.enemies, BossCoordinator.getActiveBoss())
 
     ShieldEffect.update(dt)

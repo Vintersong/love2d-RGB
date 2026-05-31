@@ -222,9 +222,20 @@ function BossSystem:fireCone(targetX, targetY)
     return projectiles
 end
 
-function BossSystem:takeDamage(amount)
+function BossSystem:takeDamage(amount, colorName)
     if self.invulnerable then return end
-    
+
+    -- Color affinity (bonus-only): a projectile matching this archetype's weak
+    -- color deals bonus damage. Regular enemies never reach this path, so they
+    -- stay affinity-free by design. See Config.boss.affinity.
+    if colorName then
+        local Config = require("src.Config")
+        local affinity = Config.boss and Config.boss.affinity
+        if affinity and affinity.weak and affinity.weak[self.archetypeName] == colorName then
+            amount = amount * (affinity.bonus or 1)
+        end
+    end
+
     self.health = self.health - amount
     
     -- Visual feedback - simplified (no VFX system integration yet)

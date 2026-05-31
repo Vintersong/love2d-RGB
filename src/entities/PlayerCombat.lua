@@ -348,6 +348,8 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
             trail = {},
             trailLength = parentProj.trailLength,
 
+            speed = speed,
+
             -- Inherit RGB attributes
             rCount = parentProj.rCount,
             gCount = parentProj.gCount,
@@ -355,15 +357,35 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
             shape = parentProj.shape,
             color = parentProj.color,
 
-            -- Inherit BOUNCE
-            canBounce = parentProj.canBounce,
-            bounces = parentProj.bounces,
+            -- Inherit all secondary effects so a fully-built projectile passes its
+            -- additive abilities down to its split children. Field names match the
+            -- canonical schema set by Weapon.lua:applyAbilities (the live bounce/pierce/
+            -- explode/dot/root systems read these exact keys).
 
-            -- Inherit PIERCE
+            -- BOUNCE (GREEN) — bounce-to-nearest chaining
+            canBounceToNearest = parentProj.canBounceToNearest,
+            maxBounces = parentProj.maxBounces,
+            currentBounces = 0,
+
+            -- PIERCE (BLUE)
             canPierce = parentProj.canPierce,
-            pierce = parentProj.pierce,
-            hitCount = 0,
+            maxPierces = parentProj.maxPierces,
+            pierceCount = 0,
             hitEnemies = {},
+
+            -- EXPLODE (MAGENTA)
+            canExplode = parentProj.canExplode,
+            explodeRadius = parentProj.explodeRadius,
+            explodeDamage = parentProj.explodeDamage,
+
+            -- DOT (CYAN)
+            canDot = parentProj.canDot,
+            dotDuration = parentProj.dotDuration,
+            dotDamage = parentProj.dotDamage,
+
+            -- ROOT
+            canRoot = parentProj.canRoot,
+            rootDuration = parentProj.rootDuration,
 
             -- NO more splits (already split)
             canSplit = false,

@@ -48,6 +48,23 @@ local Config = {
         schedulerMaxQueue = 256,
     },
 
+    -- Boss color affinity (bonus-only; regular enemies are intentionally unaffected).
+    -- A player projectile whose dominant color matches the boss archetype's `weak`
+    -- color deals `bonus`x damage. There is no resistance penalty for a mismatch.
+    -- Color names are ColorSystem dominant-color strings
+    -- (RED / GREEN / BLUE / YELLOW / MAGENTA / CYAN). Per-archetype weaknesses below
+    -- are starting values — tune freely.
+    boss = {
+        affinity = {
+            bonus = 1.25,
+            weak = {
+                berserker = "BLUE",   -- the rusher folds to pierce/control
+                mage      = "RED",    -- the caster folds to aggression
+                warrior   = "GREEN",  -- the bruiser folds to adaptation/chains
+            },
+        },
+    },
+
     -- Post-FX shader settings
     postFX = {
         bloomEnabled = true,

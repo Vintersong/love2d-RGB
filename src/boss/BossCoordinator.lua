@@ -50,7 +50,7 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
             if activeBoss and not activeBoss.invulnerable then
                 -- Use CollisionSystem for circle-to-circle collision
                 if CollisionSystem.checkProjectileBossCollision(proj, activeBoss) then
-                    activeBoss:takeDamage(proj.damage or 10)
+                    activeBoss:takeDamage(proj.damage or 10, proj.colorName)
                     table.remove(playerProjectiles, i)
                 end
             end

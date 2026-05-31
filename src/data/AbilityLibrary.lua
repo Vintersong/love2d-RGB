@@ -22,6 +22,10 @@ local function getFloatingTextSystem()
     return require("src.effects.FloatingTextSystem")
 end
 
+local function getHealthSystem()
+    return require("src.combat.HealthSystem")
+end
+
 -- ============================================================================
 -- DASH ABILITY
 -- ============================================================================
@@ -229,7 +233,10 @@ AbilityLibrary.DASH = {
                        state.color == "MAGENTA" or state.color == "CYAN" then
 
                         local damage = 20  -- Base dash damage
-                        enemy.hp = enemy.hp - damage
+                        -- Route through HealthSystem so a dash-only kill marks the
+                        -- enemy dead; the PlayingUpdateLoop reward sweep then grants
+                        -- XP/drops (a direct `enemy.hp - damage` left kills unrewarded).
+                        getHealthSystem().takeDamage(enemy, damage)
 
                         -- Visual feedback: Floating text
                         FloatingTextSystem.add(

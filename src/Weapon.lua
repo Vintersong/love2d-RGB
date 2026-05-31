@@ -191,6 +191,10 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
     
     -- Helper function to apply all abilities to a projectile
     local function applyAbilities(proj)
+        -- Tag with the run's dominant color name so boss affinity can read it
+        -- cheaply (proj.color is an RGB table, unusable for name matching).
+        proj.colorName = dominantColor
+
         if hasBounce then
             proj.canBounceToNearest = true
             proj.maxBounces = bounceCount  -- Track how many bounces are allowed

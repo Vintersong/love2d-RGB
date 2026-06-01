@@ -43,6 +43,7 @@ end
 
 function ShieldEffect.triggerHit(color)
     if not active then return end
+    if #active.hitRings >= 4 then return end
     active.flashAlpha = 1.0
     active.hitColor   = color or {0.8, 0.8, 0.8}
     local r = active.maxRadius
@@ -142,10 +143,11 @@ function ShieldEffect.draw()
 
     -- Flash overlay
     if active.flashAlpha > 0 then
+        local fc = active.hitColor
         love.graphics.setBlendMode("add")
-        love.graphics.setColor(1, 1, 1, active.flashAlpha * 0.25)
+        love.graphics.setColor(fc[1], fc[2], fc[3], active.flashAlpha * 0.25)
         love.graphics.circle("fill", cx, cy, radius)
-        love.graphics.setColor(1, 1, 1, active.flashAlpha * 0.7)
+        love.graphics.setColor(fc[1], fc[2], fc[3], active.flashAlpha * 0.7)
         love.graphics.setLineWidth(3)
         love.graphics.circle("line", cx, cy, radius)
         love.graphics.setBlendMode("alpha")

@@ -218,7 +218,7 @@ function BossSystem:fireCone(targetX, targetY)
         local vx = math.cos(angle) * speed
         local vy = math.sin(angle) * speed
         
-        local proj = Projectile(self.x, self.y, vx, vy, 30, "spread", "boss")
+        local proj = Projectile(self.x, self.y, vx, vy, 30, "boss_bolt", "boss")
         proj.color = {1, 0.2, 0.7}  -- Neon pink
         table.insert(projectiles, proj)
     end

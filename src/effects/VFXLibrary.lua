@@ -446,45 +446,58 @@ end
 
 -- Spawn impact burst particles
 function VFXLibrary.spawnImpactBurst(x, y, color, count)
-    count = count or 8
+    count = count or 9
     color = color or {1, 1, 1}
-    
+
+    -- Square sparks
     for i = 1, count do
-        local angle = (i / count) * math.pi * 2
-        local speed = 100 + math.random() * 100
-        
+        local angle = ((i - 1) / count) * math.pi * 2 + (math.random() - 0.5) * 0.3
+        local speed = 70 + math.random() * 110
+
         table.insert(VFXLibrary.impactParticles, {
-            x = x,
-            y = y,
-            vx = math.cos(angle) * speed,
-            vy = math.sin(angle) * speed,
-            color = color,
-            life = 0.3 + math.random() * 0.2,
-            maxLife = 0.5,
-            size = 2 + math.random() * 2
+            type  = "spark",
+            x     = x,
+            y     = y,
+            vx    = math.cos(angle) * speed,
+            vy    = math.sin(angle) * speed,
+            color = {color[1], color[2], color[3]},
+            life  = 1,
+            maxLife = 0.28 + math.random() * 0.27,
+            size  = 2 + math.random() * 2,
         })
     end
+
+    -- Expanding ring
+    table.insert(VFXLibrary.impactParticles, {
+        type    = "ring",
+        x       = x,
+        y       = y,
+        vx      = 0,
+        vy      = 0,
+        color   = {color[1], color[2], color[3]},
+        life    = 1,
+        maxLife = 0.35,
+        size    = 0,
+        maxSize = 28,
+    })
 end
 
 -- Update impact burst particles
 function VFXLibrary.updateImpactBursts(dt)
     for i = #VFXLibrary.impactParticles, 1, -1 do
         local p = VFXLibrary.impactParticles[i]
-        
-        -- Update position
-        p.x = p.x + p.vx * dt
-        p.y = p.y + p.vy * dt
-        
-        -- Apply drag
-        p.vx = p.vx * 0.95
-        p.vy = p.vy * 0.95
-        
-        -- Update lifetime
-        p.life = p.life - dt
-        
-        -- Remove dead particles
+
+        p.x    = p.x + p.vx * dt
+        p.y    = p.y + p.vy * dt
+        p.life = p.life - dt / p.maxLife
+
         if p.life <= 0 then
             table.remove(VFXLibrary.impactParticles, i)
+        elseif p.type == "spark" then
+            p.vx = p.vx * 0.86
+            p.vy = p.vy * 0.86
+        elseif p.type == "ring" then
+            p.size = p.maxSize * (1 - p.life)
         end
     end
 end
@@ -492,11 +505,20 @@ end
 -- Draw impact burst particles
 function VFXLibrary.drawImpactBursts()
     for _, p in ipairs(VFXLibrary.impactParticles) do
-        local alpha = p.life / p.maxLife
-        local color = {p.color[1], p.color[2], p.color[3], alpha}
-        love.graphics.setColor(color[1], color[2], color[3], color[4])
-        love.graphics.circle("fill", p.x, p.y, p.size)
+        local c = p.color
+        if p.type == "spark" then
+            love.graphics.setColor(c[1], c[2], c[3], p.life)
+            local sz = p.size * p.life
+            love.graphics.rectangle("fill", p.x - sz * 0.5, p.y - sz * 0.5, sz, sz)
+        elseif p.type == "ring" then
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(c[1], c[2], c[3], p.life * 0.85)
+            love.graphics.setLineWidth(1.8 * p.life)
+            love.graphics.circle("line", p.x, p.y, math.max(0.1, p.size))
+            love.graphics.setBlendMode("alpha")
+        end
     end
+    love.graphics.setLineWidth(1)
     love.graphics.setColor(1, 1, 1, 1)
 end
 

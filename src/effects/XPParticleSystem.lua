@@ -49,8 +49,8 @@ function XPParticleSystem.new(x, y, value)
         orb.coreSize  = 11   -- was 8
         orb.tier      = "medium"
     else
-        -- Small orb: punchy lime green (was muted 0.4,1,0.6)
-        orb.color     = {0.2, 1.0, 0.3}
+        -- Small orb: yellow-gold (was lime green {0.2,1,0.3} — too close to first enemy green)
+        orb.color     = {1.0, 0.9, 0.1}
         orb.coreSize  = 9    -- was 7
         orb.tier      = "small"
     end

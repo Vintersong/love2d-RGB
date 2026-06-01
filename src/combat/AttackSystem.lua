@@ -102,6 +102,7 @@ function AttackSystem.updateDoTs(entities, dt, onKillCallback)
                     local died = HealthSystem.takeDamage(entity, dot.damage)
                     if died and onKillCallback then
                         onKillCallback(entity)
+                        break
                     end
                     dot.tickRate = 0.5  -- Reset tick
                 end

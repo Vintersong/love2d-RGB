@@ -291,9 +291,6 @@ function ArtifactManager.collect(artifactType, weapon, player)
     local levelEffect = definition.levelEffects[currentLevel]
     if levelEffect then
         levelEffect.effect(weapon, player)
-        if artifactType == "SUPERNOVA" and currentLevel == 1 and player then
-            player:setActiveAbility("SUPERNOVA", ArtifactManager.getSupernovaCooldown("RED", player))
-        end
 
         local message = string.format("%s Level %d: %s",
             definition.name,

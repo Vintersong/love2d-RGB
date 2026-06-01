@@ -263,20 +263,20 @@ function Player:addExp(amount)
     self.exp = self.exp + amount
 end
 
-function Player:takeDamage(amount, dt)
+function Player:takeDamage(amount)
     if self.invulnerable then
-        return false  -- No damage taken
+        return false
     end
 
-    self.hp = self.hp - (amount * dt)  -- Damage per second when touching enemy
-    self.damageFlashTime = 0.1  -- Flash for 0.1 seconds
+    self.hp = self.hp - amount
+    self.damageFlashTime = 0.1
 
     if self.hp <= 0 then
         self.hp = 0
-        return true  -- Player died
+        self.dead = true
+        return true
     end
 
-    -- Set invulnerability period
     self.invulnerable = true
     self.invulnerableTime = self.invulnerableDuration
 

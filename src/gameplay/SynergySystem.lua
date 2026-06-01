@@ -428,7 +428,7 @@ SynergySystem.definitions = {
             effect = function(weapon, player)
                 weapon.dotCloud = true
                 weapon.cloudRadius = 60
-                weapon.cloudDamage = weapon.dotDamage * 0.3
+                weapon.cloudDamageRatio = 0.3
                 return "Corrosive Cloud! DoT spreads as fog"
             end,
             visualEffect = {
@@ -516,7 +516,7 @@ SynergySystem.definitions = {
             effect = function(weapon, player)
                 weapon.poisonBloom = true
                 weapon.bloomRadius = 90
-                weapon.bloomDamage = weapon.dotDamage * 2
+                weapon.bloomDamageRatio = 2
                 return "Poison Bloom! DoT enemies explode"
             end,
             visualEffect = {
@@ -692,7 +692,7 @@ SynergySystem.definitions = {
             effect = function(weapon, player)
                 weapon.chainReaction = true
                 weapon.chainChance = 0.5  -- 50% chance to chain
-                weapon.chainRadius = weapon.explodeRadius * 1.5
+                weapon.chainRadiusMultiplier = 1.5
                 return "Chain Reaction! Explosions cascade"
             end,
             visualEffect = {

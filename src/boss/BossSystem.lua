@@ -182,6 +182,10 @@ function BossSystem:update(dt, playerX, playerY)
         -- Pulse glow
         self.glowIntensity = (math.sin(love.timer.getTime() * 3) + 1) / 2
 
+        if self.hitFlash and self.hitFlash > 0 then
+            self.hitFlash = self.hitFlash - dt
+        end
+
         -- Check death
         if self.health <= 0 then
             self.phase = "defeated"
@@ -281,7 +285,6 @@ function BossSystem:draw()
     -- Glow effect when damaged
     if self.hitFlash and self.hitFlash > 0 then
         love.graphics.setColor(1, 1, 1, self.hitFlash * 2)
-        self.hitFlash = self.hitFlash - love.timer.getDelta()
     end
     
     -- Draw boss as large diamond/star shape
@@ -324,7 +327,7 @@ function BossSystem:drawHealthBar()
     local barX = love.graphics.getWidth()/2 - barWidth/2
     local barY = 30
     
-    local healthPercent = self.health / self.maxHealth
+    local healthPercent = math.max(0, self.health / self.maxHealth)
     
     -- Background
     love.graphics.setColor(0.2, 0.2, 0.2, 0.8)

@@ -125,7 +125,7 @@ function complex.tostring(cx, formatstr)
 end
 
 function complex.polar(cx)
-    return math.sqrt(cx[1]^2 + cx[2]^2), math.atan(cx[2]/cx[1])
+    return math.sqrt(cx[1]^2 + cx[2]^2), math.atan(cx[2], cx[1])
 end
 
 function complex.abs(cx)

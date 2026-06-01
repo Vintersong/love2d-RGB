@@ -44,3 +44,6 @@ embedding_integrity.jsonl
 skill_audit.db
 skill_audit.db-shm
 skill_audit.db-wal
+
+# Visual brainstorming companion
+.superpowers/

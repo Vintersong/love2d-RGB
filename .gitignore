@@ -29,3 +29,18 @@ UI_SANDBOX_QUICK_REF.md
 _deprecated/
 TUTORIAL.MD
 UI_DESIGN_BRIEF.md
+
+# NOVA memory
+shards/
+shard_index.json
+shard_graph.json
+shard_access.jsonl
+nova_usage.jsonl
+nova_sessions/
+wiki/
+facts/
+summary_index.*
+embedding_integrity.jsonl
+skill_audit.db
+skill_audit.db-shm
+skill_audit.db-wal

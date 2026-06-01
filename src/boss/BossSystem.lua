@@ -171,7 +171,7 @@ function BossSystem:update(dt, playerX, playerY)
                 entry.delay = entry.delay - dt
                 if entry.delay <= 0 then
                     local p = entry.data
-                    local proj = Projectile(p.x, p.y, p.vx, p.vy, p.damage or 10, "spread", "boss")
+                    local proj = Projectile(p.x, p.y, p.vx, p.vy, p.damage or 10, p.projType or "spread", "boss")
                     proj.color = p.color or {1.0, 0.4, 0.8}
                     table.insert(projectiles, proj)
                     table.remove(self._scheduledProjectiles, i)

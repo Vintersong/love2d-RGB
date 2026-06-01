@@ -22,6 +22,15 @@ local function patternToProjectiles(patternProjectiles, bossProjectiles, damage,
     end
 end
 
+local function typedScheduler(scheduler, projType)
+    return {
+        schedule = function(delay, projData)
+            projData.projType = projType
+            scheduler.schedule(delay, projData)
+        end
+    }
+end
+
 BossBehaviors.catalog = {
     {
         id = "enter_from_top",
@@ -174,7 +183,7 @@ BossBehaviors.catalog = {
         execute = function(boss, context)
             local projs = BulletPatterns.spiral(bossOrigin(boss), angleToPlayer(boss, context), {
                 count = 16, speed = 280, turnStep = 0.22, delay = 0.03,
-            }, context.scheduler)
+            }, typedScheduler(context.scheduler, "boss_orb"))
             patternToProjectiles(projs, context.bossProjectiles, 8, {1.0, 0.6, 0.2}, "boss_orb")
             return 1.2
         end,
@@ -221,7 +230,7 @@ BossBehaviors.catalog = {
         execute = function(boss, context)
             local projs = BulletPatterns.cross(bossOrigin(boss), 0, {
                 axes = 4, bulletsPerAxis = 3, speed = 300,
-            }, context.scheduler)
+            }, typedScheduler(context.scheduler, "boss_cross"))
             patternToProjectiles(projs, context.bossProjectiles, 12, {0.8, 1.0, 0.3}, "boss_cross")
             return 1.0
         end,
@@ -253,7 +262,7 @@ BossBehaviors.catalog = {
         execute = function(boss, context)
             local projs = BulletPatterns.doubleSpiral(bossOrigin(boss), 0, {
                 count = 16, speed = 260, turnStep = 0.2, delay = 0.03,
-            }, context.scheduler)
+            }, typedScheduler(context.scheduler, "boss_twinorb"))
             patternToProjectiles(projs, context.bossProjectiles, 15, {0.3, 0.9, 1.0}, "boss_twinorb")
             return 1.5
         end,

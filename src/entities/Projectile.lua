@@ -70,6 +70,23 @@ function Projectile:update(dt)
        self.y < -10 or self.y > screenHeight + 10 then
         self.dead = true
     end
+
+    -- Boss projectile rotation
+    local rotSpeeds = {
+        boss_diamond = 4.0,
+        boss_orb     = 3.0,
+        boss_shard   = 2.5,
+        boss_cross   = 2.0,
+        boss_twinorb = 2.0,
+        boss_petal   = 1.0,
+    }
+    local rs = rotSpeeds[self.type]
+    if rs then
+        self.rotation = self.rotation + rs * dt
+    end
+    if self.type == "boss_twinorb" then
+        self.innerRotation = self.innerRotation - 3.5 * dt
+    end
 end
 
 function Projectile:draw()
@@ -137,13 +154,148 @@ function Projectile:draw()
             outline = {1, 1, 1, 0.5},
             outlineWidth = 1
         })
-        
+
+    elseif self.type == "boss_diamond" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(color[1], color[2], color[3], 0.3)
+        love.graphics.polygon("fill", 0,-9, 9,0, 0,9, -9,0)
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setColor(color[1], color[2], color[3], 1)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.polygon("line", 0,-7, 7,0, 0,7, -7,0)
+        love.graphics.setColor(1, 1, 1, 0.9)
+        love.graphics.circle("fill", 0, 0, 2)
+        love.graphics.pop()
+
+    elseif self.type == "boss_bolt" then
+        local angle = MathUtils.atan2(self.vy, self.vx) + math.pi * 0.5
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(angle)
+        love.graphics.setColor(color[1], color[2], color[3], 1)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.polygon("line", 0,-10, 3,-2, 2,10, -2,10, -3,-2)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(color[1], color[2], color[3], 0.35)
+        love.graphics.ellipse("fill", 0, 0, 2.5, 7)
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setColor(1, 1, 1, 0.9)
+        love.graphics.circle("fill", 0, 0, 1.5)
+        love.graphics.pop()
+
+    elseif self.type == "boss_orb" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        love.graphics.setColor(color[1], color[2], color[3], 0.9)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.circle("line", 0, 0, 6)
+        love.graphics.setColor(color[1], color[2], color[3], 0.6)
+        love.graphics.circle("line", 0, 0, 3)
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", 0, 0, 1.5)
+        love.graphics.pop()
+
+    elseif self.type == "boss_shard" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        local verts = {}
+        for k = 0, 7 do
+            local a = (k / 8) * math.pi * 2
+            local r2 = (k % 2 == 0) and 8 or 3.5
+            table.insert(verts, math.cos(a) * r2)
+            table.insert(verts, math.sin(a) * r2)
+        end
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(color[1], color[2], color[3], 0.2)
+        love.graphics.polygon("fill", verts)
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setColor(color[1], color[2], color[3], 1)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.polygon("line", verts)
+        love.graphics.pop()
+
+    elseif self.type == "boss_crescent" then
+        local angle = MathUtils.atan2(self.vy, self.vx)
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(angle)
+        love.graphics.setColor(color[1], color[2], color[3], 0.9)
+        love.graphics.setLineWidth(2)
+        love.graphics.arc("line", "open", 0, 0, 7, 0.5, math.pi - 0.5)
+        love.graphics.arc("line", "open", 3, 0, 5, math.pi + 0.35, math.pi * 2 - 0.35)
+        love.graphics.pop()
+
+    elseif self.type == "boss_cross" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        love.graphics.setColor(color[1], color[2], color[3], 1)
+        love.graphics.rectangle("fill", -1.5, -9, 3, 18)
+        love.graphics.rectangle("fill", -9, -1.5, 18, 3)
+        love.graphics.setColor(1, 1, 1, 0.6)
+        love.graphics.circle("fill", 0, 0, 2)
+        love.graphics.pop()
+
+    elseif self.type == "boss_chevron" then
+        local angle = MathUtils.atan2(self.vy, self.vx)
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(angle)
+        love.graphics.setColor(color[1], color[2], color[3], 1)
+        love.graphics.setLineWidth(2)
+        love.graphics.line(-6, 5, 0, -8)
+        love.graphics.line(0, -8, 6, 5)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.setColor(color[1], color[2], color[3], 0.6)
+        love.graphics.line(-4, 10, 0, 1)
+        love.graphics.line(0, 1, 4, 10)
+        love.graphics.pop()
+
+    elseif self.type == "boss_twinorb" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        love.graphics.setColor(color[1], color[2], color[3], 0.9)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.circle("line", 0, 0, 7)
+        local ir = (self.innerRotation or 0) - self.rotation
+        love.graphics.setColor(1, 1, 1, 0.9)
+        love.graphics.circle("fill", math.cos(ir) * 4,           math.sin(ir) * 4,           2)
+        love.graphics.circle("fill", math.cos(ir + math.pi) * 4, math.sin(ir + math.pi) * 4, 2)
+        love.graphics.pop()
+
+    elseif self.type == "boss_petal" then
+        love.graphics.push()
+        love.graphics.translate(self.x, self.y)
+        love.graphics.rotate(self.rotation)
+        love.graphics.setColor(color[1], color[2], color[3], 0.85)
+        love.graphics.setLineWidth(1.5)
+        for k = 0, 5 do
+            local a = (k / 6) * math.pi * 2
+            love.graphics.push()
+            love.graphics.rotate(a)
+            love.graphics.ellipse("line", 0, -5, 2.5, 4.5)
+            love.graphics.pop()
+        end
+        love.graphics.setColor(1, 1, 1, 0.8)
+        love.graphics.circle("fill", 0, 0, 2)
+        love.graphics.pop()
+
     else
         -- DEFAULT: Simple circle with bright core
         ShapeLibrary.circle(self.x, self.y, size, color, {
             core = {size = size * 0.5, color = {1, 1, 1}, alpha = 0.8}
         })
     end
+
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setBlendMode("alpha")
 end
 
 function Projectile:bounce(normalX, normalY)

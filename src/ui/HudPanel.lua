@@ -90,13 +90,13 @@ function HudPanel.drawPlayerHUD(player)
 
     if artifactCount > 0 then
         Theme.setColor("accent")
-        love.graphics.print(string.format("ðŸ’Ž Artifacts: %d", artifactCount), x, y, 0, 1.2, 1.2)
+        love.graphics.print(string.format("\xF0\x9F\x92\x8E Artifacts: %d", artifactCount), x, y, 0, 1.2, 1.2)
         y = y + 25
     end
 
     if synergyCount > 0 then
         love.graphics.setColor(Theme.color.magenta)
-        love.graphics.print(string.format("âš¡ Synergies: %d", synergyCount), x, y, 0, 1.2, 1.2)
+        love.graphics.print(string.format("\xE2\x9A\xA1 Synergies: %d", synergyCount), x, y, 0, 1.2, 1.2)
     end
 
     local dashY = screenHeight - 100
@@ -111,7 +111,9 @@ function HudPanel.drawPlayerHUD(player)
     local font = love.graphics.getFont()
     local titleWidth = font:getWidth(titleText) * 1.5
     local titleX = dashX + (barWidth - titleWidth) / 2
-    Icons.draw("dash", titleX - 30, dashY - 6, 24)
+    love.graphics.setColor(1, 1, 1)  -- white icon
+    Icons.draw("dash", titleX - 38, dashY - 10, 32)  -- was size 24, accent color
+    Theme.setColor("accent")
     love.graphics.print(titleText, titleX, dashY - 5, 0, 1.5, 1.5)
 
     local AbilitySystem = require("src.combat.AbilitySystem")
@@ -151,9 +153,10 @@ function HudPanel.drawPlayerHUD(player)
         local abilityY = screenHeight - 200
         Shared.drawGlassPanel(x - 5, abilityY - 5, 220, 70)
 
+        love.graphics.setColor(1, 1, 1)  -- white icon
+        Icons.draw("supernova", x, abilityY - 5, 30)  -- was size 22, magenta color
         love.graphics.setColor(Theme.color.magenta)
-        Icons.draw("supernova", x, abilityY - 1, 22)
-        love.graphics.print(string.format("%s [L-SHIFT]", abilityState.activeAbility), x + 28, abilityY, 0, 1.3, 1.3)
+        love.graphics.print(string.format("%s [L-SHIFT]", abilityState.activeAbility), x + 34, abilityY, 0, 1.3, 1.3)
 
         local cdPercent = 1
         if abilityState.maxCooldown and abilityState.maxCooldown > 0 then

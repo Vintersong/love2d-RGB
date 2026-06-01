@@ -20,7 +20,7 @@ function ArtifactPanel.drawArtifactPanel(player)
     Shared.drawGlassPanel(panelX - 10, panelY - 10, panelWidth + 20, panelHeight + 20)
 
     Theme.setColor("accent")
-    love.graphics.print("ðŸ’Ž COLLECTED ARTIFACTS ðŸ’Ž", panelX + 30, panelY, 0, 1.4, 1.4)
+    love.graphics.print("\xF0\x9F\x92\x8E COLLECTED ARTIFACTS \xF0\x9F\x92\x8E", panelX + 30, panelY, 0, 1.4, 1.4)
     panelY = panelY + 40
 
     local artifactColors = {
@@ -38,12 +38,12 @@ function ArtifactPanel.drawArtifactPanel(player)
         local y = panelY + ((i - 1) * lineHeight * 3)
         local color = artifactColors[artifact.type] or {1, 1, 1}
 
-        -- Bespoke neon optics glyph, recolored to the artifact's identity color.
+        -- Icon drawn white and larger for readability; artifact color used for text only.
         local textX = panelX
         if Icons.has(string.lower(artifact.type)) then
-            love.graphics.setColor(color)
-            Icons.draw(string.lower(artifact.type), panelX, y + 2, 24)
-            textX = panelX + 32
+            love.graphics.setColor(1, 1, 1)  -- white icon (was identity color)
+            Icons.draw(string.lower(artifact.type), panelX, y - 2, 32)  -- was size 24
+            textX = panelX + 38
         end
 
         love.graphics.setColor(color)

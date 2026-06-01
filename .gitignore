@@ -47,3 +47,4 @@ skill_audit.db-wal
 
 # Visual brainstorming companion
 .superpowers/
+*.txt

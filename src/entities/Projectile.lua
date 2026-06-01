@@ -6,6 +6,15 @@ local MathUtils = require("src.utils.MathUtils")
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
 
+local BOSS_ROT_SPEEDS = {
+    boss_diamond = 4.0,
+    boss_orb     = 3.0,
+    boss_shard   = 2.5,
+    boss_cross   = 2.0,
+    boss_twinorb = 2.0,
+    boss_petal   = 1.0,
+}
+
 local function getScreenSize()
     local w, h = GameConfig.getScreenSize()
     return w or Config.screen.width, h or Config.screen.height
@@ -72,15 +81,7 @@ function Projectile:update(dt)
     end
 
     -- Boss projectile rotation
-    local rotSpeeds = {
-        boss_diamond = 4.0,
-        boss_orb     = 3.0,
-        boss_shard   = 2.5,
-        boss_cross   = 2.0,
-        boss_twinorb = 2.0,
-        boss_petal   = 1.0,
-    }
-    local rs = rotSpeeds[self.type]
+    local rs = BOSS_ROT_SPEEDS[self.type]
     if rs then
         self.rotation = self.rotation + rs * dt
     end

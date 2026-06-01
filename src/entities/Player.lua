@@ -448,6 +448,9 @@ function Player:onInvulnerableHit(amount, source)
     end
 
     VFXLibrary.spawnImpactBurst(self.x + self.width / 2, self.y + self.height / 2, color, 8)
+
+    local ShieldEffect = require("src.effects.ShieldEffect")
+    ShieldEffect.triggerHit(color)
 end
 
 -- Check collision with enemies during dash (called from PlayingState)

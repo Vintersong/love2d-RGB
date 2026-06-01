@@ -37,7 +37,9 @@ function Projectile:init(x, y, vx, vy, damage, projType, owner)
     self.size = 4  -- Base size for all projectiles
     self.color = {1, 1, 1}  -- Start white, tinted by RGB upgrades
     self.trail = {}  -- Trail of previous positions
-    self.trailLength = 8
+    self.trailLength = 18
+    self.rotation = 0
+    self.innerRotation = 0
 end
 
 function Projectile:update(dt)
@@ -76,9 +78,40 @@ function Projectile:draw()
     local color = self.color or {1, 1, 1}
     local size = self.size or 4
     
-    -- Draw trail using ShapeLibrary
-    ShapeLibrary.trail(self.trail, size, color, {fadeAlpha = 0.5})
-    
+    -- Two-pass neon trail
+    if #self.trail > 1 then
+        local r, g, b = color[1], color[2], color[3]
+        local len = #self.trail
+
+        -- Pass 1: wide glow (additive blend)
+        love.graphics.setBlendMode("add")
+        for i = 2, len do
+            local t = 1 - (i - 1) / len
+            love.graphics.setColor(r, g, b, t * 0.18)
+            love.graphics.setLineWidth(t * 10)
+            love.graphics.line(
+                self.trail[i-1].x, self.trail[i-1].y,
+                self.trail[i].x,   self.trail[i].y
+            )
+        end
+        love.graphics.setBlendMode("alpha")
+
+        -- Pass 2: sharp neon line
+        for i = 2, len do
+            local t = 1 - (i - 1) / len
+            love.graphics.setColor(r, g, b, t * 0.85)
+            love.graphics.setLineWidth(t * 2.5)
+            love.graphics.line(
+                self.trail[i-1].x, self.trail[i-1].y,
+                self.trail[i].x,   self.trail[i].y
+            )
+        end
+    end
+
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setBlendMode("alpha")
+
     -- Draw projectile based on type using ShapeLibrary
     if self.type == "spread" then
         -- HYDROGEN ATOM

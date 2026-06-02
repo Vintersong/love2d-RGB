@@ -11,17 +11,25 @@ function ArtifactPanel.drawArtifactPanel(player)
     end
 
     local screenWidth, screenHeight = Shared.getScreenSize()
+    local tileSize = 64
+    local tileGap = 6
+    local iconDrawSize = 34
     local panelWidth = 350
     local panelX = screenWidth - panelWidth - 20
     local panelY = 20
-    local lineHeight = 28
+    local headerHeight = 40
+    local columns = math.max(1, math.floor((panelWidth + tileGap) / (tileSize + tileGap)))
+    local rows = math.ceil(#artifacts / columns)
+    local gridHeight = rows * tileSize + math.max(0, rows - 1) * tileGap
+    local panelHeight = math.min(headerHeight + gridHeight + 12, screenHeight - 40)
+    local mouseX, mouseY = love.mouse.getPosition()
+    local hoveredArtifact = nil
 
-    local panelHeight = math.min(60 + (#artifacts * lineHeight * 3), screenHeight - 40)
     Shared.drawGlassPanel(panelX - 10, panelY - 10, panelWidth + 20, panelHeight + 20)
 
     Theme.setColor("accent")
     love.graphics.print("ðŸ’Ž COLLECTED ARTIFACTS ðŸ’Ž", panelX + 30, panelY, 0, 1.4, 1.4)
-    panelY = panelY + 40
+    panelY = panelY + headerHeight
 
     local artifactColors = {
         PRISM = {1, 0.2, 1},
@@ -35,51 +43,71 @@ function ArtifactPanel.drawArtifactPanel(player)
     }
 
     for i, artifact in ipairs(artifacts) do
-        local y = panelY + ((i - 1) * lineHeight * 3)
+        local column = (i - 1) % columns
+        local row = math.floor((i - 1) / columns)
+        local x = panelX + column * (tileSize + tileGap)
+        local y = panelY + row * (tileSize + tileGap)
         local color = artifactColors[artifact.type] or {1, 1, 1}
+        local artifactIconName = string.lower(artifact.type)
+        local isHovered = mouseX >= x and mouseX <= x + tileSize and mouseY >= y and mouseY <= y + tileSize
 
-        -- Bespoke neon optics glyph, recolored to the artifact's identity color.
-        local textX = panelX
-        if Icons.has(string.lower(artifact.type)) then
-            love.graphics.setColor(color)
-            Icons.draw(string.lower(artifact.type), panelX, y + 2, 24)
-            textX = panelX + 32
+        if isHovered then
+            hoveredArtifact = artifact
         end
 
-        love.graphics.setColor(color)
-        local artifactText = string.format("%s [Lv %d/%d]", artifact.name, artifact.level, artifact.maxLevel)
-        love.graphics.print(artifactText, textX, y, 0, 1.3, 1.3)
+        love.graphics.setColor(color[1] * 0.18, color[2] * 0.18, color[3] * 0.18, isHovered and 0.9 or 0.72)
+        love.graphics.rectangle("fill", x, y, tileSize, tileSize, 8, 8)
 
-        -- TODO(ui): Keep [WIP] badge until all artifact descriptions are finalized.
-        if artifact.isWIP then
-            Theme.setColor("warn")
-            local textWidth = love.graphics.getFont():getWidth(artifactText) * 1.3
-            love.graphics.print("[WIP]", textX + textWidth + 10, y, 0, 1.3, 1.3)
-        end
-
-        local effectDesc = ArtifactPanel.getArtifactEffectDescription(artifact.type, artifact.level, player)
-        Theme.setColor("fg2")
-        love.graphics.print(effectDesc, textX, y + lineHeight, 0, 1.0, 1.0)
+        love.graphics.setColor(color[1], color[2], color[3], isHovered and 1 or 0.82)
+        love.graphics.setLineWidth(isHovered and 3 or 2)
+        love.graphics.rectangle("line", x, y, tileSize, tileSize, 8, 8)
+        love.graphics.setLineWidth(1)
 
         if artifact.level < artifact.maxLevel then
-            local barWidth = panelWidth - 20
-            local barHeight = 8
-            local barY = y + lineHeight * 2 + 5
-
-            Theme.setColor("bgRaised", 0.8)
-            love.graphics.rectangle("fill", panelX, barY, barWidth, barHeight)
-
             local progress = artifact.level / artifact.maxLevel
-            love.graphics.setColor(color[1] * 0.8, color[2] * 0.8, color[3] * 0.8)
-            love.graphics.rectangle("fill", panelX, barY, barWidth * progress, barHeight)
-
-            Theme.setColor("fg3")
-            love.graphics.setLineWidth(1)
-            love.graphics.rectangle("line", panelX, barY, barWidth, barHeight)
+            love.graphics.setColor(color[1], color[2], color[3], 0.95)
+            love.graphics.rectangle("fill", x + 2, y + tileSize - 5, (tileSize - 4) * progress, 3, 2, 2)
         else
             Theme.setColor("warn")
-            love.graphics.print("MAX LEVEL", panelX + 120, y + lineHeight * 2 + 3, 0, 1.1, 1.1)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", x + 3, y + 3, tileSize - 6, tileSize - 6, 7, 7)
+            love.graphics.setLineWidth(1)
         end
+
+        if Icons.has(artifactIconName) then
+            local iconX = x + (tileSize - iconDrawSize) / 2
+            local iconY = y + (tileSize - iconDrawSize) / 2
+            love.graphics.setColor(color)
+            Icons.draw(artifactIconName, iconX, iconY, iconDrawSize)
+        end
+
+        love.graphics.setColor(1, 1, 1, 0.92)
+        local levelText = string.format("Lv %d", artifact.level)
+        local levelWidth = love.graphics.getFont():getWidth(levelText)
+        love.graphics.print(levelText, x + tileSize - levelWidth - 6, y + tileSize - 18)
+
+        if artifact.isWIP then
+            Theme.setColor("warn")
+            love.graphics.print("WIP", x + 6, y + tileSize - 18)
+        end
+    end
+
+    if hoveredArtifact then
+        local tooltipPadding = 10
+        local tooltipWidth = 260
+        local tooltipX = math.min(mouseX + 14, screenWidth - tooltipWidth - 12)
+        local tooltipY = math.min(mouseY + 14, screenHeight - 96)
+        local color = artifactColors[hoveredArtifact.type] or {1, 1, 1}
+        local effectDesc = ArtifactPanel.getArtifactEffectDescription(hoveredArtifact.type, hoveredArtifact.level, player)
+        local detailText = string.format("Lv %d/%d", hoveredArtifact.level, hoveredArtifact.maxLevel)
+
+        Shared.drawGlassPanel(tooltipX, tooltipY, tooltipWidth, 84, { fillAlpha = 0.88, edgeAlpha = 0.45 })
+        love.graphics.setColor(color)
+        love.graphics.print(hoveredArtifact.name, tooltipX + tooltipPadding, tooltipY + tooltipPadding, 0, 1.15, 1.15)
+        Theme.setColor("fg2")
+        love.graphics.print(detailText, tooltipX + tooltipPadding, tooltipY + 34)
+        Theme.setColor("fg")
+        love.graphics.printf(effectDesc, tooltipX + tooltipPadding, tooltipY + 56, tooltipWidth - tooltipPadding * 2)
     end
 end
 

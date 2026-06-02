@@ -99,88 +99,97 @@ function HudPanel.drawPlayerHUD(player)
         love.graphics.print(string.format("âš¡ Synergies: %d", synergyCount), x, y, 0, 1.2, 1.2)
     end
 
-    local dashY = screenHeight - 100
-    local barWidth = 250
-    local barHeight = 25
-    local dashX = (screenWidth / 2) - (barWidth / 2)
-
-    Shared.drawGlassPanel(dashX - 10, dashY - 10, barWidth + 20, 75)
-
-    Theme.setColor("accent")
-    local titleText = "DASH [SPACE]"
-    local font = love.graphics.getFont()
-    local titleWidth = font:getWidth(titleText) * 1.5
-    local titleX = dashX + (barWidth - titleWidth) / 2
-    Icons.draw("dash", titleX - 30, dashY - 6, 24)
-    love.graphics.print(titleText, titleX, dashY - 5, 0, 1.5, 1.5)
-
     local AbilitySystem = require("src.combat.AbilitySystem")
     local AbilityLibrary = require("src.data.AbilityLibrary")
-    local dashCdPercent = AbilitySystem.getCooldownProgress(player, "DASH", AbilityLibrary.DASH)
-    local dashState = AbilitySystem.getState(player, "DASH")
-    local dashCooldown = dashState and dashState.cooldown or 0
-
-    Theme.setColor("bgRaised")
-    love.graphics.rectangle("fill", dashX, dashY + 30, barWidth, barHeight)
-
-    if dashCdPercent >= 1 then
-        local pulse = math.sin(love.timer.getTime() * 5) * 0.3 + 0.7
-        local c = Theme.color.ok
-        love.graphics.setColor(c[1] * pulse, c[2] * pulse, c[3] * pulse)
-        love.graphics.rectangle("fill", dashX, dashY + 30, barWidth, barHeight)
-        Theme.setColor("ok")
-        love.graphics.print("READY", dashX + (barWidth / 2) - 30, dashY + 32, 0, 1.3, 1.3)
-    else
-        Theme.setColor("accent")
-        love.graphics.rectangle("fill", dashX, dashY + 30, barWidth * dashCdPercent, barHeight)
-        Theme.setColor("fg1")
-        love.graphics.print(string.format("%.1fs", dashCooldown), dashX + (barWidth / 2) - 20, dashY + 32, 0, 1.3, 1.3)
-    end
-
-    Theme.setColor("accent")
-    love.graphics.setLineWidth(3)
-    love.graphics.rectangle("line", dashX, dashY + 30, barWidth, barHeight)
-
     local abilityState = player.abilityState or {
         activeAbility = player.activeAbility,
         cooldown = player.abilityCooldown or 0,
         maxCooldown = player.abilityMaxCooldown or 1
     }
 
-    if abilityState.activeAbility then
-        local abilityY = screenHeight - 200
-        Shared.drawGlassPanel(x - 5, abilityY - 5, 220, 70)
+    local iconSize = 64
+    local iconGap = 4
+    local abilityRowWidth = iconSize * 2 + iconGap
+    local rowX = (screenWidth - abilityRowWidth) / 2
+    local rowY = screenHeight - iconSize - 24
+    local iconGlyphSize = 40
 
-        love.graphics.setColor(Theme.color.magenta)
-        Icons.draw("supernova", x, abilityY - 1, 22)
-        love.graphics.print(string.format("%s [L-SHIFT]", abilityState.activeAbility), x + 28, abilityY, 0, 1.3, 1.3)
-
-        local cdPercent = 1
-        if abilityState.maxCooldown and abilityState.maxCooldown > 0 then
-            cdPercent = 1 - (abilityState.cooldown / abilityState.maxCooldown)
-        end
+    local function drawAbilitySlot(slotX, slotY, iconName, keyLabel, color, cooldownProgress, cooldownRemaining, isAvailable)
+        cooldownProgress = math.max(0, math.min(cooldownProgress or 1, 1))
+        cooldownRemaining = cooldownRemaining or 0
+        isAvailable = isAvailable ~= false
 
         Theme.setColor("bgRaised")
-        love.graphics.rectangle("fill", x, abilityY + 25, barWidth, barHeight)
+        love.graphics.rectangle("fill", slotX, slotY, iconSize, iconSize)
 
-        if cdPercent >= 1 then
-            local pulse = math.sin(love.timer.getTime() * 5) * 0.3 + 0.7
-            local c = Theme.color.magenta
-            love.graphics.setColor(c[1] * pulse, c[2] * pulse, c[3] * pulse)
-            love.graphics.rectangle("fill", x, abilityY + 25, barWidth, barHeight)
-            love.graphics.setColor(Theme.color.magenta)
-            love.graphics.print("READY", x + 75, abilityY + 27, 0, 1.2, 1.2)
-        else
-            love.graphics.setColor(Theme.color.magenta)
-            love.graphics.rectangle("fill", x, abilityY + 25, barWidth * cdPercent, barHeight)
+        love.graphics.setColor(1, 1, 1, 0.08)
+        love.graphics.rectangle("fill", slotX + 2, slotY + 2, iconSize - 4, iconSize - 4)
+
+        local iconAlpha = (isAvailable and cooldownProgress >= 1) and 1 or 0.38
+        love.graphics.setColor(color[1], color[2], color[3], iconAlpha)
+        Icons.draw(
+            iconName,
+            slotX + (iconSize - iconGlyphSize) / 2,
+            slotY + (iconSize - iconGlyphSize) / 2,
+            iconGlyphSize,
+            { width = 2.2 }
+        )
+
+        if cooldownProgress < 1 then
+            local maskHeight = iconSize * (1 - cooldownProgress)
+            love.graphics.setColor(0, 0, 0, 0.55)
+            love.graphics.rectangle("fill", slotX, slotY, iconSize, maskHeight)
+
             Theme.setColor("fg1")
-            love.graphics.print(string.format("%.1fs", abilityState.cooldown), x + 75, abilityY + 27, 0, 1.2, 1.2)
+            local cooldownText = string.format("%.1fs", cooldownRemaining)
+            local font = love.graphics.getFont()
+            love.graphics.print(
+                cooldownText,
+                slotX + (iconSize - font:getWidth(cooldownText)) / 2,
+                slotY + 22
+            )
+        elseif isAvailable then
+            local pulse = math.sin(love.timer.getTime() * 5) * 0.25 + 0.55
+            love.graphics.setColor(color[1], color[2], color[3], pulse)
+            love.graphics.rectangle("line", slotX + 2, slotY + 2, iconSize - 4, iconSize - 4)
+        else
+            love.graphics.setColor(0, 0, 0, 0.62)
+            love.graphics.rectangle("fill", slotX, slotY, iconSize, iconSize)
         end
 
-        love.graphics.setColor(Theme.color.magenta)
+        love.graphics.setColor(0, 0, 0, 0.65)
+        love.graphics.rectangle("fill", slotX, slotY + iconSize - 16, iconSize, 16)
+
+        Theme.setColor("fg1")
+        local font = love.graphics.getFont()
+        love.graphics.print(keyLabel, slotX + (iconSize - font:getWidth(keyLabel)) / 2, slotY + iconSize - 14)
+
+        love.graphics.setColor(color[1], color[2], color[3], isAvailable and 0.95 or 0.35)
         love.graphics.setLineWidth(2)
-        love.graphics.rectangle("line", x, abilityY + 25, barWidth, barHeight)
+        love.graphics.rectangle("line", slotX, slotY, iconSize, iconSize)
     end
+
+    local dashCdPercent = AbilitySystem.getCooldownProgress(player, "DASH", AbilityLibrary.DASH)
+    local dashState = AbilitySystem.getState(player, "DASH")
+    local dashCooldown = dashState and dashState.cooldown or 0
+
+    drawAbilitySlot(rowX, rowY, "dash", "SPACE", Theme.color.accent, dashCdPercent, dashCooldown, true)
+
+    local supernovaProgress = 1
+    if abilityState.maxCooldown and abilityState.maxCooldown > 0 then
+        supernovaProgress = 1 - ((abilityState.cooldown or 0) / abilityState.maxCooldown)
+    end
+
+    drawAbilitySlot(
+        rowX + iconSize + iconGap,
+        rowY,
+        "supernova",
+        "SHIFT",
+        Theme.color.magenta,
+        supernovaProgress,
+        abilityState.cooldown or 0,
+        abilityState.activeAbility ~= nil
+    )
 
     Theme.setColor("fg3")
     local activeText = player.activeAbility and " | L-SHIFT: Supernova" or ""

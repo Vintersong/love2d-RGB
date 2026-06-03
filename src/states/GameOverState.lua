@@ -19,9 +19,23 @@ local fontSemiBold = nil
 local fontUI       = nil
 local fontMono     = nil
 
+-- Button navigation
+local buttons = {
+    { label = "RESTART", action = "restart" },
+    { label = "QUIT",    action = "quit"    },
+}
+local selectedButton = 1
+local animProgress   = {}
+
+local BTN_W = 300
+local BTN_H = 44
+local BTN_GAP = 16
+
 function GameOverState:enter(previous, data)
     GameConfig.setActiveRun(false)
     alpha = 0
+    selectedButton = 1
+    for i = 1, #buttons do animProgress[i] = 0 end
     if data then
         self.player       = data.player
         self.musicReactor = data.musicReactor
@@ -38,6 +52,15 @@ function GameOverState:update(dt)
         self.musicReactor:update(dt)
     end
     BackgroundShader.update(dt, self.musicReactor, nil)
+
+    for i = 1, #buttons do
+        local target = (i == selectedButton) and 1 or 0
+        if animProgress[i] < target then
+            animProgress[i] = math.min(target, animProgress[i] + dt / 0.15)
+        elseif animProgress[i] > target then
+            animProgress[i] = math.max(target, animProgress[i] - dt / 0.15)
+        end
+    end
 end
 
 function GameOverState:draw()
@@ -118,20 +141,72 @@ function GameOverState:drawContent(sw, sh)
     local dmgStr = string.format("Damage  %.0f", dmg)
     love.graphics.print(dmgStr, cx - fontMono:getWidth(dmgStr) / 2, 480)
 
-    -- Temporary nav hints (replaced by bracket buttons in Task 2)
-    love.graphics.setFont(fontUI)
-    Theme.setColor("fg3", alpha * 0.7)
-    local hint = "R  Restart      ESC  Quit"
-    love.graphics.print(hint, cx - fontUI:getWidth(hint) / 2, sh - 100)
+    -- Bracket buttons
+    local totalBtnH = #buttons * BTN_H + (#buttons - 1) * BTN_GAP
+    local btnStartY = sh - 200 - totalBtnH
+    local btnX      = cx - BTN_W / 2
+
+    for i, btn in ipairs(buttons) do
+        local progress = animProgress[i] or 0
+        local ease     = 1 - math.pow(2, -10 * math.max(progress, 0.001))
+        local slide    = ease * 8
+        local lx = btnX + slide
+        local rx = btnX + BTN_W - slide
+        local by = btnStartY + (i - 1) * (BTN_H + BTN_GAP)
+
+        -- Dark fill
+        love.graphics.setColor(0, 0, 0, alpha * 0.5)
+        love.graphics.rectangle("fill", lx, by, rx - lx, BTN_H)
+
+        -- Corner brackets
+        love.graphics.setLineWidth(1.5)
+        if i == selectedButton then
+            Theme.setColor("accent", alpha)
+        else
+            love.graphics.setColor(1, 1, 1, alpha * 0.12)
+        end
+        love.graphics.line(lx + 12, by,          lx, by,         lx, by + 12)
+        love.graphics.line(lx + 12, by + BTN_H,  lx, by + BTN_H, lx, by + BTN_H - 12)
+        love.graphics.line(rx - 12, by,          rx, by,         rx, by + 12)
+        love.graphics.line(rx - 12, by + BTN_H,  rx, by + BTN_H, rx, by + BTN_H - 12)
+
+        -- Label
+        love.graphics.setFont(fontUI)
+        local lw = fontUI:getWidth(btn.label)
+        if i == selectedButton then
+            love.graphics.setColor(0, 0, 0, alpha * 0.5)
+            love.graphics.print(btn.label, cx - lw / 2 + 1, by + BTN_H / 2 - 8 + 1)
+            Theme.setColor("fg1", alpha)
+        else
+            love.graphics.setColor(0.55, 0.6, 0.7, alpha * 0.6)
+        end
+        love.graphics.print(btn.label, cx - lw / 2, by + BTN_H / 2 - 8)
+    end
 end
 
 function GameOverState:keypressed(key)
+    if key == "up" then
+        selectedButton = selectedButton - 1
+        if selectedButton < 1 then selectedButton = #buttons end
+    elseif key == "down" then
+        selectedButton = selectedButton + 1
+        if selectedButton > #buttons then selectedButton = 1 end
+    elseif key == "return" or key == "space" then
+        self:activateButton(buttons[selectedButton].action)
+    elseif key == "r" then
+        self:activateButton("restart")
+    elseif key == "escape" then
+        self:activateButton("quit")
+    end
+end
+
+function GameOverState:activateButton(action)
     local StateManager = require("src.core.StateManager")
-    if key == "r" then
+    if action == "restart" then
         local PlayingState = require("src.states.PlayingState")
         PlayingState.startNewRun()
         StateManager.switch("Playing")
-    elseif key == "escape" then
+    elseif action == "quit" then
         Runtime.quitOrReturnToTitle()
     end
 end

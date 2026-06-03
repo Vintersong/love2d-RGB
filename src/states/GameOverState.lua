@@ -1,129 +1,133 @@
 -- GameOverState.lua
--- Game over screen when player dies
-
 local GameOverState = {}
-local Config = require("src.Config")
-local Runtime = require("src.core.Runtime")
-local GameConfig = require("src.core.GameConfig")
 
-GameOverState.player = nil
-GameOverState.enemies = {}
+local Config           = require("src.Config")
+local Runtime          = require("src.core.Runtime")
+local GameConfig       = require("src.core.GameConfig")
+local Theme            = require("src.render.Theme")
+local BackgroundShader = require("src.render.BackgroundShader")
+
+GameOverState.player       = nil
 GameOverState.musicReactor = nil
+
+local alpha = 0
+
+-- Fonts (lazily initialised after love.graphics exists)
+local fontDisplay  = nil
+local fontSemiBold = nil
+local fontUI       = nil
+local fontMono     = nil
 
 function GameOverState:enter(previous, data)
     GameConfig.setActiveRun(false)
+    alpha = 0
     if data then
-        self.player = data.player
-        self.enemies = data.enemies or {}
+        self.player       = data.player
         self.musicReactor = data.musicReactor
     end
+    fontDisplay  = fontDisplay  or Theme.font("display",    75)
+    fontSemiBold = fontSemiBold or Theme.font("uiSemiBold", 24)
+    fontUI       = fontUI       or Theme.font("ui",         16)
+    fontMono     = fontMono     or Theme.font("mono",       12)
 end
 
 function GameOverState:update(dt)
-    -- Keep background systems running
-    local World = require("src.gameplay.World")
+    alpha = math.min(1, alpha + dt / 0.4)
     if self.musicReactor then
         self.musicReactor:update(dt)
     end
-    World.update(dt, self.musicReactor)
+    BackgroundShader.update(dt, self.musicReactor, nil)
 end
 
 function GameOverState:draw()
-    local World = require("src.gameplay.World")
-    World.draw()
-
-    -- Draw frozen game state
-    self.player:draw()
-
-    for _, enemy in ipairs(self.enemies) do
-        enemy:draw(self.musicReactor)
-    end
-
-    -- Draw game over overlay
-    self:drawGameOverScreen()
+    local sw, sh = Config.screen.width, Config.screen.height
+    BackgroundShader.draw()
+    Theme.setColor("bgVoid", 0.85)
+    love.graphics.rectangle("fill", 0, 0, sw, sh)
+    self:drawContent(sw, sh)
 end
 
-function GameOverState:drawGameOverScreen()
-    local screenWidth = Config.screen.width
-    local screenHeight = Config.screen.height
-
-    -- Semi-transparent overlay
-    love.graphics.setColor(0, 0, 0, 0.9)
-    love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
-
-    local centerX = screenWidth / 2
-    local startY = 250
+function GameOverState:drawContent(sw, sh)
+    local cx = sw / 2
+    local ColorSystem = require("src.gameplay.ColorSystem")
 
     -- Title
-    love.graphics.setColor(1, 0, 0)
-    love.graphics.print("💀 GAME OVER 💀", centerX - 300, startY, 0, 5, 5)
+    love.graphics.setFont(fontDisplay)
+    local title = "SIGNAL LOST"
+    Theme.setColor("danger", alpha)
+    love.graphics.print(title, cx - fontDisplay:getWidth(title) / 2, 200)
 
-    local y = startY + 150
+    -- Accent rule
+    local ruleW = sw * 0.4
+    Theme.setColor("accent", alpha * 0.5)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(cx - ruleW / 2, 305, cx + ruleW / 2, 305)
 
-    -- Boss message
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print("The Final Boss has defeated you!", centerX - 280, y, 0, 2, 2)
-    y = y + 80
+    -- Level
+    love.graphics.setFont(fontSemiBold)
+    Theme.setColor("fg1", alpha)
+    local levelStr = string.format("Level %d", self.player.level)
+    love.graphics.print(levelStr, cx - fontSemiBold:getWidth(levelStr) / 2, 340)
 
-    -- Level reached
-    love.graphics.print(string.format("You reached Level %d", self.player.level), centerX - 180, y, 0, 1.8, 1.8)
-    y = y + 80
+    -- Color path label
+    love.graphics.setFont(fontUI)
+    Theme.setColor("fg3", alpha)
+    local pathLabel = "Color Path:"
+    love.graphics.print(pathLabel, cx - fontUI:getWidth(pathLabel) / 2, 390)
 
-    -- Congratulations message
-    love.graphics.setColor(1, 1, 0)
-    love.graphics.print("Congratulations on making it this far!", centerX - 280, y, 0, 1.5, 1.5)
-    y = y + 120
+    -- Color path segments, each drawn in its Theme color token
+    local history = ColorSystem.colorHistory or {}
+    if #history > 0 then
+        local segments, segWidths = {}, {}
+        for _, code in ipairs(history) do
+            table.insert(segments, ColorSystem.getColorName(code):upper())
+        end
+        local arrow  = "  →  "
+        local arrowW = fontUI:getWidth(arrow)
+        local totalW = 0
+        for i, seg in ipairs(segments) do
+            segWidths[i] = fontUI:getWidth(seg)
+            totalW = totalW + segWidths[i]
+            if i < #segments then totalW = totalW + arrowW end
+        end
+        local px = cx - totalW / 2
+        for i, seg in ipairs(segments) do
+            local colorName = ColorSystem.getColorName(history[i]):lower()
+            local c = Theme.color[colorName] or Theme.color.fg1
+            love.graphics.setColor(c[1], c[2], c[3], alpha)
+            love.graphics.print(seg, px, 420)
+            px = px + segWidths[i]
+            if i < #segments then
+                Theme.setColor("fg3", alpha * 0.4)
+                love.graphics.print(arrow, px, 420)
+                px = px + arrowW
+            end
+        end
+    end
 
-    -- Options
-    love.graphics.setColor(0.2, 1, 0.2)
-    love.graphics.print("Press C to Continue (Endless Mode)", centerX - 280, y, 0, 1.5, 1.5)
-    y = y + 60
+    -- Dominant damage stat
+    love.graphics.setFont(fontMono)
+    Theme.setColor("fg2", alpha)
+    local dmg    = self.player.weapon and self.player.weapon.damage or 0
+    local dmgStr = string.format("Damage  %.0f", dmg)
+    love.graphics.print(dmgStr, cx - fontMono:getWidth(dmgStr) / 2, 480)
 
-    love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.print("Press R to Restart | ESC to " .. Runtime.exitActionText(), centerX - 220, y, 0, 1.5, 1.5)
+    -- Temporary nav hints (replaced by bracket buttons in Task 2)
+    love.graphics.setFont(fontUI)
+    Theme.setColor("fg3", alpha * 0.7)
+    local hint = "R  Restart      ESC  Quit"
+    love.graphics.print(hint, cx - fontUI:getWidth(hint) / 2, sh - 100)
 end
 
 function GameOverState:keypressed(key)
     local StateManager = require("src.core.StateManager")
-
-    if key == "escape" then
-        Runtime.quitOrReturnToTitle()
-    elseif key == "c" then
-        local CollisionSystem = require("src.combat.CollisionSystem")
-        local Config = require("src.Config")
-        CollisionSystem.init(Config.gameplay.cellSize)
-
-        -- Continue in endless mode (heal player, keep level/upgrades)
-        self.player.hp = self.player.maxHp
-        self.player.invulnerable = false
-        self.player.invulnerableTime = 0
-
-        -- Clear enemies and powerups
+    if key == "r" then
         local PlayingState = require("src.states.PlayingState")
-        local BossSystem = require("src.boss.BossSystem")
-        BossSystem.reset()
-
-        PlayingState.player = self.player
-        PlayingState.enemies = {}
-        PlayingState.xpOrbs = {}
-        PlayingState.powerups = {}
-        PlayingState.explosions = {}
-        PlayingState.bossProjectiles = {}
-        PlayingState.musicReactor = self.musicReactor
-
-        print("[ENDLESS MODE] Continuing from level " .. self.player.level)
+        PlayingState.startNewRun()
         StateManager.switch("Playing")
-    elseif key == "r" then
-        -- Restart game
-        self:restartGame()
-        StateManager.switch("Playing")
+    elseif key == "escape" then
+        Runtime.quitOrReturnToTitle()
     end
-end
-
-function GameOverState:restartGame()
-    local PlayingState = require("src.states.PlayingState")
-    PlayingState.startNewRun()
-    self.player = PlayingState.player
 end
 
 return GameOverState

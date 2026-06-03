@@ -182,6 +182,8 @@ function GameOverState:drawContent(sw, sh)
         end
         love.graphics.print(btn.label, cx - lw / 2, by + BTN_H / 2 - 8)
     end
+
+    love.graphics.setLineWidth(1)
 end
 
 function GameOverState:keypressed(key)

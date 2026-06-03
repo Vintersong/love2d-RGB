@@ -137,7 +137,7 @@ function GameOverState:drawContent(sw, sh)
     -- Dominant damage stat
     love.graphics.setFont(fontMono)
     Theme.setColor("fg2", alpha)
-    local dmg    = self.player.weapon and self.player.weapon.damage or 0
+    local dmg    = (self.player.weapon and self.player.weapon.damage) or 0
     local dmgStr = string.format("Damage  %.0f", dmg)
     love.graphics.print(dmgStr, cx - fontMono:getWidth(dmgStr) / 2, 480)
 
@@ -184,9 +184,11 @@ function GameOverState:drawContent(sw, sh)
     end
 
     love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 function GameOverState:keypressed(key)
+    if alpha < 1 then return end
     if key == "up" then
         selectedButton = selectedButton - 1
         if selectedButton < 1 then selectedButton = #buttons end

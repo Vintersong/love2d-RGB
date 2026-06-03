@@ -6,6 +6,7 @@ local Runtime          = require("src.core.Runtime")
 local GameConfig       = require("src.core.GameConfig")
 local Theme            = require("src.render.Theme")
 local BackgroundShader = require("src.render.BackgroundShader")
+local ColorSystem      = require("src.gameplay.ColorSystem")
 
 GameOverState.player       = nil
 GameOverState.musicReactor = nil
@@ -48,8 +49,8 @@ function GameOverState:draw()
 end
 
 function GameOverState:drawContent(sw, sh)
+    if not self.player then return end
     local cx = sw / 2
-    local ColorSystem = require("src.gameplay.ColorSystem")
 
     -- Title
     love.graphics.setFont(fontDisplay)
@@ -78,29 +79,34 @@ function GameOverState:drawContent(sw, sh)
     -- Color path segments, each drawn in its Theme color token
     local history = ColorSystem.colorHistory or {}
     if #history > 0 then
-        local segments, segWidths = {}, {}
+        local segments, segWidths, segColors = {}, {}, {}
         for _, code in ipairs(history) do
-            table.insert(segments, ColorSystem.getColorName(code):upper())
+            local name = ColorSystem.getColorName(code)
+            if name ~= "Unknown" then
+                table.insert(segments, name:upper())
+                table.insert(segColors, name:lower())
+            end
         end
-        local arrow  = "  →  "
-        local arrowW = fontUI:getWidth(arrow)
-        local totalW = 0
-        for i, seg in ipairs(segments) do
-            segWidths[i] = fontUI:getWidth(seg)
-            totalW = totalW + segWidths[i]
-            if i < #segments then totalW = totalW + arrowW end
-        end
-        local px = cx - totalW / 2
-        for i, seg in ipairs(segments) do
-            local colorName = ColorSystem.getColorName(history[i]):lower()
-            local c = Theme.color[colorName] or Theme.color.fg1
-            love.graphics.setColor(c[1], c[2], c[3], alpha)
-            love.graphics.print(seg, px, 420)
-            px = px + segWidths[i]
-            if i < #segments then
-                Theme.setColor("fg3", alpha * 0.4)
-                love.graphics.print(arrow, px, 420)
-                px = px + arrowW
+        if #segments > 0 then
+            local arrow  = "  →  "
+            local arrowW = fontUI:getWidth(arrow)
+            local totalW = 0
+            for i, seg in ipairs(segments) do
+                segWidths[i] = fontUI:getWidth(seg)
+                totalW = totalW + segWidths[i]
+                if i < #segments then totalW = totalW + arrowW end
+            end
+            local px = cx - totalW / 2
+            for i, seg in ipairs(segments) do
+                local c = Theme.color[segColors[i]] or Theme.color.fg1
+                love.graphics.setColor(c[1], c[2], c[3], alpha)
+                love.graphics.print(seg, px, 420)
+                px = px + segWidths[i]
+                if i < #segments then
+                    Theme.setColor("fg3", alpha * 0.4)
+                    love.graphics.print(arrow, px, 420)
+                    px = px + arrowW
+                end
             end
         end
     end

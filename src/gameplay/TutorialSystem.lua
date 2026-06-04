@@ -21,16 +21,26 @@ local Config = require("src.Config")
 local TutorialSystem = {}
 
 local active = false
+local tipsActive = false
 local phase = "RED"      -- RED | COMMIT | SECOND | FREE
 local secondCode = nil   -- "g" or "b": the chosen second primary
 local popupQueue = {}
 local arcComplete = false
+local firedPrompts = {}
 
 -- Popup copy. Short enough to read in well under 10s, framed in light/wavelength
 -- terms rather than game-tutorial language.
 local POPUPS = {
+    RED_START = {
+        title = "RED  -  PRESSURE ONLINE",
+        lines = {
+            "Red is your first wavelength: wide pressure, many angles.",
+            "Each red level teaches the beam to fracture into more lanes.",
+            "Think of it as build identity, not a lesson: red owns space.",
+        },
+    },
     RED = {
-        title = "RED  —  AGGRESSION",
+        title = "RED  -  AGGRESSION",
         lines = {
             "Red is the long, slow end of the visible spectrum (~650nm).",
             "Your beam has been fracturing: each level raised the chance to",
@@ -38,8 +48,16 @@ local POPUPS = {
             "Red is multi-target pressure. Now commit to a second wavelength.",
         },
     },
+    COMMIT = {
+        title = "SECOND WAVELENGTH",
+        lines = {
+            "A second primary commits the run. The third primary stays dark.",
+            "Two wavelengths define your projectile shape, dash feel,",
+            "artifact behavior, and the secondary color waiting downstream.",
+        },
+    },
     GREEN = {
-        title = "GREEN  —  ADAPTATION",
+        title = "GREEN  -  ADAPTATION",
         lines = {
             "Green light reflects. Where red strikes, green REBOUNDS,",
             "chaining from target to target. Each level raised bounce chance;",
@@ -48,7 +66,7 @@ local POPUPS = {
         },
     },
     BLUE = {
-        title = "BLUE  —  CONTROL",
+        title = "BLUE  -  CONTROL",
         lines = {
             "Blue is the short, high-energy end of the spectrum.",
             "It PIERCES, punching straight through targets. Each level raised",
@@ -57,21 +75,46 @@ local POPUPS = {
         },
     },
     YELLOW = {
-        title = "YELLOW  —  SYNTHESIS",
+        title = "YELLOW  -  SYNTHESIS",
         lines = {
             "Red + Green = Yellow. Additive mixing: two wavelengths combine",
             "into a brighter, faster light. Yellow inherits red's spread and",
-            "green's bounce, and fires faster — pure velocity.",
+            "green's bounce, and fires faster - pure velocity.",
             "You now have the full toolkit. Experiment.",
         },
     },
     MAGENTA = {
-        title = "MAGENTA  —  SYNTHESIS",
+        title = "MAGENTA  -  SYNTHESIS",
         lines = {
             "Red + Blue = Magenta. Additive mixing combines spread and pierce",
             "into unstable bursts. Magenta inherits red's spread and blue's",
             "pierce, with a chance to detonate on impact.",
             "You now have the full toolkit. Experiment.",
+        },
+    },
+    CYAN = {
+        title = "CYAN  -  SYNTHESIS",
+        lines = {
+            "Green + Blue = Cyan. Additive mixing blends rebound and pierce",
+            "into cold control: projectiles carry frost pressure while keeping",
+            "the line discipline of blue and the recursion of green.",
+            "You now have the full toolkit. Experiment.",
+        },
+    },
+    ARTIFACT = {
+        title = "OPTICS ARTIFACT",
+        lines = {
+            "Artifact synced. Optics do not replace your color path; they bend it.",
+            "Prisms, lenses, halos, and mirrors read your dominant wavelength",
+            "and turn build choices into visible behavior.",
+        },
+    },
+    SYNERGY = {
+        title = "COLOR SYNERGY",
+        lines = {
+            "A named synergy just fired. That means color plus artifact found",
+            "a shared optical rule: split, focus, reflect, refract, or amplify.",
+            "When the screen changes, your build is explaining itself.",
         },
     },
 }
@@ -82,21 +125,33 @@ local function queue(id)
     end
 end
 
+local function queueOnce(id)
+    if firedPrompts[id] then return end
+    firedPrompts[id] = true
+    queue(id)
+end
+
 -- Begin (or skip) the tutorial for a fresh run. Called from PlayingState run init,
 -- after ColorSystem.init() so color state is already clean.
 function TutorialSystem.beginRun()
     active = (Config.gameplay.tutorialEnabled == true)
+    tipsActive = active
     phase = "RED"
     secondCode = nil
     popupQueue = {}
     arcComplete = false
+    firedPrompts = {}
     if active then
-        print("[Tutorial] Guided run started — forced RED phase")
+        print("[Tutorial] Guided run started - forced RED phase")
     end
 end
 
 function TutorialSystem.isActive()
     return active
+end
+
+function TutorialSystem.areTipsActive()
+    return active or tipsActive
 end
 
 -- Restrict the level-up choices for the current forced phase. Returns the input
@@ -138,14 +193,18 @@ function TutorialSystem.onColorAdded(_code)
     local ColorSystem = require("src.gameplay.ColorSystem")
 
     if phase == "RED" then
+        if _code == "r" and ColorSystem.primary.RED.level == 1 then
+            queueOnce("RED_START")
+        end
         if ColorSystem.primary.RED.level >= 10 then
-            queue("RED")
+            queueOnce("RED")
             phase = "COMMIT"
         end
     elseif phase == "COMMIT" then
         -- Picking a second distinct primary locks the commitment in ColorSystem.
         if ColorSystem.commitment.primary2 then
             secondCode = ColorSystem.commitment.primary2:lower():sub(1, 1)
+            queueOnce("COMMIT")
             phase = "SECOND"
         end
     elseif phase == "SECOND" then
@@ -153,13 +212,23 @@ function TutorialSystem.onColorAdded(_code)
         local secondLevel = secondName and ColorSystem.primary[secondName].level or 0
         if secondLevel >= 10 then
             -- 2nd-primary lesson, then the secondary that just unlocked.
-            queue(secondCode == "b" and "BLUE" or "GREEN")
+            queueOnce(secondCode == "b" and "BLUE" or "GREEN")
             local secondaryName = ColorSystem.getCommittedSecondaryName()
-            if secondaryName then queue(secondaryName) end
+            if secondaryName then queueOnce(secondaryName) end
             phase = "FREE"
             arcComplete = true
         end
     end
+end
+
+function TutorialSystem.onArtifactCollected(_artifactType)
+    if not TutorialSystem.areTipsActive() then return end
+    queueOnce("ARTIFACT")
+end
+
+function TutorialSystem.onSynergyActivated(_synergyName)
+    if not TutorialSystem.areTipsActive() then return end
+    queueOnce("SYNERGY")
 end
 
 function TutorialSystem.hasPopup()
@@ -185,7 +254,7 @@ function TutorialSystem.complete()
     arcComplete = false
     Config.gameplay.tutorialEnabled = false
     require("src.core.Settings").save()
-    print("[Tutorial] Arc complete — auto-disabled (toggle in Options to replay)")
+    print("[Tutorial] Arc complete - auto-disabled (toggle in Options to replay)")
 end
 
 return TutorialSystem

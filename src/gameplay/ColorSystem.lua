@@ -166,11 +166,11 @@ function ColorSystem.checkSecondaryUnlock()
             local req1, req2 = data.requires[1], data.requires[2]
             if ColorSystem.primary[req1].level >= 10 and ColorSystem.primary[req2].level >= 10 then
                 data.unlocked = true
-                print("[ColorSystem] ✦ " .. secColor .. " UNLOCKED! ✦")
+                print("[ColorSystem] " .. secColor .. " UNLOCKED!")
                 
                 -- Show floating text if available
                 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
-                FloatingTextSystem.add("✦ " .. secColor .. " UNLOCKED! ✦", 960, 400, "SYNERGY")
+                FloatingTextSystem.add(secColor .. " UNLOCKED!", 960, 400, "SYNERGY")
             end
         end
     end

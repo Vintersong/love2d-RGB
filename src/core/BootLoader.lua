@@ -49,9 +49,9 @@ function BootLoader.validateAll()
     for name, systemData in pairs(BootLoader.systems) do
         local valid = BootLoader.validateSystem(name, systemData)
         if valid then
-            print(string.format("[BootLoader] ✓ %s OK", name))
+            print(string.format("[BootLoader] [OK] %s", name))
         else
-            print(string.format("[BootLoader] ✗ %s FAILED", name))
+            print(string.format("[BootLoader] [FAIL] %s", name))
             allValid = false
         end
     end
@@ -64,11 +64,11 @@ function BootLoader.initializeSystem(name, initFunc, ...)
     local success, error = pcall(initFunc, ...)
 
     if success then
-        print(string.format("[BootLoader] ✓ %s initialized", name))
+        print(string.format("[BootLoader] [OK] %s initialized", name))
         return true
     else
         table.insert(BootLoader.errors, string.format("[%s] Initialization failed: %s", name, error))
-        print(string.format("[BootLoader] ✗ %s initialization FAILED: %s", name, error))
+        print(string.format("[BootLoader] [FAIL] %s initialization FAILED: %s", name, error))
         return false
     end
 end
@@ -147,7 +147,7 @@ function BootLoader.performHealthChecks()
     if #BootLoader.warnings > 0 then
         print("[BootLoader] Warnings:")
         for _, warning in ipairs(BootLoader.warnings) do
-            print("  ⚠ " .. warning)
+            print("  [WARN] " .. warning)
         end
     end
 
@@ -161,18 +161,18 @@ function BootLoader.printReport()
     print("========================================")
 
     if #BootLoader.errors == 0 then
-        print("Status: ✓ ALL SYSTEMS OPERATIONAL")
+        print("Status: OK - ALL SYSTEMS OPERATIONAL")
         print(string.format("Systems Loaded: %d", BootLoader.getSystemCount()))
 
         if #BootLoader.warnings > 0 then
             print(string.format("Warnings: %d", #BootLoader.warnings))
         end
     else
-        print("Status: ✗ BOOT FAILED")
+        print("Status: FAILED")
         print(string.format("Errors: %d", #BootLoader.errors))
         print("\nError Details:")
         for _, error in ipairs(BootLoader.errors) do
-            print("  • " .. error)
+            print("  - " .. error)
         end
     end
 

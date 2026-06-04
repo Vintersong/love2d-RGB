@@ -246,12 +246,12 @@ function StateManager.printReport()
 
     for _, name in ipairs(stateList) do
         local state = StateManager.states[name]
-        local status = state.enabled and "✓ ENABLED " or "✗ DISABLED"
+        local status = state.enabled and "[OK] ENABLED " or "[OFF] DISABLED"
         local current = (name == StateManager.currentState) and " [CURRENT]" or ""
         print(string.format("  %s %s%s", status, name, current))
 
         if state.description ~= "" then
-            print(string.format("    → %s", state.description))
+            print(string.format("    -> %s", state.description))
         end
 
         if #state.dependencies > 0 then
@@ -292,9 +292,9 @@ function StateManager.validateAll()
     end
 
     if allValid then
-        print("[StateManager] ✓ All state dependencies valid")
+        print("[StateManager] [OK] All state dependencies valid")
     else
-        print("[StateManager] ✗ State validation failed")
+        print("[StateManager] [FAIL] State validation failed")
     end
 
     return allValid

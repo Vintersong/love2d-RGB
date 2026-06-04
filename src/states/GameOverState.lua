@@ -115,7 +115,7 @@ function GameOverState:drawContent(sw, sh)
             end
         end
         if #segments > 0 then
-            local arrow  = "  →  "
+            local arrow  = "  ->  "
             local arrowW = fontUI:getWidth(arrow)
             local totalW = 0
             for i, seg in ipairs(segments) do

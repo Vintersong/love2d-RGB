@@ -146,7 +146,7 @@ local CARD_DEFS = {
         isSecondary = true,
         isIntensityFn = function(CS) return CS.secondary.YELLOW and CS.secondary.YELLOW.level >= 9 end,
         locked    = {"LOCKED!", "Level 10 req."},
-        normal    = {"Red + Green", "Spread shots", "Bounce chains"},
+        normal    = {"Red + Green", "Faster fire", "Spread + bounce"},
         intensity = {"INTENSITY!", "+spread volley", "+bounce chains"},
     },
     {
@@ -155,7 +155,7 @@ local CARD_DEFS = {
         isSecondary = true,
         isIntensityFn = function(CS) return CS.secondary.MAGENTA and CS.secondary.MAGENTA.level >= 9 end,
         locked    = {"LOCKED!", "Level 10 req."},
-        normal    = {"+0.4 splits", "+2 damage", "Explode more!"},
+        normal    = {"Red + Blue", "Burst pressure", "Spread + pierce"},
         intensity = {"INTENSITY!", "+1 split", "More chaos!"},
     },
     {
@@ -164,8 +164,8 @@ local CARD_DEFS = {
         isSecondary = true,
         isIntensityFn = function(CS) return CS.secondary.CYAN and CS.secondary.CYAN.level >= 9 end,
         locked    = {"LOCKED!", "Level 10 req."},
-        normal    = {"+3 deg homing", "+2 damage", "Track better!"},
-        intensity = {"INTENSITY!", "+6 deg homing", "Perfect aim!"},
+        normal    = {"Green + Blue", "Frost control", "Bounce + pierce"},
+        intensity = {"INTENSITY!", "More frost", "Hard control!"},
     },
 }
 

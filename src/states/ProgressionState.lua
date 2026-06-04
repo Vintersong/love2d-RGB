@@ -51,6 +51,44 @@ local function drawPanel(x, y, w, h)
     love.graphics.rectangle("line", x, y, w, h, 14, 14)
 end
 
+local function drawColorTheoryStrip(x, y, w, h, alpha)
+    local accent = Theme.color.accent
+
+    love.graphics.setColor(0, 0, 0, 0.34 * alpha)
+    love.graphics.rectangle("fill", x, y, w, h, 10, 10)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.2 * alpha)
+    love.graphics.rectangle("line", x, y, w, h, 10, 10)
+
+    love.graphics.setFont(Theme.font("mono", 13))
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.9 * alpha)
+    love.graphics.print("COLOR THEORY", x + 18, y + 12)
+
+    love.graphics.setFont(Theme.font("ui", 14))
+    love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], 0.9 * alpha)
+    love.graphics.print("Pick two primaries. Their additive mix unlocks one secondary.", x + 190, y + 10)
+    love.graphics.print("Dominant color changes projectiles, dash, artifacts, and VFX.", x + 190, y + 30)
+
+    local chipX = x + w - 372
+    local chipY = y + 16
+    local chips = {
+        {"R+G", "Y", Theme.color.yellow},
+        {"R+B", "M", Theme.color.magenta},
+        {"G+B", "C", Theme.color.cyan},
+    }
+
+    love.graphics.setFont(Theme.font("mono", 12))
+    for i, chip in ipairs(chips) do
+        local cx = chipX + (i - 1) * 120
+        local color = chip[3]
+        love.graphics.setColor(color[1], color[2], color[3], 0.08 * alpha)
+        love.graphics.rectangle("fill", cx, chipY, 96, 24, 6, 6)
+        love.graphics.setColor(color[1], color[2], color[3], 0.45 * alpha)
+        love.graphics.rectangle("line", cx, chipY, 96, 24, 6, 6)
+        love.graphics.setColor(color[1], color[2], color[3], 0.92 * alpha)
+        love.graphics.printf(chip[1] .. " = " .. chip[2], cx, chipY + 5, 96, "center")
+    end
+end
+
 local function drawArtifactCard(item, x, y, w, h, isSelected, canAfford)
     local colorKey = ARTIFACT_COLOR_KEYS[item.type] or "fg3"
     local fullColor = Theme.color[colorKey] or Theme.color.fg3
@@ -166,11 +204,12 @@ function ProgressionState:draw()
     love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], self.alpha)
     love.graphics.print(string.format("Chroma: %d", MetaProgression.getChroma()), mainX + 70, mainY + 88)
     love.graphics.print("Spend Chroma to unlock and upgrade future run artifacts.", mainX + 340, mainY + 88)
+    drawColorTheoryStrip(mainX + 70, mainY + 112, mainW - 140, 54, self.alpha)
 
     artifactRects = {}
     local cardW, cardH = 420, 116
     local cardGapX, cardGapY = 28, 20
-    local cardStartX, cardStartY = cx - (cardW * 2 + cardGapX) / 2, mainY + 150
+    local cardStartX, cardStartY = cx - (cardW * 2 + cardGapX) / 2, mainY + 176
 
     for index, shopItem in ipairs(SHOP_ARTIFACTS) do
         local definition = ArtifactManager.levelDefinitions[shopItem.type] or {}

@@ -10,7 +10,7 @@ local function clamp01(value)
 end
 
 local function prettifyBossName(boss)
-    local raw = boss and (boss.archetypeName or boss.name or boss.type) or "boss"
+    local raw = boss and (boss.displayName or boss.archetypeName or boss.name or boss.type) or "boss"
     raw = tostring(raw):gsub("_", " ")
     return (raw:gsub("(%a)([%w']*)", function(first, rest)
         return first:upper() .. rest:lower()
@@ -63,7 +63,8 @@ local function drawHealthBar(boss)
 
     love.graphics.setFont(Theme.font("mono", 10))
     love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], 1)
-    love.graphics.print("BOSS", panelX + 42, panelY + 4)
+    local levelText = string.format("BOSS %02d", (boss and boss.encounterIndex) or 1)
+    love.graphics.print(levelText, panelX + 42, panelY + 4)
 
     love.graphics.setFont(Theme.font("uiBold", 18))
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)

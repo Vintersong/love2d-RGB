@@ -605,7 +605,7 @@ function drawUIInfoOverlay()
     love.graphics.rectangle("fill", 0, screenHeight - 50, screenWidth, 50)
     
     love.graphics.setColor(0.6, 0.6, 0.6, 1)
-    love.graphics.print("CONTROLS: ↑↓←→ Adjust  |  G: Grid  |  R: Reset  |  Q: Main Menu", 10, screenHeight - 35)
+    love.graphics.print("CONTROLS: Arrow keys adjust  |  G: Grid  |  R: Reset  |  Q: Main Menu", 10, screenHeight - 35)
 end
 
 return UISandboxState

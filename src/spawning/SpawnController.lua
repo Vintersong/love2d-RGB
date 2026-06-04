@@ -51,9 +51,10 @@ function SpawnController.handleEnemyDeath(target, player, xpOrbs, powerups, onKi
 
     -- Check if boss should spawn (every 100 kills)
     if SpawnController.enemyKillCount % 100 == 0 and not BossSystem.activeBoss then
-        local boss = BossSystem.spawnBoss()
+        local encounterIndex = math.floor(SpawnController.enemyKillCount / 100)
+        local boss = BossSystem.spawnBoss({encounterIndex = encounterIndex})
         if boss then
-            FloatingTextSystem.add("⚠ BOSS WAVE ⚠", SpawnController.screenWidth/2, SpawnController.screenHeight/2, "BOSS")
+            FloatingTextSystem.add(boss.introText or "BOSS WAVE", SpawnController.screenWidth/2, SpawnController.screenHeight/2, "BOSS")
         end
     end
 

@@ -158,11 +158,18 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         projectiles = LensArtifact.apply(projectiles, lensLevel, dominantColor)
     end
 
-    -- Apply DIFFUSION effects (clouds, links, etc.)
-    if ArtifactManager.getLevel("DIFFUSION") > 0 then
-        local DiffusionArtifact = require("src.artifacts.DiffusionArtifact")
-        local diffusionLevel = ArtifactManager.getLevel("DIFFUSION")
-        projectiles = DiffusionArtifact.apply(projectiles, diffusionLevel, dominantColor)
+    -- Apply DIFFRACTION effects (bursts, cones, orbital sources, etc.)
+    if ArtifactManager.getLevel("DIFFRACTION") > 0 then
+        local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
+        local diffractionLevel = ArtifactManager.getLevel("DIFFRACTION")
+        projectiles = DiffractionArtifact.apply(projectiles, diffractionLevel, dominantColor, targetX, targetY, player)
+    end
+
+    -- Apply REFRACTION effects (curving, seeking, satellites, power growth, etc.)
+    if ArtifactManager.getLevel("REFRACTION") > 0 then
+        local RefractionArtifact = require("src.artifacts.RefractionArtifact")
+        local refractionLevel = ArtifactManager.getLevel("REFRACTION")
+        projectiles = RefractionArtifact.apply(projectiles, refractionLevel, dominantColor, targetX, targetY, player)
     end
 
     return projectiles
@@ -175,7 +182,15 @@ function PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
     local dominantColor = ColorSystem.getDominantColor()
 
     if not dominantColor then
-        return
+        return nil
+    end
+
+    local spawnedProjectiles = {}
+
+    local function appendProjectiles(list)
+        for _, spawned in ipairs(list or {}) do
+            table.insert(spawnedProjectiles, spawned)
+        end
     end
 
     -- LENS artifact: gravitational pull, time delays, etc.
@@ -196,11 +211,19 @@ function PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
         PrismArtifact.update({proj}, enemies, dt, dominantColor, player)
     end
 
-    -- DIFFUSION artifact: drain clouds
-    if ArtifactManager.getLevel("DIFFUSION") > 0 then
-        local DiffusionArtifact = require("src.artifacts.DiffusionArtifact")
-        DiffusionArtifact.update({proj}, enemies, dt, dominantColor)
+    -- DIFFRACTION artifact: orbital bombs and mobile burst sources
+    if ArtifactManager.getLevel("DIFFRACTION") > 0 then
+        local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
+        appendProjectiles(DiffractionArtifact.update({proj}, enemies, dt, dominantColor, player))
     end
+
+    -- REFRACTION artifact: seeking cores, rotating arms, and growth behaviors
+    if ArtifactManager.getLevel("REFRACTION") > 0 then
+        local RefractionArtifact = require("src.artifacts.RefractionArtifact")
+        appendProjectiles(RefractionArtifact.update({proj}, enemies, dt, dominantColor, player))
+    end
+
+    return spawnedProjectiles
 end
 
 -- Update all player projectiles
@@ -230,86 +253,94 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
         proj.age = proj.age + dt
 
         -- Update artifact effects (LENS gravitational pull, etc.)
-        PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
-
-        -- Add current position to trail
-        table.insert(proj.trail, 1, {x = proj.x, y = proj.y})
-        if #proj.trail > proj.trailLength then
-            table.remove(proj.trail)
+        local spawnedProjectiles = PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
+        for _, spawned in ipairs(spawnedProjectiles or {}) do
+            table.insert(combatState.projectiles, spawned)
         end
 
-        -- Calculate movement distance
-        local oldX, oldY = proj.x, proj.y
-
-        -- Move projectile
-        if proj.vx and proj.vy then
-            proj.x = proj.x + proj.vx * dt
-            proj.y = proj.y + proj.vy * dt
+        if proj.expired then
+            table.remove(combatState.projectiles, i)
         else
-            proj.y = proj.y - proj.speed * dt
-        end
 
-        local splitTriggered = false
-
-        -- Track distance for split mechanic
-        if proj.canSplit then
-            local dx = proj.x - oldX
-            local dy = proj.y - oldY
-            proj.distanceTraveled = proj.distanceTraveled + math.sqrt(dx * dx + dy * dy)
-
-            -- Check if should split
-            if not proj.hasSplit and proj.distanceTraveled >= proj.splitDistance then
-                proj.hasSplit = true
-                PlayerCombat.splitProjectile(player, proj, i)
-                -- Remove original after splitting
-                table.remove(combatState.projectiles, i)
-                splitTriggered = true
+            -- Add current position to trail
+            table.insert(proj.trail, 1, {x = proj.x, y = proj.y})
+            if #proj.trail > proj.trailLength then
+                table.remove(proj.trail)
             end
-        end
 
-        if not splitTriggered then
-            -- Handle screen edge collisions
-            local shouldRemove = false
+            -- Calculate movement distance
+            local oldX, oldY = proj.x, proj.y
 
-            -- BOUNCE attribute: Bounce off screen edges
-            if proj.canBounce and proj.bounces and proj.bounces > 0 then
-                local bounced = false
+            -- Move projectile
+            if proj.vx and proj.vy then
+                proj.x = proj.x + proj.vx * dt
+                proj.y = proj.y + proj.vy * dt
+            else
+                proj.y = proj.y - proj.speed * dt
+            end
 
-                if proj.x < 0 then
-                    proj.x = 0
-                    proj.vx = -proj.vx
-                    bounced = true
-                elseif proj.x > screenWidth then
-                    proj.x = screenWidth
-                    proj.vx = -proj.vx
-                    bounced = true
+            local splitTriggered = false
+
+            -- Track distance for split mechanic
+            if proj.canSplit then
+                local dx = proj.x - oldX
+                local dy = proj.y - oldY
+                proj.distanceTraveled = proj.distanceTraveled + math.sqrt(dx * dx + dy * dy)
+
+                -- Check if should split
+                if not proj.hasSplit and proj.distanceTraveled >= proj.splitDistance then
+                    proj.hasSplit = true
+                    PlayerCombat.splitProjectile(player, proj, i)
+                    -- Remove original after splitting
+                    table.remove(combatState.projectiles, i)
+                    splitTriggered = true
                 end
+            end
 
-                if proj.y < 0 then
-                    proj.y = 0
-                    proj.vy = -proj.vy
-                    bounced = true
-                elseif proj.y > screenHeight then
-                    proj.y = screenHeight
-                    proj.vy = -proj.vy
-                    bounced = true
-                end
+            if not splitTriggered then
+                -- Handle screen edge collisions
+                local shouldRemove = false
 
-                if bounced then
-                    proj.bounces = proj.bounces - 1
-                    if proj.bounces <= 0 then
+                -- BOUNCE attribute: Bounce off screen edges
+                if proj.canBounce and proj.bounces and proj.bounces > 0 then
+                    local bounced = false
+
+                    if proj.x < 0 then
+                        proj.x = 0
+                        proj.vx = -proj.vx
+                        bounced = true
+                    elseif proj.x > screenWidth then
+                        proj.x = screenWidth
+                        proj.vx = -proj.vx
+                        bounced = true
+                    end
+
+                    if proj.y < 0 then
+                        proj.y = 0
+                        proj.vy = -proj.vy
+                        bounced = true
+                    elseif proj.y > screenHeight then
+                        proj.y = screenHeight
+                        proj.vy = -proj.vy
+                        bounced = true
+                    end
+
+                    if bounced then
+                        proj.bounces = proj.bounces - 1
+                        if proj.bounces <= 0 then
+                            shouldRemove = true
+                        end
+                    end
+                else
+                    -- Non-bouncing projectiles: Remove when off-screen
+                    if proj.y < -10 or proj.y > screenHeight + 10 or proj.x < -10 or proj.x > screenWidth + 10 then
                         shouldRemove = true
                     end
                 end
-            else
-                -- Non-bouncing projectiles: Remove when off-screen
-                if proj.y < -10 or proj.y > screenHeight + 10 or proj.x < -10 or proj.x > screenWidth + 10 then
-                    shouldRemove = true
-                end
-            end
 
-            if shouldRemove then
-                table.remove(combatState.projectiles, i)
+                if shouldRemove then
+                    table.remove(combatState.projectiles, i)
+                end
             end
         end
     end

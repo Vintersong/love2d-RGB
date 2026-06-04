@@ -37,14 +37,44 @@ function ProjectileCollisionSystem.update(player, enemies, xpOrbs, powerups, exp
                 -- Mark enemy as hit
                 proj.hitEnemies[enemy] = true
 
+                if proj.onAccumulateHit then
+                    proj:onAccumulateHit(enemy)
+                end
+                if proj.onSynchronizedHit then
+                    proj:onSynchronizedHit(enemy)
+                end
+
                 -- Handle explosion if MAGENTA created one
                 if explosion then
                     table.insert(explosions, explosion)
                     VFXLibrary.spawnArtifactEffect("SUPERNOVA", explosion.x, explosion.y)
                 end
 
+                if proj.onImpactExplode then
+                    for _, spawned in ipairs(proj:onImpactExplode(proj.x, proj.y) or {}) do
+                        table.insert(player.projectiles, spawned)
+                    end
+                    VFXLibrary.spawnArtifactEffect("DIFFRACTION", proj.x, proj.y)
+                    shouldRemove = true
+                elseif proj.onCompoundExplode then
+                    for _, spawned in ipairs(proj:onCompoundExplode(proj.x, proj.y) or {}) do
+                        table.insert(player.projectiles, spawned)
+                    end
+                    VFXLibrary.spawnArtifactEffect("DIFFRACTION", proj.x, proj.y)
+                    shouldRemove = true
+                end
+
+                if proj.freezing then
+                    enemy.frozen = true
+                    enemy.frozenTimer = math.max(enemy.frozenTimer or 0, 0.75)
+                    enemy.originalSpeed = enemy.originalSpeed or enemy.speed
+                    enemy.speed = 0
+                end
+
                 -- GREEN: Bounce to nearest enemy
-                if proj.canBounceToNearest then
+                if shouldRemove then
+                    break
+                elseif proj.canBounceToNearest then
                     shouldRemove = ProjectileCollisionSystem.handleBounce(proj, enemies, player)
                 -- BLUE: Pierce through enemies
                 elseif proj.canPierce then

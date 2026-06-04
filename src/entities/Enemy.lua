@@ -298,10 +298,11 @@ function Enemy:update(dt, playerX, playerY, context)
     if self.dead then return end
     
     self.age = self.age + dt
+    local effectiveSpeed = self.speed * (self.speedMultiplier or 1)
     -- Handle activation: enemies spawn above screen and become active after moving down
     if self.inactive then
         -- Move down slowly until reaching activation threshold
-        self.y = self.y + self.speed * dt
+        self.y = self.y + effectiveSpeed * dt
         
         -- Check if enemy has entered the activation zone (10% of screen height)
         if self.activationY and self.y >= self.activationY then
@@ -331,7 +332,7 @@ function Enemy:marchTowardTarget(dt)
     if distance > 5 then  -- Still marching
         -- Move horizontally toward target
         local direction = dx > 0 and 1 or -1
-        self.vx = direction * self.speed
+        self.vx = direction * self.speed * (self.speedMultiplier or 1)
         self.vy = 0  -- Stay in same row
 
         self.x = self.x + self.vx * dt
@@ -349,7 +350,7 @@ function Enemy:followPlayer(dt, playerX, playerY)
     
     if distance > 0 then
         -- Normalize and apply speed
-        local followSpeed = self.speed * 1.5  -- Slightly faster when following
+        local followSpeed = self.speed * (self.speedMultiplier or 1) * 1.5  -- Slightly faster when following
         self.vx = (dx / distance) * followSpeed
         self.vy = (dy / distance) * followSpeed
         

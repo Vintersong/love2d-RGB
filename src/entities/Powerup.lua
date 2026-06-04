@@ -1,6 +1,7 @@
 -- Artifact drops from enemies - Physical/Optical Phenomena
 local class = require("libs.hump-master.class")
 local Entity = require("src.entities.Entity")
+local Icons = require("src.render.Icons")
 local Powerup = class{__includes = Entity}
 
 -- Artifact types based on physical/optical phenomena
@@ -153,51 +154,67 @@ end
 
 function Powerup:draw()
     if self.collected then return end
-    
-    -- Pulsing and rotating effect
-    local pulse = 1 + math.sin(self.pulseTime * 4) * 0.3
-    local size = self.width * pulse
-    
+
+    local color = self.typeData.color
+    local pulse = 0.5 + 0.5 * math.sin(self.pulseTime * 4)
+    local spin = self.rotation * 0.35
+    local tokenSize = 34 + pulse * 4
+    local iconSize = 24
+    local iconName = self.type and string.lower(self.type) or nil
+    local previousLineWidth = love.graphics.getLineWidth()
+
+    -- Soft pickup aura, intentionally lighter than combat projectiles.
+    love.graphics.setColor(color[1], color[2], color[3], 0.08 + pulse * 0.04)
+    love.graphics.circle("fill", self.x, self.y, tokenSize * 0.9, 40)
+    love.graphics.setColor(color[1], color[2], color[3], 0.18 + pulse * 0.10)
+    love.graphics.setLineWidth(1)
+    love.graphics.circle("line", self.x, self.y, tokenSize * (0.62 + pulse * 0.08), 40)
+
     love.graphics.push()
     love.graphics.translate(self.x, self.y)
-    love.graphics.rotate(self.rotation)
-    
-    -- Draw artifact as diamond/gem shape
-    love.graphics.setColor(self.typeData.color)
-    love.graphics.polygon("fill", 
-        0, -size/2,      -- Top
-        size/3, 0,       -- Right
-        0, size/2,       -- Bottom
-        -size/3, 0       -- Left
-    )
-    
-    -- Glowing outline
-    love.graphics.setColor(1, 1, 1, 0.8)
+    love.graphics.rotate(spin)
+
+    local half = tokenSize * 0.5
+    love.graphics.setColor(0.01, 0.012, 0.018, 0.74)
+    love.graphics.rectangle("fill", -half, -half, tokenSize, tokenSize)
+
+    love.graphics.setColor(color[1], color[2], color[3], 0.13)
+    love.graphics.rectangle("fill", -half + 2, -half + 2, tokenSize - 4, tokenSize - 4)
+
+    love.graphics.setColor(color[1], color[2], color[3], 0.68 + pulse * 0.22)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", -half, -half, tokenSize, tokenSize)
+
+    local notch = math.floor(tokenSize * 0.22)
     love.graphics.setLineWidth(2)
-    love.graphics.polygon("line", 
-        0, -size/2,
-        size/3, 0,
-        0, size/2,
-        -size/3, 0
-    )
-    
-    -- Inner glow
-    love.graphics.setColor(self.typeData.color[1], self.typeData.color[2], self.typeData.color[3], 0.5)
-    local innerSize = size * 0.5
-    love.graphics.polygon("fill",
-        0, -innerSize/2,
-        innerSize/3, 0,
-        0, innerSize/2,
-        -innerSize/3, 0
-    )
-    
+    love.graphics.line(-half, -half + notch, -half, -half, -half + notch, -half)
+    love.graphics.line(half - notch, -half, half, -half, half, -half + notch)
+    love.graphics.line(-half, half - notch, -half, half, -half + notch, half)
+    love.graphics.line(half - notch, half, half, half, half, half - notch)
+
     love.graphics.pop()
-    
+
+    if iconName and Icons.has(iconName) then
+        local iconX = self.x - iconSize * 0.5
+        local iconY = self.y - iconSize * 0.5
+        Icons.draw(iconName, iconX - 1, iconY - 1, iconSize + 2, {
+            width = 3.2,
+            color = {color[1], color[2], color[3], 0.24}
+        })
+        Icons.draw(iconName, iconX, iconY, iconSize, {
+            width = 2.2,
+            color = {0.92, 0.96, 1.0, 0.96}
+        })
+    end
+
     -- Blink when about to expire
     if self.lifetime < 5 and math.floor(self.lifetime * 4) % 2 == 0 then
-        love.graphics.setColor(1, 1, 1, 0.7)
-        love.graphics.circle("line", self.x, self.y, size * 1.5)
+        love.graphics.setColor(1, 1, 1, 0.55)
+        love.graphics.setLineWidth(1)
+        love.graphics.circle("line", self.x, self.y, tokenSize * 0.82)
     end
+
+    love.graphics.setLineWidth(previousLineWidth)
 end
 
 function Powerup:checkCollision(player)
@@ -237,6 +254,7 @@ end
 
 function Powerup.getRandomType()
     local MetaProgression = require("src.core.MetaProgression")
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
     local ownedArtifacts = MetaProgression.getOwnedArtifacts()
     if #ownedArtifacts == 0 then
         return nil
@@ -247,7 +265,9 @@ function Powerup.getRandomType()
 
     for _, typeName in ipairs(ownedArtifacts) do
         local typeData = Powerup.Types[typeName]
-        if typeData then
+        local runLevel = ArtifactManager.getLevel(typeName)
+        local progressionLevel = MetaProgression.getArtifactLevel(typeName)
+        if typeData and runLevel < progressionLevel then
             table.insert(weights, {name = typeName, chance = typeData.dropChance})
             totalWeight = totalWeight + typeData.dropChance
         end
@@ -267,7 +287,7 @@ function Powerup.getRandomType()
         end
     end
 
-    return ownedArtifacts[1]
+    return nil
 end
 
 return Powerup

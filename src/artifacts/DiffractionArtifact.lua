@@ -511,6 +511,64 @@ DiffractionArtifact.CYAN = {
     end
 }
 
+function DiffractionArtifact.apply(projectiles, level, dominantColor, targetX, targetY, player)
+    if level <= 0 or not dominantColor or not projectiles or #projectiles == 0 then
+        return projectiles
+    end
+
+    local colorBehavior = DiffractionArtifact[dominantColor]
+    if not colorBehavior or not colorBehavior.behavior then
+        return projectiles
+    end
+
+    return colorBehavior.behavior(projectiles, level, targetX, targetY, player)
+end
+
+function DiffractionArtifact.update(projectiles, enemies, dt, dominantColor, player)
+    local spawned = {}
+    if not dominantColor or not player then
+        return spawned
+    end
+
+    local playerX = player.x + (player.width or 0) / 2
+    local playerY = player.y + (player.height or 0) / 2
+
+    for _, proj in ipairs(projectiles or {}) do
+        if proj.updateOrbitalBomb then
+            proj:updateOrbitalBomb(dt, playerX, playerY)
+            if proj.exploding and not proj.hasSpawnedBurst and proj.explode then
+                proj.hasSpawnedBurst = true
+                proj.expired = true
+                for _, spawnedProj in ipairs(proj:explode()) do
+                    table.insert(spawned, spawnedProj)
+                end
+            end
+        end
+
+        if proj.updateConeOrbital then
+            proj:updateConeOrbital(dt, playerX, playerY)
+            if proj.fireCone then
+                for _, spawnedProj in ipairs(proj:fireCone()) do
+                    table.insert(spawned, spawnedProj)
+                end
+            end
+        end
+
+        if proj.updateFreezeOrbital then
+            proj:updateFreezeOrbital(dt, playerX, playerY, enemies)
+            if proj.exploding and not proj.hasSpawnedBurst and proj.explodeFrozen then
+                proj.hasSpawnedBurst = true
+                proj.expired = true
+                for _, spawnedProj in ipairs(proj:explodeFrozen()) do
+                    table.insert(spawned, spawnedProj)
+                end
+            end
+        end
+    end
+
+    return spawned
+end
+
 local DIFFRACTION_COLORS = {
     RED     = {1,    0.2,  0.2 },
     GREEN   = {0.2,  1,    0.3 },

@@ -40,6 +40,7 @@ local MathUtils = require("src.utils.MathUtils")
 local BehaviorSelector = require("src.combat.BehaviorSelector")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
 local BossBehaviors = require("src.data.BossBehaviors")
+local BossProgression = require("src.data.BossProgression")
 local CustomCursor = require("src.render.CustomCursor")
 local Viewport = require("src.render.Viewport")
 
@@ -149,6 +150,7 @@ function love.load(args)
     BootLoader.registerSystem("BehaviorSelector", BehaviorSelector, {"buildContext", "select", "execute", "updateCooldowns"})
     BootLoader.registerSystem("EnemyBehaviors", EnemyBehaviors, {"getAll", "getById", "listByKind"})
     BootLoader.registerSystem("BossBehaviors", BossBehaviors, {"getAll", "getById", "listByKind"})
+    BootLoader.registerSystem("BossProgression", BossProgression, {"getForEncounter", "getTierCount"})
 
     -- Validate all systems loaded correctly
     if not BootLoader.validateAll() then

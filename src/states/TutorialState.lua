@@ -11,32 +11,40 @@ local defaultPages = {
         title = "WELCOME TO CHROMATIC",
         body = {
             "This is a bullet-heaven roguelite where color is your build.",
-            "You survive, level up, and commit to a color path that changes",
-            "your shots, dash behavior, and artifact synergies.",
+            "You survive, level up, and tune a light path that changes",
+            "shots, dash behavior, artifacts, and the screen around you.",
         },
     },
     {
-        title = "CORE LOOP",
+        title = "PRIMARY WAVELENGTHS",
         body = {
-            "Move with WASD and auto-fire at the nearest enemy.",
-            "Collect XP orbs to level up. Each level opens the color wheel.",
-            "Bosses arrive every 100 kills, so survival and pressure matter.",
+            "Red fractures pressure into multiple lanes.",
+            "Green rebounds between targets and keeps damage moving.",
+            "Blue pierces clean lines through enemy packs.",
         },
     },
     {
         title = "COLOR COMMITMENT",
         body = {
-            "Pick two primaries and the third locks out for the run.",
-            "At the right thresholds, the matching secondary unlocks.",
-            "That choice is your identity for the rest of the run.",
+            "Pick two primaries. The third stays dark for that run.",
+            "This keeps builds readable: you are choosing an identity,",
+            "not collecting every color at once.",
+        },
+    },
+    {
+        title = "ADDITIVE MIXING",
+        body = {
+            "Two primaries unlock one secondary once both are developed.",
+            "Red + Green becomes Yellow velocity.",
+            "Red + Blue becomes Magenta burst. Green + Blue becomes Cyan control.",
         },
     },
     {
         title = "ARTIFACTS & SYNERGIES",
         body = {
-            "Artifacts are passive run modifiers. They grow by level and can",
-            "combine with your color path to trigger named synergies.",
-            "Those combos are where the build starts to feel explosive.",
+            "Artifacts are optics: prism, lens, halo, mirror, and more.",
+            "They bend the color path you already chose instead of replacing it.",
+            "When a named synergy fires, your build found a shared rule.",
         },
     },
 }

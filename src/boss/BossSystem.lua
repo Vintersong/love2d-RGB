@@ -4,6 +4,7 @@
 local BossSystem = {}
 BossSystem.__index = BossSystem
 local BossBehaviors = require("src.data.BossBehaviors")
+local BossProgression = require("src.data.BossProgression")
 local BehaviorSelector = require("src.combat.BehaviorSelector")
 local MathUtils = require("src.utils.MathUtils")
 local GameConfig = require("src.core.GameConfig")
@@ -12,6 +13,7 @@ local SimpleGrid = require("src.gameplay.SimpleGrid")
 -- Canonical spawn policy is kill-based via SpawnController.
 -- Wave-based spawn fields are retired to avoid dual policy drift.
 BossSystem.activeBoss = nil
+BossSystem.nextEncounterIndex = 1
 
 -- Boss colors (replaced palette dependency)
 local BOSS_COLOR = {1, 0.2, 0.8}  -- Neon pink
@@ -35,13 +37,17 @@ end
 function BossSystem.reset()
     BossSystem.clearBossReferences(BossSystem.activeBoss)
     BossSystem.activeBoss = nil
+    BossSystem.nextEncounterIndex = 1
 end
 
-function BossSystem.spawnBoss()
+function BossSystem.spawnBoss(options)
+    options = options or {}
     local boss = setmetatable({}, BossSystem)
     local screenWidth, screenHeight = GameConfig.getScreenSize()
     local cellSize = SimpleGrid.cellSize or 48
     local topBandHeight = cellSize * 2
+    local encounterIndex = math.max(1, math.floor(options.encounterIndex or BossSystem.nextEncounterIndex or 1))
+    local tier = BossProgression.getForEncounter(encounterIndex)
     
     -- Position (spawn at top center)
     boss.x = screenWidth / 2
@@ -51,15 +57,15 @@ function BossSystem.spawnBoss()
     boss.maxY = math.max(boss.targetY + cellSize * 2, math.floor(screenHeight * 0.42))
     
     -- Stats
-    boss.health = 2000
-    boss.maxHealth = 2000
-    boss.damage = 30
-    boss.speed = 80 -- Slow movement
-    boss.size = 150 -- Collision radius
+    boss.health = tier.health
+    boss.maxHealth = tier.health
+    boss.damage = tier.damage
+    boss.speed = tier.speed
+    boss.size = tier.size -- Collision radius
     
     -- Combat
     boss.attackCooldown = 0
-    boss.attackRate = 0.8 -- Attack every 0.8 seconds
+    boss.attackRate = tier.attackRate
     boss.coneAngle = math.pi / 3 -- 60 degree cone
     boss.projectileCount = 5 -- Projectiles per cone
     
@@ -67,9 +73,14 @@ function BossSystem.spawnBoss()
     boss.phase = "entering" -- entering, combat, defeated
     boss.alive = true
     boss.invulnerable = true -- Invuln during entrance
+    boss.encounterIndex = encounterIndex
+    boss.displayName = tier.name
+    boss.introText = tier.intro
+    boss.bossColor = tier.color
+    boss.allowedBehaviorIds = tier.allowedIds
 
     -- Archetype behavior AI
-    boss.archetypeName = BossBehaviors.randomArchetype()
+    boss.archetypeName = tier.archetype or BossBehaviors.randomArchetype()
     boss.behaviorState = "idle" -- idle, attacking
     boss.behaviorTimer = 0
     boss._behaviorCooldowns = {}
@@ -128,7 +139,8 @@ function BossSystem:update(dt, playerX, playerY)
                 "movement",
                 "boss",
                 self,
-                context
+                context,
+                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.movement}
             ) or BossBehaviors.getById("horizontal_oscillate")
         end
         BehaviorSelector.setMovement(self, movement, context)
@@ -149,7 +161,7 @@ function BossSystem:update(dt, playerX, playerY)
                 "boss",
                 self,
                 context,
-                {allowedIds = BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
+                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.phase or BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
             )
             local attackBehavior = BehaviorSelector.select(
                 BossBehaviors.listByKind("attack"),
@@ -157,7 +169,7 @@ function BossSystem:update(dt, playerX, playerY)
                 "boss",
                 self,
                 context,
-                {allowedIds = BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
+                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.attack or BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
             )
 
             local behavior = phaseBehavior or attackBehavior
@@ -225,7 +237,7 @@ function BossSystem:fireCone(targetX, targetY)
         local vx = math.cos(angle) * speed
         local vy = math.sin(angle) * speed
         
-        local proj = Projectile(self.x, self.y, vx, vy, 30, "boss_bolt", "boss")
+        local proj = Projectile(self.x, self.y, vx, vy, self.damage or 30, "boss_bolt", "boss")
         proj.color = {1, 0.2, 0.7}  -- Neon pink
         table.insert(projectiles, proj)
     end
@@ -260,6 +272,8 @@ function BossSystem:takeDamage(amount, colorName)
 end
 
 function BossSystem:onDefeat()
+    BossSystem.nextEncounterIndex = math.max(BossSystem.nextEncounterIndex or 1, (self.encounterIndex or 1) + 1)
+
     -- Drop special powerups instead of Color Matrix
     -- Spawn multiple powerups at boss location
     for i = 1, 3 do
@@ -281,10 +295,12 @@ function BossSystem:onDefeat()
     -- Announcement
     local FloatingTextSystem = require("src.effects.FloatingTextSystem")
     local screenWidth, screenHeight = GameConfig.getScreenSize()
-    FloatingTextSystem.add("⚡ BOSS DEFEATED ⚡", screenWidth / 2, screenHeight / 2, "BOSS")
+    FloatingTextSystem.add("BOSS DEFEATED", screenWidth / 2, screenHeight / 2, "BOSS")
 end
 
 function BossSystem:draw()
+    local bossColor = self.bossColor or BOSS_COLOR
+
     -- Draw boss ship
     love.graphics.push()
     love.graphics.translate(self.x, self.y)
@@ -296,7 +312,7 @@ function BossSystem:draw()
     end
     
     -- Draw boss as large diamond/star shape
-    love.graphics.setColor(BOSS_COLOR)
+    love.graphics.setColor(bossColor)
     
     -- Draw diamond body
     local points = {

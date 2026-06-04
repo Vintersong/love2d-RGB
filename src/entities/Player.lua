@@ -87,6 +87,10 @@ function Player:update(dt, enemies)
         self.supernovaPassive.cooldownRemaining = math.max(0, self.supernovaPassive.cooldownRemaining - dt)
     end
 
+    if self.auroraRegen and self.auroraRegen > 0 and self.hp and self.maxHp and self.hp < self.maxHp then
+        self.hp = math.min(self.maxHp, self.hp + self.auroraRegen * dt)
+    end
+
     -- Update all abilities via AbilitySystem
     AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
 

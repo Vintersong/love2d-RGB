@@ -6,6 +6,7 @@ local RefractionArtifact = require("src.artifacts.RefractionArtifact")
 local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
 local SupernovaArtifact = require("src.artifacts.SupernovaArtifact")
 local HealthSystem = require("src.combat.HealthSystem")
+local MetaProgression = require("src.core.MetaProgression")
 
 local ArtifactManager = {}
 
@@ -289,12 +290,32 @@ function ArtifactManager.collect(artifactType, weapon, player)
     if not definition then
         return {success = false, message = "Unknown artifact: " .. artifactType}
     end
+
+    local progressionLevel = MetaProgression.getArtifactLevel(artifactType)
+    if progressionLevel <= 0 then
+        return {
+            success = false,
+            message = string.format("%s is not unlocked in progression", definition.name),
+            artifactName = definition.name,
+            level = currentLevel,
+            maxLevel = 0,
+            isMaxLevel = true,
+            type = artifactType
+        }
+    end
+
+    local runMaxLevel = math.min(definition.maxLevel, progressionLevel)
     
-    -- Check if already at max level
-    if currentLevel >= definition.maxLevel then
+    -- Check if already at the progression-limited run cap.
+    if currentLevel >= runMaxLevel then
         return {
             success = false, 
-            message = string.format("%s already at MAX level (%d)", definition.name, definition.maxLevel)
+            message = string.format("%s already at run cap (%d)", definition.name, runMaxLevel),
+            artifactName = definition.name,
+            level = currentLevel,
+            maxLevel = runMaxLevel,
+            isMaxLevel = true,
+            type = artifactType
         }
     end
     
@@ -313,7 +334,7 @@ function ArtifactManager.collect(artifactType, weapon, player)
             levelEffect.desc)
 
         print(string.format("[ARTIFACT] %s collected (Level %d/%d)",
-            definition.name, currentLevel, definition.maxLevel))
+            definition.name, currentLevel, runMaxLevel))
 
         -- Return structured data for floating text
         return {
@@ -321,8 +342,8 @@ function ArtifactManager.collect(artifactType, weapon, player)
             message = message,
             artifactName = definition.name,
             level = currentLevel,
-            maxLevel = definition.maxLevel,
-            isMaxLevel = currentLevel >= definition.maxLevel,
+            maxLevel = runMaxLevel,
+            isMaxLevel = currentLevel >= runMaxLevel,
             type = artifactType
         }
     end
@@ -332,8 +353,8 @@ function ArtifactManager.collect(artifactType, weapon, player)
         message = string.format("%s upgraded to level %d", definition.name, currentLevel),
         artifactName = definition.name,
         level = currentLevel,
-        maxLevel = definition.maxLevel,
-        isMaxLevel = currentLevel >= definition.maxLevel,
+        maxLevel = runMaxLevel,
+        isMaxLevel = currentLevel >= runMaxLevel,
         type = artifactType
     }
 end
@@ -364,7 +385,9 @@ function ArtifactManager.isMaxLevel(artifactType)
     if not definition then return false end
     
     local level = ArtifactManager.getLevel(artifactType)
-    return level >= definition.maxLevel
+    local progressionLevel = MetaProgression.getArtifactLevel(artifactType)
+    local runMaxLevel = math.min(definition.maxLevel, progressionLevel)
+    return runMaxLevel > 0 and level >= runMaxLevel
 end
 
 -- Get all collected artifacts with levels
@@ -373,11 +396,13 @@ function ArtifactManager.getCollectedArtifacts()
     for artifactType, level in pairs(ArtifactManager.artifacts) do
         if level > 0 then
             local definition = ArtifactManager.levelDefinitions[artifactType]
+            local progressionLevel = MetaProgression.getArtifactLevel(artifactType)
+            local runMaxLevel = math.min(definition.maxLevel, progressionLevel)
             table.insert(collected, {
                 type = artifactType,
                 name = definition.name,
                 level = level,
-                maxLevel = definition.maxLevel,
+                maxLevel = runMaxLevel,
                 description = definition.description,
                 isWIP = definition.isWIP or false
             })

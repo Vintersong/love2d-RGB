@@ -29,20 +29,7 @@ end
 function Viewport.init(logicalWidth, logicalHeight)
     Viewport.logicalWidth = logicalWidth or Config.screen.width
     Viewport.logicalHeight = logicalHeight or Config.screen.height
-
-    local ok, canvasOrErr = pcall(
-        love.graphics.newCanvas,
-        Viewport.logicalWidth,
-        Viewport.logicalHeight,
-        {stencil = true}
-    )
-    if ok then
-        Viewport.canvas = canvasOrErr
-        Viewport.canvas:setFilter("linear", "linear")
-    else
-        Viewport.canvas = nil
-        print("[Viewport] Failed to create canvas, falling back to direct render: " .. tostring(canvasOrErr))
-    end
+    Viewport.canvas = nil
 
     refreshLayout(love.graphics.getDimensions())
 
@@ -63,30 +50,13 @@ function Viewport.resize(windowWidth, windowHeight)
 end
 
 function Viewport.beginFrame()
-    if not Viewport.canvas then
-        return
-    end
-
     local currentWidth, currentHeight = love.graphics.getDimensions()
     if currentWidth ~= Viewport.windowWidth or currentHeight ~= Viewport.windowHeight then
         refreshLayout(currentWidth, currentHeight)
     end
-
-    love.graphics.setCanvas(Viewport.canvas)
-    love.graphics.origin()
-    love.graphics.clear(0, 0, 0, 1)
 end
 
 function Viewport.endFrame()
-    if not Viewport.canvas then
-        return
-    end
-
-    love.graphics.setCanvas()
-    love.graphics.origin()
-    love.graphics.clear(0, 0, 0, 1)
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(Viewport.canvas, Viewport.offsetX, Viewport.offsetY, 0, Viewport.scale, Viewport.scale)
 end
 
 function Viewport.toGameCoords(x, y)

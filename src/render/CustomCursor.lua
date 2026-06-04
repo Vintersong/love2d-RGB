@@ -3,6 +3,7 @@
 
 local CustomCursor = {}
 local moonshine = require("libs.moonshine-master")
+local Runtime = require("src.core.Runtime")
 
 CustomCursor.enabled = true
 CustomCursor.cursor = nil
@@ -29,6 +30,17 @@ end
 function CustomCursor.init()
     if not love.mouse or not love.graphics then
         return false
+    end
+
+    if Runtime.isWeb() then
+        local sysOk, systemCursor = pcall(love.mouse.getSystemCursor, "crosshair")
+        love.mouse.setVisible(true)
+        if sysOk and systemCursor then
+            love.mouse.setCursor(systemCursor)
+            return true
+        end
+        love.mouse.setCursor()
+        return true
     end
 
     local baseCanvas = love.graphics.newCanvas(CustomCursor.canvasSize, CustomCursor.canvasSize)

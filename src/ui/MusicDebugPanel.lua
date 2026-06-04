@@ -17,7 +17,7 @@ function MusicDebugPanel.drawMusicDebug(musicReactor)
     love.graphics.rectangle("fill", x - 10, y - 10, barWidth + 120, 170)
 
     love.graphics.setColor(0.5, 1, 1)
-    love.graphics.print("ðŸŽµ MUSIC ANALYSIS", x, y, 0, 1.2, 1.2)
+    love.graphics.print("MUSIC ANALYSIS", x, y, 0, 1.2, 1.2)
     y = y + 25
 
     love.graphics.setColor(1, 1, 1)

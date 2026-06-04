@@ -255,8 +255,9 @@ local function drawShieldReadyIcon(player, x, y, size)
     love.graphics.rectangle("line", x, y, size, size)
 
     if Icons.has("shield") then
-        Icons.draw("shield", x + 6, y + 6, size - 12, {
-            width = ready and 1.8 or 1.4,
+        local iconInset = math.floor(size * 0.13)
+        Icons.draw("shield", x + iconInset, y + iconInset, size - iconInset * 2, {
+            width = ready and 2.2 or 1.8,
             color = color
         })
     end
@@ -334,28 +335,22 @@ local function drawSlot(x, y, slotSize, artifactType, artifact, slotLabel, persi
     local iconName = typeName and string.lower(typeName) or nil
     local isCollected = artifact ~= nil
     local isUnlocked = (persistentLevel or 0) > 0
-    local frameColor = color
-    local fillAlpha = 0.35
-    local borderAlpha = 0.65
-    local iconAlpha = 0.95
+    local frameColor = Theme.color.fg3
+    local fillAlpha = 0.045
+    local borderAlpha = 0.16
+    local iconAlpha = 0
     local labelAlpha = 0.95
 
     if not isUnlocked then
-        local grey = 0.58
-        frameColor = {
-            color[1] * 0.35 + grey * 0.65,
-            color[2] * 0.35 + grey * 0.65,
-            color[3] * 0.35 + grey * 0.65,
-        }
-        fillAlpha = 0.10
-        borderAlpha = 0.28
-        iconAlpha = 0.22
-        labelAlpha = 0.45
+        labelAlpha = 0.28
     elseif not isCollected then
-        fillAlpha = 0.14
-        borderAlpha = 0.46
-        iconAlpha = 0.50
-        labelAlpha = 0.75
+        labelAlpha = 0.46
+    else
+        frameColor = color
+        fillAlpha = 0.18
+        borderAlpha = 0.74
+        iconAlpha = 1
+        labelAlpha = 0.92
     end
 
     love.graphics.setColor(0, 0, 0, 0.45)
@@ -368,9 +363,19 @@ local function drawSlot(x, y, slotSize, artifactType, artifact, slotLabel, persi
     love.graphics.setLineWidth(1)
     love.graphics.rectangle("line", x, y, slotSize, slotSize)
 
-    if iconName and Icons.has(iconName) then
-        Icons.draw(iconName, x, y, slotSize, {
-            width = isCollected and 1.8 or 1.4,
+    if isCollected and iconAlpha > 0 and iconName and Icons.has(iconName) then
+        love.graphics.setColor(0, 0, 0, 0.34)
+        love.graphics.rectangle("fill", x + 9, y + 9, slotSize - 18, slotSize - 18)
+
+        love.graphics.setColor(color[1], color[2], color[3], 0.16)
+        love.graphics.rectangle("fill", x + 10, y + 10, slotSize - 20, slotSize - 20)
+
+        Icons.draw(iconName, x + 8, y + 8, slotSize - 16, {
+            width = 3.2,
+            color = {color[1], color[2], color[3], 0.24}
+        })
+        Icons.draw(iconName, x + 10, y + 10, slotSize - 20, {
+            width = 2.2,
             color = {frameColor[1], frameColor[2], frameColor[3], iconAlpha}
         })
     end
@@ -434,7 +439,7 @@ function ArtifactPanel.drawArtifactPanel(player)
     local pathBarsH = barH
     local pathBarsX = rightLaneRight - pathBarsW
     local pathBarsY = hpBarY
-    local shieldIconSize = math.floor(cellSize * 1.35)
+    local shieldIconSize = math.floor(cellSize * 1.55)
     local shieldIconX = centerStartX + math.floor((centerWidth - shieldIconSize) * 0.5)
     local shieldIconY = bottomY + math.floor((bandHeight - shieldIconSize) * 0.5)
 

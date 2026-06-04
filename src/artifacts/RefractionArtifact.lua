@@ -206,7 +206,9 @@ RefractionArtifact.BLUE = {
                 size = 5,
                 shape = "triangle",
                 type = "accumulating",
-                piercing = true,
+                canPierce = true,
+                maxPierces = 2 + level,
+                pierceCount = 0,
                 
                 -- Accumulation data
                 damageMultiplier = 1.0,
@@ -571,6 +573,46 @@ RefractionArtifact.CYAN = {
         return projectiles
     end
 }
+
+function RefractionArtifact.apply(projectiles, level, dominantColor, targetX, targetY, player)
+    if level <= 0 or not dominantColor or not projectiles or #projectiles == 0 then
+        return projectiles
+    end
+
+    local colorBehavior = RefractionArtifact[dominantColor]
+    if not colorBehavior or not colorBehavior.behavior then
+        return projectiles
+    end
+
+    return colorBehavior.behavior(projectiles, level, targetX, targetY, player)
+end
+
+function RefractionArtifact.update(projectiles, enemies, dt, dominantColor, player)
+    local spawned = {}
+    if not dominantColor then
+        return spawned
+    end
+
+    for _, proj in ipairs(projectiles or {}) do
+        if proj.updateSpiral then
+            proj:updateSpiral(dt)
+        end
+        if proj.updateOrbital then
+            proj:updateOrbital(dt, enemies)
+        end
+        if proj.updateYellowRefraction then
+            proj:updateYellowRefraction(dt, enemies)
+        end
+        if proj.updateMagentaSpiral then
+            proj:updateMagentaSpiral(dt)
+        end
+        if proj.updateCyanOrbital then
+            proj:updateCyanOrbital(dt, enemies)
+        end
+    end
+
+    return spawned
+end
 
 local REFRACTION_COLORS = {
     RED     = {1,    0.2,  0.2 },

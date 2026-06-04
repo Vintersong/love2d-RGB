@@ -11,7 +11,22 @@ FloatingTextSystem.texts = {}
 local fonts = {
     small = Theme.font("mono", 14),
     medium = Theme.font("mono", 18),
-    large = Theme.font("mono", 24)
+    large = Theme.font("mono", 24),
+    toastLabel = Theme.font("mono", 12),
+    toastTitle = Theme.font("uiSemiBold", 22),
+    toastMeta = Theme.font("mono", 13)
+}
+
+local artifactColors = {
+    PRISM = Theme.color.magenta,
+    HALO = Theme.color.yellow,
+    MIRROR = Theme.color.cyan,
+    LENS = Theme.color.blue,
+    AURORA = Theme.color.green,
+    DIFFRACTION = Theme.color.red,
+    DIFFUSION = Theme.color.red,
+    REFRACTION = Theme.color.accent,
+    SUPERNOVA = Theme.color.warn,
 }
 
 -- Text types with different colors and behaviors
@@ -94,22 +109,34 @@ function FloatingTextSystem.add(text, x, y, textType)
 end
 
 -- Add artifact collection text with multi-line support
-function FloatingTextSystem.addArtifact(artifactName, level, x, y, isMaxLevel)
-    local mainText = "⭐ " .. artifactName .. " ⭐"
-    local levelText = "Level " .. level
-    
-    if isMaxLevel then
-        FloatingTextSystem.add(mainText, x, y - 20, "MAX_LEVEL")
-        FloatingTextSystem.add("MAX LEVEL!", x, y + 20, "MAX_LEVEL")
-    else
-        FloatingTextSystem.add(mainText, x, y - 15, "ARTIFACT")
-        FloatingTextSystem.add(levelText, x, y + 15, "ARTIFACT_LEVELUP")
+function FloatingTextSystem.addArtifact(artifactName, level, x, y, isMaxLevel, artifactType, maxLevel)
+    local accent = artifactColors[artifactType] or Theme.color.accent
+    local title = string.upper(artifactName or artifactType or "ARTIFACT")
+    local levelText = string.format("LV %d", level or 1)
+    if maxLevel then
+        levelText = string.format("LV %d/%d", level or 1, maxLevel)
     end
+
+    table.insert(FloatingTextSystem.texts, {
+        style = "artifactToast",
+        text = title,
+        subText = isMaxLevel and "RESONANCE MAXED" or "ARTIFACT SYNCED",
+        levelText = isMaxLevel and "MAX" or levelText,
+        x = x,
+        y = y - 56,
+        startY = y - 56,
+        color = accent,
+        duration = isMaxLevel and 2.15 or 1.75,
+        fadeStart = isMaxLevel and 1.35 or 1.05,
+        riseSpeed = 26,
+        timer = 0,
+        alpha = 1.0
+    })
 end
 
 -- Add synergy unlock text
 function FloatingTextSystem.addSynergy(synergyName, x, y)
-    FloatingTextSystem.add("✦ SYNERGY ✦", x, y - 20, "SYNERGY")
+    FloatingTextSystem.add("SYNERGY", x, y - 20, "SYNERGY")
     FloatingTextSystem.add(synergyName, x, y + 20, "SYNERGY")
 end
 
@@ -134,6 +161,73 @@ function FloatingTextSystem.update(dt)
     end
 end
 
+local function drawCornerBrackets(x, y, w, h, accent, alpha)
+    local len = 8
+    love.graphics.setColor(accent[1], accent[2], accent[3], alpha)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(x, y + len, x, y, x + len, y)
+    love.graphics.line(x + w - len, y, x + w, y, x + w, y + len)
+    love.graphics.line(x, y + h - len, x, y + h, x + len, y + h)
+    love.graphics.line(x + w - len, y + h, x + w, y + h, x + w, y + h - len)
+end
+
+local function drawArtifactToast(text)
+    local previousLineWidth = love.graphics.getLineWidth()
+    local labelFont = fonts.toastLabel
+    local metaFont = fonts.toastMeta
+    local accent = text.color or Theme.color.accent
+    local progress = math.min(1, text.timer / 0.12)
+    local ease = 1 - math.pow(1 - progress, 3)
+    local pulse = 0.9 + math.sin(text.timer * 10) * 0.06
+
+    love.graphics.setFont(metaFont)
+    local titleW = metaFont:getWidth(text.text)
+    love.graphics.setFont(labelFont)
+    local labelW = labelFont:getWidth(text.subText or "")
+    local levelW = metaFont:getWidth(text.levelText or "")
+
+    local w = math.max(150, titleW + levelW + 52, labelW + 38)
+    local h = 34
+    local x = text.x - w * 0.5 - (1 - ease) * 12
+    local y = text.y - h * 0.5
+    local alpha = (text.alpha or 1) * ease * 0.9
+
+    love.graphics.setColor(0, 0, 0, 0.36 * alpha)
+    love.graphics.rectangle("fill", x + 4, y + 5, w, h)
+
+    love.graphics.setColor(Theme.color.bgRaised[1], Theme.color.bgRaised[2], Theme.color.bgRaised[3], 0.54 * alpha)
+    love.graphics.rectangle("fill", x, y, w, h)
+
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.08 * alpha)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.72 * alpha)
+    love.graphics.rectangle("fill", x, y, 3, h)
+    love.graphics.rectangle("fill", x + 9, y + 4, w - 18, 1)
+
+    drawCornerBrackets(x, y, w, h, accent, 0.45 * alpha * pulse)
+
+    love.graphics.setFont(labelFont)
+    love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], 0.78 * alpha)
+    love.graphics.print(text.subText or "ARTIFACT SYNCED", x + 12, y + 5)
+
+    love.graphics.setFont(metaFont)
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], alpha)
+    love.graphics.print(text.text, x + 12, y + 17)
+
+    local pillW = math.max(38, levelW + 14)
+    local pillX = x + w - pillW - 10
+    love.graphics.setColor(0, 0, 0, 0.26 * alpha)
+    love.graphics.rectangle("fill", pillX, y + 17, pillW, 15)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.20 * alpha)
+    love.graphics.rectangle("fill", pillX + 1, y + 18, pillW - 2, 13)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.50 * alpha)
+    love.graphics.rectangle("line", pillX, y + 17, pillW, 15)
+
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], alpha)
+    love.graphics.print(text.levelText or "", pillX + (pillW - levelW) * 0.5, y + 18)
+    love.graphics.setLineWidth(previousLineWidth)
+end
+
 function FloatingTextSystem.draw()
     local _, screenHeight = GameConfig.getScreenSize()
     screenHeight = screenHeight or Config.screen.height
@@ -144,25 +238,29 @@ function FloatingTextSystem.draw()
     for _, text in ipairs(FloatingTextSystem.texts) do
         -- Only draw if on screen
         if text.y > -50 and text.y < screenHeight + 50 then
-            -- Set font (using cached fonts)
-            local font = fonts[text.font] or fonts.medium
-            love.graphics.setFont(font)
-            
-            -- Calculate text dimensions for centering
-            local textWidth = font:getWidth(text.text)
-            local textHeight = font:getHeight()
-            
-            -- Calculate scaled position (no push/pop/translate)
-            local drawX = text.x - (textWidth * text.scale) / 2
-            local drawY = text.y - (textHeight * text.scale) / 2
-            
-            -- Draw shadow for better visibility
-            love.graphics.setColor(0, 0, 0, text.alpha * 0.7)
-            love.graphics.print(text.text, drawX + 2, drawY + 2, 0, text.scale, text.scale)
-            
-            -- Draw main text
-            love.graphics.setColor(text.color[1], text.color[2], text.color[3], text.alpha)
-            love.graphics.print(text.text, drawX, drawY, 0, text.scale, text.scale)
+            if text.style == "artifactToast" then
+                drawArtifactToast(text)
+            else
+                -- Set font (using cached fonts)
+                local font = fonts[text.font] or fonts.medium
+                love.graphics.setFont(font)
+
+                -- Calculate text dimensions for centering
+                local textWidth = font:getWidth(text.text)
+                local textHeight = font:getHeight()
+
+                -- Calculate scaled position (no push/pop/translate)
+                local drawX = text.x - (textWidth * text.scale) / 2
+                local drawY = text.y - (textHeight * text.scale) / 2
+
+                -- Draw shadow for better visibility
+                love.graphics.setColor(0, 0, 0, text.alpha * 0.7)
+                love.graphics.print(text.text, drawX + 2, drawY + 2, 0, text.scale, text.scale)
+
+                -- Draw main text
+                love.graphics.setColor(text.color[1], text.color[2], text.color[3], text.alpha)
+                love.graphics.print(text.text, drawX, drawY, 0, text.scale, text.scale)
+            end
         end
     end
     

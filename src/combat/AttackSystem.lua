@@ -124,6 +124,20 @@ function AttackSystem.updateDoTs(entities, dt, onKillCallback)
                 entity.speed = entity.originalSpeed or entity.speed
             end
         end
+
+        if entity.frozen then
+            entity.frozenTimer = (entity.frozenTimer or 0) - dt
+            if entity.frozenTimer <= 0 then
+                entity.frozen = false
+                entity.frozenTimer = nil
+                entity.speed = entity.originalSpeed or entity.speed
+            end
+        end
+
+        if entity.slowedUntil and love.timer.getTime() >= entity.slowedUntil then
+            entity.slowedUntil = nil
+            entity.speedMultiplier = nil
+        end
     end
 end
 

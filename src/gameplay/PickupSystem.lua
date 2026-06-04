@@ -5,6 +5,7 @@ local PickupSystem = {}
 
 local ColorSystem = require("src.gameplay.ColorSystem")
 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
+local TutorialSystem = require("src.gameplay.TutorialSystem")
 local VFXLibrary = require("src.effects.VFXLibrary")
 local XPParticleSystem = require("src.effects.XPParticleSystem")
 
@@ -34,12 +35,16 @@ function PickupSystem.updatePowerups(dt, player, enemies, powerups, centerX, cen
 
             -- Show floating text for artifact collection
             if result and result.success then
+                TutorialSystem.onArtifactCollected(result.type)
+
                 FloatingTextSystem.addArtifact(
                     result.artifactName,
                     result.level,
                     powerup.x,
                     powerup.y,
-                    result.isMaxLevel
+                    result.isMaxLevel,
+                    result.type,
+                    result.maxLevel
                 )
 
                 -- Spawn VFX for artifact
@@ -53,6 +58,8 @@ function PickupSystem.updatePowerups(dt, player, enemies, powerups, centerX, cen
 
                 -- Show synergy unlock if exists
                 if result.synergyMessage then
+                    TutorialSystem.onSynergyActivated(result.synergyMessage)
+
                     FloatingTextSystem.addSynergy(
                         result.synergyMessage,
                         powerup.x,

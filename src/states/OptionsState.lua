@@ -556,7 +556,7 @@ function OptionsState:draw()
         -- Placeholder panel
         love.graphics.setFont(smallFont)
         love.graphics.setColor(0.4, 0.45, 0.55, alpha * 0.7)
-        love.graphics.print("GENERAL SETTINGS — COMING SOON", rightX + 60, rightY + 130)
+        love.graphics.print("GENERAL SETTINGS - COMING SOON", rightX + 60, rightY + 130)
 
         love.graphics.setColor(0.5, 0.5, 0.6, alpha * 0.4)
         love.graphics.print("This section will be available in a future update.", rightX + 60, rightY + 165)

@@ -5,6 +5,7 @@ local MenuState = {}
 local Config = require("src.Config")
 local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
+local MetaProgression = require("src.core.MetaProgression")
 local SFXLibrary = require("src.audio.SFXLibrary")
 local ShipRenderer = require("src.render.ShipRenderer")
 local Theme = require("src.render.Theme")
@@ -12,10 +13,8 @@ local Theme = require("src.render.Theme")
 -- State variables
 local alpha = 0
 local fadeInDuration = 0.3
-local fadeOutDuration = 0.8
 local timer = 0
-local phase = "fadeIn" -- fadeIn -> active -> fadeOut
-local pendingAction = nil -- "startGame" | "continue"
+local phase = "fadeIn" -- fadeIn -> active
 
 local menuOptions = {}
 local selectedMenuOption = 1
@@ -51,6 +50,7 @@ local MENU_GRID_IDLE_ALPHA = 0.04
 local MENU_GRID_ACTIVE_BASE_ALPHA = 0.14
 local MENU_GRID_ACTIVE_AUDIO_ALPHA = 0.18
 local MENU_GRID_ACTIVE_MAX_ALPHA = 1.0
+local MENU_GRID_CELL_HEIGHT = 12
 
 local function buildMenuOptions()
     menuOptions = {}
@@ -58,15 +58,39 @@ local function buildMenuOptions()
         table.insert(menuOptions, {label = "CONTINUE", action = "continue", style = "bracket"})
     end
     table.insert(menuOptions, {label = "START GAME", action = "startGame", style = "bracket"})
+    table.insert(menuOptions, {label = "TUTORIAL", action = "tutorial", style = "bracket"})
+    table.insert(menuOptions, {label = "PROGRESSION", action = "progression", style = "bracket"})
     table.insert(menuOptions, {label = "SETTINGS", action = "settings", style = "bracket"})
     table.insert(menuOptions, {label = "QUIT", action = "quit", style = "bracket"})
+end
+
+local function buildLoadingData()
+    local PlayingState = require("src.states.PlayingState")
+    return {
+        message = "Preparing run...",
+        nextState = "Playing",
+        nextData = nil,
+        onLoad = function()
+            PlayingState.startNewRun()
+        end,
+    }
+end
+
+local function openConfirm(title, message, onConfirm, yesLabel, noLabel)
+    local StateManager = require("src.core.StateManager")
+    StateManager.push("Confirm", {
+        title = title,
+        message = message,
+        yesLabel = yesLabel or "YES",
+        noLabel = noLabel or "NO",
+        onConfirm = onConfirm,
+    })
 end
 
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
     phase = "fadeIn"
-    pendingAction = nil
     selectedMenuOption = 1
     glowY = nil
 
@@ -145,21 +169,6 @@ function MenuState:update(dt)
         end
     elseif phase == "active" then
         alpha = 1
-    elseif phase == "fadeOut" then
-        alpha = math.max(0, 1 - (timer / fadeOutDuration))
-        if timer >= fadeOutDuration then
-            love.graphics.setFont(defaultFont)
-            timer = 0
-
-            local StateManager = require("src.core.StateManager")
-            if pendingAction == "continue" then
-                StateManager.switch("Playing")
-            else
-                local PlayingState = require("src.states.PlayingState")
-                PlayingState.startNewRun()
-                StateManager.switch("Playing")
-            end
-        end
     end
 end
 
@@ -245,7 +254,7 @@ function MenuState:draw()
 
     -- 4. Draw Equalizer Bars Grid (LED columns - static unlit matrix at 4% opacity - Full Screen Width)
     local numBars = 32
-    local segmentHeight = 12
+    local segmentHeight = MENU_GRID_CELL_HEIGHT
     local segmentGap = 3
     local numSegmentsTotal = 72
     local time = love.timer.getTime()
@@ -287,6 +296,11 @@ function MenuState:draw()
             love.graphics.rectangle("fill", barX, segmentY, barWidth, segmentHeight, 2, 2)
         end
     end
+
+    local bandHeight = (segmentHeight + segmentGap) * 2
+    love.graphics.setColor(0, 0, 0, 1)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, bandHeight)
+    love.graphics.rectangle("fill", 0, screenHeight - bandHeight, screenWidth, bandHeight)
     
     -- 4.6 Draw Title (on the left side, distanced equally from top and left)
     love.graphics.setFont(titleFont)
@@ -386,7 +400,7 @@ function MenuState:draw()
     love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
     love.graphics.print("MOVE  W A S D", mapX + 24, mapY + 80)
     love.graphics.print("DASH  SPACE   |  BLINK  E   |  SHIELD  Q", mapX + 24, mapY + 102)
-    love.graphics.print("SUPERNOVA  L-SHIFT   |   PAUSE  P / ESC", mapX + 24, mapY + 124)
+    love.graphics.print("PAUSE  P / ESC   |   SUPERNOVA  reactive artifact", mapX + 24, mapY + 124)
     love.graphics.print("AIM  MOUSE CURSOR   (AUTO-FIRE)", mapX + 24, mapY + 146)
 
     love.graphics.setColor(0.6, 0.8, 1, alpha * 0.85)
@@ -417,7 +431,7 @@ function MenuState:keypressed(key)
         self:activateOption(menuOptions[selectedMenuOption].action)
         return
     elseif key == "escape" then
-        Runtime.quitOrReturnToTitle()
+        self:activateOption("quit")
         return
     end
 end
@@ -427,12 +441,29 @@ function MenuState:activateOption(action)
         self:continueGame()
     elseif action == "startGame" then
         self:startGame()
+    elseif action == "tutorial" then
+        local StateManager = require("src.core.StateManager")
+        StateManager.switch("Tutorial", {
+            mode = "review",
+            nextState = "Menu",
+        })
+    elseif action == "progression" then
+        local StateManager = require("src.core.StateManager")
+        StateManager.switch("Progression")
     elseif action == "settings" then
         local StateManager = require("src.core.StateManager")
         love.graphics.setFont(defaultFont)
         StateManager.switch("Options")
     elseif action == "quit" then
-        Runtime.quitOrReturnToTitle()
+        openConfirm(
+            "QUIT GAME",
+            "Leave the game now?",
+            function()
+                Runtime.quitOrReturnToTitle()
+            end,
+            "QUIT",
+            "CANCEL"
+        )
     end
 end
 
@@ -479,18 +510,25 @@ function MenuState:startGame()
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
     end
-    pendingAction = "startGame"
-    phase = "fadeOut"
-    timer = 0
+
+    local StateManager = require("src.core.StateManager")
+    if MetaProgression.hasSeenTutorial() then
+        StateManager.switch("Loading", buildLoadingData())
+    else
+        StateManager.switch("Tutorial", {
+            mode = "onboarding",
+            nextState = "Loading",
+            nextData = buildLoadingData(),
+        })
+    end
 end
 
 function MenuState:continueGame()
     if Runtime.isWeb() then
         Runtime.startMusicAfterGesture()
     end
-    pendingAction = "continue"
-    phase = "fadeOut"
-    timer = 0
+    local StateManager = require("src.core.StateManager")
+    StateManager.switch("Loading", buildLoadingData())
 end
 
 return MenuState

@@ -59,6 +59,8 @@ end
 function Runtime.quitOrReturnToTitle()
     if Runtime.isWeb() then
         local StateManager = require("src.core.StateManager")
+        local GameConfig = require("src.core.GameConfig")
+        GameConfig.setActiveRun(false)
 
         if StateManager.currentState == "Menu" then
             love.event.push("quit", "reload")
@@ -69,6 +71,8 @@ function Runtime.quitOrReturnToTitle()
         return
     end
 
+    local GameConfig = require("src.core.GameConfig")
+    GameConfig.setActiveRun(false)
     love.event.quit()
 end
 

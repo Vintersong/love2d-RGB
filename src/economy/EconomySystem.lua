@@ -1,5 +1,5 @@
 -- EconomySystem.lua
--- Manages the Prism Shard currency: earning, spending, and persistent totals.
+-- Manages the Chroma currency: earning, spending, and persistent totals.
 -- This module is PURE DATA - it does not touch the HUD, shop UI, or player stats.
 -- Integration points are clearly marked with TODO comments.
 
@@ -9,15 +9,15 @@ local EconomySystem = {}
 -- INTERNAL STATE
 -- ============================================================================
 
-local _shards       = 0   -- Current spendable shards (session)
-local _totalEarned  = 0   -- Lifetime shards earned (for stats/achievements)
+local _chroma       = 0   -- Current spendable chroma (session)
+local _totalEarned  = 0   -- Lifetime chroma earned (for stats/achievements)
 
 -- Earn multiplier - default 1.0, can be raised by upgrades.
 -- TODO: when UpgradeSystem is integrated, set this via EconomySystem.setMultiplier()
 local _multiplier   = 1.0
 
 -- ============================================================================
--- SHARD EARN RATES (tuning constants)
+-- CHROMA EARN RATES (tuning constants)
 -- Adjust these without touching any other file.
 -- ============================================================================
 
@@ -36,7 +36,7 @@ EconomySystem.RATES = {
     LEVEL_UP        = 3,   -- Each player level-up
     SURVIVE_WAVE    = 10,  -- Completing a full survival wave
 
-    -- Wave time bonus: shards per 60s survived (awarded on wave end)
+    -- Wave time bonus: chroma per 60s survived (awarded on wave end)
     TIME_BONUS_PER_MINUTE = 5,
 }
 
@@ -46,30 +46,30 @@ EconomySystem.RATES = {
 
 --- Reset for a new run. Call from PlayingState:init() or equivalent.
 function EconomySystem.reset()
-    _shards      = 0
+    _chroma      = 0
     _totalEarned = 0
     _multiplier  = 1.0
 end
 
---- Current spendable shard balance.
-function EconomySystem.getShards()
-    return _shards
+--- Current spendable chroma balance.
+function EconomySystem.getChroma()
+    return _chroma
 end
 
---- Total shards earned this session (for end-screen stats).
+--- Total chroma earned this session (for end-screen stats).
 function EconomySystem.getTotalEarned()
     return _totalEarned
 end
 
---- Earn shards from a source. amount is the BASE amount (multiplier applied here).
+--- Earn chroma from a source. amount is the BASE amount (multiplier applied here).
 -- source: string label for debugging ("kill", "boss", "levelup", etc.)
 -- Returns the final amount actually awarded.
 function EconomySystem.earn(amount, source)
     local finalAmount = math.max(1, math.floor(amount * _multiplier))
-    _shards      = _shards + finalAmount
+    _chroma      = _chroma + finalAmount
     _totalEarned = _totalEarned + finalAmount
-    -- Debug log (remove when HUD shard pop is implemented)
-    -- print(string.format("[Economy] +%d shards (%s) | total: %d", finalAmount, source or "?", _shards))
+    -- Debug log (remove when HUD chroma pop is implemented)
+    -- print(string.format("[Economy] +%d chroma (%s) | total: %d", finalAmount, source or "?", _chroma))
     return finalAmount
 end
 
@@ -106,19 +106,19 @@ function EconomySystem.onWaveClear(survivalSeconds)
     end
 end
 
---- Attempt to spend shards. Returns true if successful, false if insufficient.
+--- Attempt to spend chroma. Returns true if successful, false if insufficient.
 -- TODO: call EconomySystem.spend(cost) from ShopSystem when player confirms a purchase.
 function EconomySystem.spend(amount)
-    if _shards < amount then
-        return false, "insufficient_shards"
+    if _chroma < amount then
+        return false, "insufficient_chroma"
     end
-    _shards = _shards - amount
+    _chroma = _chroma - amount
     return true
 end
 
 --- Check affordability without spending.
 function EconomySystem.canAfford(amount)
-    return _shards >= amount
+    return _chroma >= amount
 end
 
 --- Override the earn multiplier (called by upgrade that buffs shard income).
@@ -129,5 +129,8 @@ end
 function EconomySystem.getMultiplier()
     return _multiplier
 end
+
+-- Legacy aliases kept for older callers until the whole codebase is migrated.
+EconomySystem.getShards = EconomySystem.getChroma
 
 return EconomySystem

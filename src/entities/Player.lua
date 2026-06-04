@@ -51,19 +51,15 @@ function Player:init(x, y, weapon)
     self.damageFlashTime = 0
     self.blockedHitVfxCooldown = 0.08
     self.blockedHitVfxTimer = 0
+    self.supernovaPassive = {
+        chance = 0,
+        cooldown = 0,
+        cooldownRemaining = 0,
+        burstScale = 0,
+    }
 
     -- Register player abilities with AbilitySystem
     AbilitySystem.register(self, {"DASH", "BLINK", "SHIELD"})
-
-    -- Active artifact ability system (for future active artifacts)
-    self.abilityState = {
-        activeAbility = nil,  -- Current active artifact ability
-        cooldown = 0,  -- Current cooldown timer
-        maxCooldown = 0  -- Max cooldown for UI display
-    }
-    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
-    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
-    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
 end
 
 function Player:update(dt, enemies)
@@ -87,23 +83,9 @@ function Player:update(dt, enemies)
         self.blockedHitVfxTimer = self.blockedHitVfxTimer - dt
     end
 
-    -- Update active artifact ability cooldown
-    if self.abilityState.activeAbility == "SUPERNOVA" then
-        local ArtifactManager = require("src.gameplay.ArtifactManager")
-        local ColorSystem = require("src.gameplay.ColorSystem")
-        local color = ColorSystem.getDominantColor() or "RED"
-        ArtifactManager.updateSupernovaCooldowns(dt)
-        self.abilityState.maxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
-        self.abilityState.cooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
-    elseif self.abilityState.cooldown > 0 then
-        self.abilityState.cooldown = self.abilityState.cooldown - dt
-        if self.abilityState.cooldown < 0 then
-            self.abilityState.cooldown = 0
-        end
+    if self.supernovaPassive.cooldownRemaining > 0 then
+        self.supernovaPassive.cooldownRemaining = math.max(0, self.supernovaPassive.cooldownRemaining - dt)
     end
-    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
-    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
-    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
 
     -- Update all abilities via AbilitySystem
     AbilitySystem.update(self, AbilityLibrary, dt, {enemies = enemies})
@@ -116,13 +98,7 @@ function Player:update(dt, enemies)
     self.vfxTimer = (self.vfxTimer or 0) + dt
     if self.vfxTimer >= 0.3 then  -- Spawn VFX every 0.3 seconds
         self.vfxTimer = 0
-        local centerX, centerY = PlayerInput.getCenter(self)
-
-        -- HALO: Color-based aura VFX
-        if haloLevel > 0 then
-            local VFXLibrary = require("src.effects.VFXLibrary")
-            VFXLibrary.spawnArtifactEffect("HALO", centerX, centerY)
-        end
+        -- HALO now renders as its own animated ring in HaloArtifact.draw.
     end
 
     -- Update HALO artifact aura effects (passive)
@@ -233,9 +209,6 @@ function Player:destroy()
 
     self.nearestEnemy = nil
     self.projectiles = {}
-    self.activeAbility = nil
-    self.abilityCooldown = 0
-    self.abilityMaxCooldown = 0
     self.vfxTimer = nil
     self.weapon = nil
     self.destroyed = true
@@ -263,13 +236,17 @@ function Player:addExp(amount)
     self.exp = self.exp + amount
 end
 
-function Player:takeDamage(amount)
+function Player:takeDamage(amount, source, context)
     if self.invulnerable then
+        if self.onInvulnerableHit then
+            self:onInvulnerableHit(amount, source)
+        end
         return false
     end
 
     self.hp = self.hp - amount
     self.damageFlashTime = 0.1
+    self:tryTriggerSupernovaPassive(source, context)
 
     if self.hp <= 0 then
         self.hp = 0
@@ -351,54 +328,42 @@ function Player:updateProjectileArtifactEffects(proj, enemies, dt)
     PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, self)
 end
 
--- Set active ability (called when picking up an active artifact)
-function Player:setActiveAbility(abilityName, cooldown)
-    self.abilityState.activeAbility = abilityName
-    self.abilityState.maxCooldown = cooldown
-    self.abilityState.cooldown = 0  -- Ready immediately
-    self.activeAbility = self.abilityState.activeAbility  -- Compatibility shim
-    self.abilityMaxCooldown = self.abilityState.maxCooldown  -- Compatibility shim
-    self.abilityCooldown = self.abilityState.cooldown  -- Compatibility shim
-    print(string.format("[Player] Active ability set: %s (cooldown: %.1fs)", abilityName, cooldown))
-end
-
--- Use active ability (called on left shift)
-function Player:useActiveAbility(enemies)
-    local activeAbility = self.abilityState.activeAbility or self.activeAbility
-    if not activeAbility then return false end
-    if (self.abilityState.cooldown or self.abilityCooldown or 0) > 0 then return false end
-
-    if activeAbility == "SUPERNOVA" then
-        local ArtifactManager = require("src.gameplay.ArtifactManager")
-        local ColorSystem = require("src.gameplay.ColorSystem")
-        local color = ColorSystem.getDominantColor() or "RED"
-        local level = ArtifactManager.getLevel("SUPERNOVA")
-        if level <= 0 then
-            return false
-        end
-
-        local success, effectData = ArtifactManager.tryActivateSupernova(color, self, enemies or {}, level)
-        if success then
-            self.abilityState.maxCooldown = ArtifactManager.getSupernovaCooldown(color, self)
-            self.abilityState.cooldown = ArtifactManager.getSupernovaCooldownRemaining(color)
-            self.abilityMaxCooldown = self.abilityState.maxCooldown
-            self.abilityCooldown = self.abilityState.cooldown
-        end
-        return success, effectData, color
+function Player:tryTriggerSupernovaPassive(source, context)
+    local passive = self.supernovaPassive
+    if not passive or passive.chance <= 0 or passive.cooldown <= 0 or passive.burstScale <= 0 then
+        return false
     end
 
-    local abilityDef = AbilityLibrary[activeAbility]
-    if not abilityDef then return false end
-
-    local context = {}
-
-    local success = AbilitySystem.activate(self, activeAbility, abilityDef, context)
-    if success then
-        self.abilityState.cooldown = abilityDef.cooldown or self.abilityState.maxCooldown or 0
-        self.abilityCooldown = self.abilityState.cooldown
+    if passive.cooldownRemaining > 0 then
+        return false
     end
 
-    return success
+    local enemies = context and context.enemies or nil
+    if not enemies or #enemies == 0 then
+        return false
+    end
+
+    if math.random() > passive.chance then
+        return false
+    end
+
+    local ArtifactManager = require("src.gameplay.ArtifactManager")
+    local ColorSystem = require("src.gameplay.ColorSystem")
+    local dominantColor = ColorSystem.getDominantColor() or "RED"
+    local result = ArtifactManager.triggerReactiveSupernova(
+        self,
+        dominantColor,
+        enemies,
+        passive.burstScale,
+        context and context.onEnemyKilled or nil
+    )
+
+    if result and result.success then
+        passive.cooldownRemaining = passive.cooldown
+        return true
+    end
+
+    return false
 end
 
 -- Use dash (SPACE key - permanent ability)

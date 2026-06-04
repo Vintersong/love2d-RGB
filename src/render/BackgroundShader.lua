@@ -11,6 +11,7 @@ BackgroundShader.canvas = nil
 BackgroundShader.time = 0
 BackgroundShader.effect = nil  -- Moonshine glow effect
 BackgroundShader.fallback = false
+BackgroundShader.ambientAlpha = 0.18
 
 -- Initialize shader system
 function BackgroundShader.init(screenWidth, screenHeight)
@@ -181,6 +182,39 @@ function BackgroundShader.draw()
     end
 
     -- Restore previous shader
+    love.graphics.setShader(previousShader)
+end
+
+function BackgroundShader.drawAmbient(x, y, w, h, alpha)
+    if BackgroundShader.fallback or not BackgroundShader.shader or not BackgroundShader.canvas then
+        return
+    end
+
+    local drawAlpha = alpha or BackgroundShader.ambientAlpha or 0.18
+    if drawAlpha <= 0 then
+        return
+    end
+
+    local previousShader = love.graphics.getShader()
+    local scissorX, scissorY, scissorW, scissorH = love.graphics.getScissor()
+
+    love.graphics.setCanvas(BackgroundShader.canvas)
+    love.graphics.clear()
+    love.graphics.setShader(BackgroundShader.shader)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", 0, 0, BackgroundShader.canvasWidth, BackgroundShader.canvasHeight)
+    love.graphics.setShader()
+    love.graphics.setCanvas()
+
+    love.graphics.setScissor(math.floor(x), math.floor(y), math.floor(w), math.floor(h))
+    love.graphics.setColor(1, 1, 1, drawAlpha)
+    love.graphics.draw(BackgroundShader.canvas, x, y)
+    love.graphics.setColor(1, 1, 1, 1)
+    if scissorX then
+        love.graphics.setScissor(scissorX, scissorY, scissorW, scissorH)
+    else
+        love.graphics.setScissor()
+    end
     love.graphics.setShader(previousShader)
 end
 

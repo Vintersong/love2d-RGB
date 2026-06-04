@@ -5,6 +5,7 @@ local BossBehaviors = {}
 local Projectile = require("src.entities.Projectile")
 local BulletPatterns = require("src.data.BulletPatterns")
 local MathUtils = require("src.utils.MathUtils")
+local GameConfig = require("src.core.GameConfig")
 
 local function bossOrigin(boss)
     return {x = boss.x, y = boss.y}
@@ -29,6 +30,12 @@ local function typedScheduler(scheduler, projType)
             scheduler.schedule(delay, projData)
         end
     }
+end
+
+local function clampBossVertical(boss, screenHeight)
+    local minY = boss.minY or 50
+    local maxY = boss.maxY or math.floor(screenHeight / 2)
+    boss.y = math.max(minY, math.min(maxY, boss.y))
 end
 
 BossBehaviors.catalog = {
@@ -59,8 +66,9 @@ BossBehaviors.catalog = {
         end,
         weight = 5,
         update = function(boss, dt, context)
+            local screenWidth, screenHeight = GameConfig.getScreenSize()
             local oscillation = math.sin((boss.combatTime or 0) * (0.75 + context.energy * 0.4)) * 220
-            local targetX = love.graphics.getWidth() / 2 + oscillation
+            local targetX = screenWidth / 2 + oscillation
             boss.x = boss.x + (targetX - boss.x) * 2 * dt
 
             if boss.dashTimer and boss.dashTimer > 0 then
@@ -70,8 +78,8 @@ BossBehaviors.catalog = {
             end
 
             local margin = 100
-            boss.x = math.max(margin, math.min(love.graphics.getWidth() - margin, boss.x))
-            boss.y = math.max(50, math.min(love.graphics.getHeight() / 2, boss.y))
+            boss.x = math.max(margin, math.min(screenWidth - margin, boss.x))
+            clampBossVertical(boss, screenHeight)
         end,
     },
     {
@@ -86,6 +94,7 @@ BossBehaviors.catalog = {
             return context.distanceToPlayer < 260 and 2.5 or 0.7
         end,
         update = function(boss, dt, context)
+            local _, screenHeight = GameConfig.getScreenSize()
             local dx = context.playerX - boss.x
             local dy = context.playerY - boss.y
             local dist = math.sqrt(dx * dx + dy * dy)
@@ -93,6 +102,7 @@ BossBehaviors.catalog = {
                 boss.x = boss.x + (dx / dist) * boss.speed * 0.45 * dt
                 boss.y = boss.y + (dy / dist) * boss.speed * 0.25 * dt
             end
+            clampBossVertical(boss, screenHeight)
         end,
     },
     {

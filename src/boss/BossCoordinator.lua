@@ -7,6 +7,7 @@ local BossSystem = require("src.boss.BossSystem")
 local CollisionSystem = require("src.combat.CollisionSystem")
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
+local RunSummary = require("src.core.RunSummary")
 
 BossCoordinator.bossProjectiles = {}
 
@@ -21,7 +22,7 @@ function BossCoordinator.getActiveBoss()
     return BossSystem.activeBoss
 end
 
-function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, musicReactor, enemies)
+function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, musicReactor, enemies, state)
     BossCoordinator.bossProjectiles = bossProjectiles or BossCoordinator.bossProjectiles
 
     local activeBoss = BossSystem.activeBoss
@@ -61,6 +62,17 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
         if activeBoss and not activeBoss.alive then
             cleanupBossRefs(activeBoss)
             BossSystem.activeBoss = nil
+            if state then
+                local StateManager = require("src.core.StateManager")
+                StateManager.switch("Victory", {
+                    player = player,
+                    enemies = enemies,
+                    xpOrbs = state.xpOrbs or {},
+                    musicReactor = musicReactor,
+                    summary = RunSummary.build("victory", state)
+                })
+                return
+            end
         end
     else
         cleanupBossRefs(activeBoss)
@@ -92,7 +104,19 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
                         StateManager.switch("GameOver", {
                             player = player,
                             enemies = enemies,
-                            musicReactor = musicReactor
+                            xpOrbs = state and state.xpOrbs or {},
+                            powerups = state and state.powerups or {},
+                            explosions = state and state.explosions or {},
+                            bossProjectiles = state and state.bossProjectiles or {},
+                            supernovaEffects = state and state.supernovaEffects or {},
+                            gameTime = state and state.gameTime or 0,
+                            enemyKillCount = state and state.enemyKillCount or 0,
+                            musicReactor = musicReactor,
+                            summary = RunSummary.build("defeat", state or {
+                                player = player,
+                                enemies = enemies,
+                                musicReactor = musicReactor,
+                            })
                         })
                         return
                     end

@@ -1,20 +1,18 @@
 local PlayingRenderLayers = {}
 
 function PlayingRenderLayers.draw(state, deps)
-    local BackgroundShader = deps.BackgroundShader
+    local SimpleGrid = deps.SimpleGrid
     local VFXLibrary = deps.VFXLibrary
     local UISystem = deps.UISystem
     local FloatingTextSystem = deps.FloatingTextSystem
     local ShieldEffect = deps.ShieldEffect
     local BossCoordinator = deps.BossCoordinator
 
-    BackgroundShader.draw()
+    SimpleGrid.draw()
 
-    -- TODO(render): Re-enable World layer when shader stacking is finalized.
+    -- TODO(render): Re-enable World layer when backdrop layering is finalized.
     -- World.draw()
 
-    -- TODO(render): Re-enable grid layer when GridAttackSystem testing is complete.
-    -- GridAttackSystem.draw(false)
     state.player:drawAura()
     VFXLibrary.draw()
 

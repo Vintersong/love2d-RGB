@@ -3,7 +3,6 @@ local PlayingUpdateLoop = {}
 
 function PlayingUpdateLoop.update(state, dt, deps)
     local SpawnController = deps.SpawnController
-    local BackgroundShader = deps.BackgroundShader
     local SimpleGrid = deps.SimpleGrid
     local World = deps.World
     local FloatingTextSystem = deps.FloatingTextSystem
@@ -19,7 +18,6 @@ function PlayingUpdateLoop.update(state, dt, deps)
         state.musicReactor:update(dt)
     end
 
-    BackgroundShader.update(dt, state.musicReactor, state.player)
     SimpleGrid.update(dt, state.musicReactor)
     World.update(dt, state.musicReactor)
     flux.update(dt)
@@ -42,6 +40,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
 
     ShieldEffect.update(dt)
     SpawnController.update(dt, state.player.level, state.musicReactor, state.enemies)
+    state.enemyKillCount = SpawnController.enemyKillCount
 
     enemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
     enemyFlow.updateEnemyProjectileCollisions(state, deps)
@@ -78,7 +77,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
     -- Bosses recur every 100 kills (SpawnController); defeating one returns to
     -- normal play instead of ending the run. BossCoordinator clears the boss and
     -- runs its exit animation on death.
-    BossCoordinator.update(dt, state.player, state.player.projectiles, state.bossProjectiles, state.musicReactor, state.enemies)
+    BossCoordinator.update(dt, state.player, state.player.projectiles, state.bossProjectiles, state.musicReactor, state.enemies, state)
 end
 
 return PlayingUpdateLoop

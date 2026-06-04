@@ -44,13 +44,6 @@ function PlayingInputHandlers.keypressed(state, key, deps)
         return
     end
 
-    if key == "lshift" then
-        if enemyFlow.activateSupernova(state, deps) then
-            print("[Input] Active artifact ability used!")
-        end
-        return
-    end
-
     if debugEnabled and key == "f1" then
         state.player:addExp(state.player.expToNext)
         print("[DEBUG] Instant level up to level " .. state.player.level)

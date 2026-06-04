@@ -10,6 +10,8 @@ local SFXLibrary = require("src.audio.SFXLibrary")
 local Settings = require("src.core.Settings")
 local Theme = require("src.render.Theme")
 
+local OPTIONS_GRID_CELL_HEIGHT = 12
+
 -- Transition states
 local alpha = 0
 local fadeInDuration = 0.3
@@ -235,7 +237,7 @@ function OptionsState:draw()
     local barGap = 4
     local startX = 2
     local barStep = barWidth + barGap
-    local segmentHeight = 12
+    local segmentHeight = OPTIONS_GRID_CELL_HEIGHT
     local segmentGap = 3
     local numSegmentsTotal = 72
     local time = love.timer.getTime()
@@ -299,6 +301,11 @@ function OptionsState:draw()
             love.graphics.rectangle("fill", barX, segmentY, barWidth, segmentHeight, 2, 2)
         end
     end
+
+    local bandHeight = (segmentHeight + segmentGap) * 2
+    love.graphics.setColor(0, 0, 0, 1)
+    love.graphics.rectangle("fill", 0, 0, screenWidth, bandHeight)
+    love.graphics.rectangle("fill", 0, screenHeight - bandHeight, screenWidth, bandHeight)
     
     -- Draw title text with dynamic RGB color cycling
     love.graphics.setFont(titleFont)
@@ -498,7 +505,7 @@ function OptionsState:draw()
             {action = "AIM SHIP / SHOOT PROJECTILES", keys = {"MOUSE CURSOR"}, extra = "Shoots automatically"},
             {action = "DASH BOOST", keys = {"SPACE"}, extra = "1.5s cooldown"},
             {action = "BLINK TELEPORT / SHIELD", keys = {"E", "Q"}, extra = "Blink 5.0s | Shield 10.0s"},
-            {action = "SUPERNOVA ABILITY", keys = {"L-SHIFT"}, extra = "When active artifact is charged"},
+            {action = "SUPERNOVA ARTIFACT", keys = {"PASSIVE"}, extra = "Reactive nova chance when hit"},
             {action = "PAUSE MENU", keys = {"P", "ESC"}, extra = "Freezes gameplay"}
         }
         

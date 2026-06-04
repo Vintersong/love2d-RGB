@@ -7,8 +7,18 @@ local VFXLibrary = require("src.effects.VFXLibrary")
 local FormationCatalog = require("src.spawning.FormationCatalog")
 local SpawnPolicyMusic = require("src.spawning.SpawnPolicyMusic")
 local EnemyPool = require("src.spawning.EnemyPool")
+local GameConfig = require("src.core.GameConfig")
 
 local EnemySpawner = {}
+
+local ENEMY_FOOTPRINTS = {
+    BASS = {width = 35, height = 35},
+    MIDS = {width = 18, height = 18},
+    TREBLE = {width = 18, height = 18},
+    BOSS = {width = 60, height = 60},
+    formation = {width = 24, height = 24},
+    flanker = {width = 24, height = 24},
+}
 
 EnemySpawner.formations = FormationCatalog.formations
 EnemySpawner.sectionSettings = SpawnPolicyMusic.sectionSettings
@@ -16,6 +26,46 @@ EnemySpawner.enemyPool = EnemyPool.pool
 
 EnemySpawner.formationCooldown = 0
 EnemySpawner.formationSpawnRate = 8.0
+
+local function getFootprint(enemyType)
+    local footprint = ENEMY_FOOTPRINTS[enemyType] or ENEMY_FOOTPRINTS.formation
+    return footprint.width, footprint.height
+end
+
+local function getFormationSpacing(enemyTypes, baseSpacing)
+    local maxFootprint = baseSpacing or 50
+
+    for _, enemyType in pairs(enemyTypes or {}) do
+        local width, height = getFootprint(enemyType)
+        maxFootprint = math.max(maxFootprint, width, height)
+    end
+
+    return maxFootprint + 14
+end
+
+local function getActiveLandingBands(playerLevel, complexity, musicReactor)
+    local _, screenHeight = GameConfig.getScreenSize()
+    local energy = musicReactor and musicReactor.energy or 0
+    local useAllBands = playerLevel >= 10 or complexity == "complex" or energy >= 0.8
+    local bands = {
+        {
+            name = "upper",
+            startY = screenHeight * 0.3,
+            targetY = screenHeight * 0.35,
+        },
+        {
+            name = "lower",
+            startY = screenHeight * 0.7,
+            targetY = screenHeight * 0.65,
+        }
+    }
+
+    if useAllBands then
+        return bands
+    end
+
+    return {bands[love.math.random(1, #bands)]}
+end
 
 function EnemySpawner.update(dt, musicReactor, enemies, playerLevel)
     playerLevel = playerLevel or 1
@@ -41,8 +91,7 @@ function EnemySpawner.selectFormationByMusic(musicReactor, complexity)
 end
 
 function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReactor)
-    local screenWidth = love.graphics.getWidth()
-    local screenHeight = love.graphics.getHeight()
+    local screenWidth, screenHeight = GameConfig.getScreenSize()
 
     local formationName = EnemySpawner.selectFormationByMusic(musicReactor, complexity)
     local formation = EnemySpawner.formations[formationName]
@@ -51,31 +100,35 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
     end
 
     local totalEnemies = formation.count or (formation.rows * formation.columns)
-    local spacing = 50
-    local spawnDirections = {
-        {
-            name = "left_side",
+    local activeBands = getActiveLandingBands(playerLevel, complexity, musicReactor)
+    local spawnDirections = {}
+
+    for _, band in ipairs(activeBands) do
+        table.insert(spawnDirections, {
+            name = "left_side_" .. band.name,
             startX = -100,
-            startY = screenHeight * 0.3,
+            startY = band.startY,
             targetX = screenWidth * 0.25,
-            targetY = screenHeight * 0.35,
+            targetY = band.targetY,
             mirrorX = false
-        },
-        {
-            name = "right_side",
+        })
+        table.insert(spawnDirections, {
+            name = "right_side_" .. band.name,
             startX = screenWidth + 100,
-            startY = screenHeight * 0.3,
+            startY = band.startY,
             targetX = screenWidth * 0.75,
-            targetY = screenHeight * 0.35,
+            targetY = band.targetY,
             mirrorX = true
-        }
-    }
+        })
+    end
 
     local formationEnemyTypes = {}
     for i = 0, totalEnemies - 1 do
         local role = formation.roles and formation.roles[i + 1] or "support"
         formationEnemyTypes[i] = EnemySpawner.assignEnemyType(role, musicReactor)
     end
+
+    local spacing = getFormationSpacing(formationEnemyTypes, 50)
 
     for _, direction in ipairs(spawnDirections) do
         local formationID = love.timer.getTime() + math.random()
@@ -102,6 +155,8 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
             local enemyType = formationEnemyTypes[i]
             local role = formation.roles and formation.roles[i + 1] or "support"
             local shapeOverride = formation.shapeOverride and formation.shapeOverride[i + 1] or nil
+            local targetX = direction.targetX + offsetX
+            local targetY = direction.targetY + offsetY
 
             local formData = {
                 formation = formationName,
@@ -131,17 +186,10 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 enemy.pattern = "formation_hold"
                 enemy.formationData.group = formationData
 
-                local targetX = direction.targetX + offsetX
-                local targetY = direction.targetY + offsetY
-
                 flux.to(enemy, 2.0, {x = targetX, y = targetY})
                     :ease("quadout")
                     :oncomplete(function()
                         enemy.pattern = "track_player"
-                        if i == 0 then
-                            local formationColor = {1, 0.3, 0.3}
-                            VFXLibrary.spawnFormationFlash(direction.targetX, direction.targetY, formationColor, 1.5)
-                        end
                     end)
 
                 table.insert(enemies, enemy)

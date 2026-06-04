@@ -19,10 +19,6 @@ function UISystem.getArtifactEffectDescription(artifactType, level, player)
     return ArtifactPanel.getArtifactEffectDescription(artifactType, level, player)
 end
 
-function UISystem.getAffinityText()
-    return HudPanel.getAffinityText()
-end
-
 function UISystem.drawEnemyInfo(enemy)
     return BossPanel.drawEnemyInfo(enemy)
 end

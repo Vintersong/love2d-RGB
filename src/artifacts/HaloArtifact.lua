@@ -3,6 +3,39 @@
 
 local HaloArtifact = {}
 
+local function drawRotatingHaloRing(centerX, centerY, baseRadius, color, time)
+    local breathe = (math.sin(time * 2.2) + 1) * 0.5
+    local radius = baseRadius * (0.9 + breathe * 0.22)
+    local thickness = 6 - (breathe * 3.5)
+    local rotation = time * 1.8
+    local accentRadius = radius + 6
+
+    love.graphics.setColor(color[1], color[2], color[3], 0.12)
+    love.graphics.circle("fill", centerX, centerY, radius + thickness * 1.4)
+
+    love.graphics.setColor(color[1], color[2], color[3], 0.28)
+    love.graphics.setLineWidth(math.max(1.2, thickness + 1.5))
+    love.graphics.circle("line", centerX, centerY, radius)
+
+    love.graphics.setColor(color[1], color[2], color[3], 0.85)
+    love.graphics.setLineWidth(math.max(1.0, thickness))
+    love.graphics.arc("line", "open", centerX, centerY, radius, rotation, rotation + math.pi * 0.62)
+    love.graphics.arc("line", "open", centerX, centerY, radius, rotation + math.pi, rotation + math.pi + math.pi * 0.42)
+
+    love.graphics.setColor(1, 1, 1, 0.72)
+    love.graphics.setLineWidth(math.max(0.8, thickness * 0.45))
+    love.graphics.arc("line", "open", centerX, centerY, radius, rotation + 0.18, rotation + 0.18 + math.pi * 0.18)
+    love.graphics.arc("line", "open", centerX, centerY, radius, rotation + math.pi + 0.12, rotation + math.pi + 0.12 + math.pi * 0.14)
+
+    local markerA = rotation + math.pi * 0.18
+    local markerB = markerA + math.pi
+    love.graphics.setColor(color[1], color[2], color[3], 0.95)
+    love.graphics.circle("fill", centerX + math.cos(markerA) * accentRadius, centerY + math.sin(markerA) * accentRadius, math.max(1.5, thickness * 0.42))
+    love.graphics.circle("fill", centerX + math.cos(markerB) * accentRadius, centerY + math.sin(markerB) * accentRadius, math.max(1.2, thickness * 0.32))
+
+    love.graphics.setLineWidth(1)
+end
+
 -- RED HALO: Pulsing fire ring aura
 HaloArtifact.RED = {
     name = "Crimson Halo",
@@ -383,15 +416,7 @@ function HaloArtifact.draw(player, dominantColor)
         auraColor = {0.2, 1, 1}  -- Cyan frost
     end
 
-    -- Draw aura ring
-    love.graphics.setColor(auraColor[1], auraColor[2], auraColor[3], 0.4)
-    love.graphics.setLineWidth(4)
-    love.graphics.circle("line", centerX, centerY, auraRadius)
-
-    -- Outer glow
-    love.graphics.setColor(auraColor[1], auraColor[2], auraColor[3], 0.2)
-    love.graphics.setLineWidth(2)
-    love.graphics.circle("line", centerX, centerY, auraRadius + 8)
+    drawRotatingHaloRing(centerX, centerY, auraRadius, auraColor, love.timer.getTime())
 end
 
 -- Process halo damage/healing effects on enemies (called from game state)

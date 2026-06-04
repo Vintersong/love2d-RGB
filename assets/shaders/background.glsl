@@ -62,10 +62,20 @@ float topDownGrid(vec2 screenPos, float cellSize, out vec2 cellPos, out vec2 cel
     return max(xGrid, yGrid);
 }
 
+// Mirror all pattern sampling across the vertical center split so the shader
+// reads like two reflected halves of the same board.
+vec2 mirroredFromCenter(vec2 cellId, vec2 screenCenter) {
+    vec2 cellCenter = cellId + vec2(0.5, 0.5);
+    return vec2(
+        abs(cellCenter.x - screenCenter.x),
+        cellCenter.y - screenCenter.y
+    );
+}
+
 // Dynamic mandala pattern that expands from center with music
 float getMandalaPattern(vec2 cellId, float time, vec2 screenCenter, float bass, float mids, float treble) {
-    // Distance and angle from center
-    vec2 fromCenter = cellId - screenCenter;
+    // Sample from mirrored space so left/right halves stay perfectly reflected.
+    vec2 fromCenter = mirroredFromCenter(cellId, screenCenter);
     float dist = length(fromCenter);
     float angle = atan(fromCenter.y, fromCenter.x);
     
@@ -113,15 +123,12 @@ float hash21(vec2 p) {
 
 // Check if a cell should be filled based on symmetrical pattern
 float getSymmetricalFill(vec2 cellId, vec2 screenCenter) {
-    // Get distance from center (in cell coordinates)
-    vec2 fromCenter = cellId - screenCenter;
+    // Mirror around the center split so the left and right sides always match.
+    vec2 mirroredPos = mirroredFromCenter(cellId, screenCenter);
 
-    // Create 4-way symmetry by taking absolute values
-    vec2 symmetricPos = abs(fromCenter);
-
-    // Use hash function on the symmetric position
-    // This ensures that all 4 quadrants have the same pattern
-    float randomValue = hash21(symmetricPos);
+    // Quantize to mirrored cell space to keep the random fill pattern crisp.
+    vec2 samplePos = vec2(floor(mirroredPos.x), floor(mirroredPos.y));
+    float randomValue = hash21(samplePos);
 
     // Only fill ~15% of cells (adjust 0.15 to change density)
     return (randomValue < 0.15) ? 1.0 : 0.0;

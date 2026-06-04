@@ -34,12 +34,13 @@ function AttackSystem.projectileHit(projectile, target, onKillCallback)
 end
 
 -- Process enemy touching player
-function AttackSystem.enemyContactDamage(enemy, player, dt)
+function AttackSystem.enemyContactDamage(enemy, player, dt, context)
     if enemy.dead or player.dead then return false end
     
-    -- Deal damage over time while in contact
-    local damageAmount = (enemy.damage or 10) * dt
-    local died = HealthSystem.takeDamage(player, damageAmount)
+    -- Contact should behave like a discrete hit because Player:takeDamage
+    -- already applies post-hit invulnerability frames.
+    local damageAmount = enemy.damage or 10
+    local died = player:takeDamage(damageAmount, enemy, context)
     
     return died
 end

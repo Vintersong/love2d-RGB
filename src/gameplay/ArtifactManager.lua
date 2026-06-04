@@ -5,7 +5,7 @@
 local RefractionArtifact = require("src.artifacts.RefractionArtifact")
 local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
 local SupernovaArtifact = require("src.artifacts.SupernovaArtifact")
-local AbilityLibrary = require("src.data.AbilityLibrary")
+local HealthSystem = require("src.combat.HealthSystem")
 
 local ArtifactManager = {}
 
@@ -118,7 +118,30 @@ ArtifactManager.levelDefinitions = {
             end}
         }
     },
-    
+
+    AURORA = {
+        name = "Aurora",
+        description = "Regenerates health and empowers sustain effects",
+        maxLevel = 5,
+        levelEffects = {
+            [1] = {desc = "+1 HP/s regeneration", effect = function(weapon, player)
+                player.auroraRegen = 1
+            end},
+            [2] = {desc = "+2 HP/s regeneration", effect = function(weapon, player)
+                player.auroraRegen = 2
+            end},
+            [3] = {desc = "+3 HP/s regeneration", effect = function(weapon, player)
+                player.auroraRegen = 3
+            end},
+            [4] = {desc = "+4 HP/s regeneration", effect = function(weapon, player)
+                player.auroraRegen = 4
+            end},
+            [5] = {desc = "+5 HP/s regeneration (MAX)", effect = function(weapon, player)
+                player.auroraRegen = 5
+            end}
+        }
+    },
+
     DIFFRACTION = {
         name = "Diffraction",
         description = "Spreading/bursting projectile patterns",
@@ -202,37 +225,29 @@ ArtifactManager.levelDefinitions = {
     
     SUPERNOVA = {
         name = "Supernova",
-        description = "Ultimate screen-clear abilities (cooldown)",
+        description = "Reactive nova bursts when enemies land a hit",
         maxLevel = 5,
         artifactModule = SupernovaArtifact,
         levelEffects = {
-            [1] = {desc = "Unlock Supernova ultimate", effect = function(weapon, player)
+            [1] = {desc = "12% trigger chance, 12s cooldown", effect = function(weapon, player)
                 player.supernovaLevel = 1
-                player.hasSupernova = true
-                -- Bind L-Shift to the Supernova ultimate (previously mis-wired to LIGHTNING_BOLT).
-                if player and player.setActiveAbility then
-                    local ColorSystem = require("src.gameplay.ColorSystem")
-                    local color = ColorSystem.getDominantColor() or "RED"
-                    player:setActiveAbility("SUPERNOVA", ArtifactManager.getSupernovaCooldown(color, player))
-                end
+                ArtifactManager.configureSupernovaPassive(player, 0.12, 12.0, 0.70)
             end},
-            [2] = {desc = "-20% Supernova cooldown", effect = function(weapon, player) 
+            [2] = {desc = "16% trigger chance, 10s cooldown", effect = function(weapon, player) 
                 player.supernovaLevel = 2
-                player.supernovaCooldownReduction = 0.20
+                ArtifactManager.configureSupernovaPassive(player, 0.16, 10.0, 0.85)
             end},
-            [3] = {desc = "-40% Supernova cooldown", effect = function(weapon, player) 
+            [3] = {desc = "20% trigger chance, 8.5s cooldown", effect = function(weapon, player) 
                 player.supernovaLevel = 3
-                player.supernovaCooldownReduction = 0.40
+                ArtifactManager.configureSupernovaPassive(player, 0.20, 8.5, 1.00)
             end},
-            [4] = {desc = "+50% Supernova radius", effect = function(weapon, player) 
+            [4] = {desc = "24% trigger chance, 7s cooldown", effect = function(weapon, player) 
                 player.supernovaLevel = 4
-                player.supernovaCooldownReduction = 0.40
-                player.supernovaRadiusBonus = 0.50
+                ArtifactManager.configureSupernovaPassive(player, 0.24, 7.0, 1.15)
             end},
-            [5] = {desc = "MAX Supernova power (MAX)", effect = function(weapon, player) 
+            [5] = {desc = "30% trigger chance, 6s cooldown (MAX)", effect = function(weapon, player) 
                 player.supernovaLevel = 5
-                player.supernovaCooldownReduction = 0.60
-                player.supernovaRadiusBonus = 1.0
+                ArtifactManager.configureSupernovaPassive(player, 0.30, 6.0, 1.30)
             end}
         }
     },
@@ -323,6 +338,21 @@ function ArtifactManager.collect(artifactType, weapon, player)
     }
 end
 
+function ArtifactManager.configureSupernovaPassive(player, chance, cooldown, burstScale)
+    if not player then
+        return
+    end
+
+    player.supernovaPassive = player.supernovaPassive or {}
+    player.supernovaPassive.chance = chance or 0
+    player.supernovaPassive.cooldown = cooldown or 0
+    player.supernovaPassive.cooldownRemaining = math.min(
+        player.supernovaPassive.cooldownRemaining or 0,
+        player.supernovaPassive.cooldown or 0
+    )
+    player.supernovaPassive.burstScale = burstScale or 0
+end
+
 -- Get artifact level (0 if not collected)
 function ArtifactManager.getLevel(artifactType)
     return ArtifactManager.artifacts[artifactType] or 0
@@ -408,52 +438,69 @@ function ArtifactManager.hasArtifact(artifactType)
     return ArtifactManager.getLevel(artifactType) > 0
 end
 
--- Update Supernova cooldowns
-function ArtifactManager.updateSupernovaCooldowns(dt)
-    if SupernovaArtifact then
-        for _, colorVariant in pairs(SupernovaArtifact) do
-            if type(colorVariant) == "table" and colorVariant.update then
-                colorVariant:update(dt)
+function ArtifactManager.triggerReactiveSupernova(player, dominantColor, enemies, burstScale, onKillCallback)
+    if not player or not enemies or not ArtifactManager.hasArtifact("SUPERNOVA") then
+        return {success = false}
+    end
+
+    local VFXLibrary = require("src.effects.VFXLibrary")
+    local FloatingTextSystem = require("src.effects.FloatingTextSystem")
+    local ColorSystem = require("src.gameplay.ColorSystem")
+
+    burstScale = burstScale or 1
+    dominantColor = dominantColor or "RED"
+
+    local centerX = player.x + player.width / 2
+    local centerY = player.y + player.height / 2
+    local radius = 135 * burstScale
+    local damage = 115 * burstScale
+    local hitCount = 0
+
+    for _, enemy in ipairs(enemies) do
+        if not enemy.dead then
+            local enemyX = enemy.x + enemy.width / 2
+            local enemyY = enemy.y + enemy.height / 2
+            local dx = enemyX - centerX
+            local dy = enemyY - centerY
+            local dist = math.sqrt(dx * dx + dy * dy)
+
+            if dist <= radius then
+                local falloff = 1 - (dist / radius)
+                local actualDamage = damage * (0.55 + falloff * 0.45)
+                local died = HealthSystem.takeDamage(enemy, actualDamage)
+                hitCount = hitCount + 1
+
+                if dominantColor == "GREEN" then
+                    player.hp = math.min(player.maxHp, player.hp + actualDamage * 0.03)
+                elseif dominantColor == "BLUE" or dominantColor == "CYAN" then
+                    enemy.frozen = true
+                    enemy.frozenTimer = math.max(enemy.frozenTimer or 0, 0.7)
+                    enemy.frozenDamageMultiplier = 1.15
+                    enemy.originalSpeed = enemy.originalSpeed or enemy.speed
+                    enemy.speed = 0
+                elseif dominantColor == "YELLOW" then
+                    player.shield = (player.shield or 0) + actualDamage * 0.05
+                    player.shieldTimer = math.max(player.shieldTimer or 0, 3.0)
+                end
+
+                if died and onKillCallback then
+                    onKillCallback(enemy)
+                end
             end
         end
     end
-end
 
-function ArtifactManager.getSupernovaVariant(colorAffinity)
-    if not SupernovaArtifact then return nil end
-    return SupernovaArtifact[colorAffinity] or SupernovaArtifact.RED
-end
+    local burstColor = ColorSystem.getColorRGB(dominantColor) or {1, 0.3, 0.2}
+    VFXLibrary.spawnArtifactEffect("SUPERNOVA", centerX, centerY)
+    VFXLibrary.spawnImpactBurst(centerX, centerY, burstColor, 14)
+    FloatingTextSystem.add((dominantColor or "RED") .. " BURST", centerX, centerY - 72, "SYNERGY")
 
-function ArtifactManager.getSupernovaCooldown(colorAffinity, player)
-    local colorVariant = ArtifactManager.getSupernovaVariant(colorAffinity)
-    if not colorVariant then return 0 end
-
-    colorVariant.baseCooldown = colorVariant.baseCooldown or colorVariant.cooldown or 0
-    local reduction = player and player.supernovaCooldownReduction or 0
-    return colorVariant.baseCooldown * math.max(0.1, 1 - reduction)
-end
-
-function ArtifactManager.getSupernovaCooldownRemaining(colorAffinity)
-    local colorVariant = ArtifactManager.getSupernovaVariant(colorAffinity)
-    return colorVariant and math.max(0, colorVariant.currentCooldown or 0) or 0
-end
-
--- Try to activate Supernova
-function ArtifactManager.tryActivateSupernova(colorAffinity, player, enemies, level)
-    if not SupernovaArtifact then return false end
-    
-    local colorVariant = SupernovaArtifact[colorAffinity]
-    if not colorVariant or not colorVariant.activate then return false end
-    
-    -- Check if player has SUPERNOVA artifact
-    if not ArtifactManager.hasArtifact("SUPERNOVA") then return false end
-
-    colorVariant.baseCooldown = colorVariant.baseCooldown or colorVariant.cooldown or 0
-    colorVariant.cooldown = ArtifactManager.getSupernovaCooldown(colorAffinity, player)
-    
-    -- Try to activate
-    local success, effectData = colorVariant:activate(player, enemies, level)
-    return success, effectData
+    return {
+        success = true,
+        hits = hitCount,
+        radius = radius,
+        damage = damage,
+    }
 end
 
 return ArtifactManager

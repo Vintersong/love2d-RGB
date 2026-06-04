@@ -6,6 +6,110 @@ local MathUtils = require("src.utils.MathUtils")
 
 local VFXLibrary = {}
 
+local function blendTowardsWhite(color, amount)
+    return {
+        color[1] + (1 - color[1]) * amount,
+        color[2] + (1 - color[2]) * amount,
+        color[3] + (1 - color[3]) * amount,
+    }
+end
+
+local function buildPolygonVerts(sides, radius, rotation)
+    local verts = {}
+    rotation = rotation or 0
+    for i = 0, sides - 1 do
+        local angle = rotation + (i / sides) * math.pi * 2
+        verts[#verts + 1] = math.cos(angle) * radius
+        verts[#verts + 1] = math.sin(angle) * radius
+    end
+    return verts
+end
+
+local function drawVFXCore(color, alpha, size)
+    local core = blendTowardsWhite(color, 0.65)
+    love.graphics.setColor(core[1], core[2], core[3], alpha)
+    love.graphics.circle("fill", 0, 0, size)
+    love.graphics.setColor(1, 1, 1, alpha * 0.95)
+    love.graphics.circle("fill", 0, 0, math.max(0.8, size * 0.45))
+end
+
+local function drawVFXOrb(particle)
+    local color = particle.color
+    local alpha = particle.alpha
+    local size = particle.size
+
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.18)
+    love.graphics.circle("fill", 0, 0, size * 1.9)
+    love.graphics.setBlendMode("alpha")
+
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.95)
+    love.graphics.setLineWidth(1.4)
+    love.graphics.circle("line", 0, 0, size)
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.55)
+    love.graphics.circle("line", 0, 0, size * 0.55)
+    drawVFXCore(color, alpha * 0.95, math.max(1.1, size * 0.32))
+end
+
+local function drawVFXShard(particle)
+    local color = particle.color
+    local alpha = particle.alpha
+    local size = particle.size
+    local verts = buildPolygonVerts(8, size, math.pi / 8)
+    local innerVerts = buildPolygonVerts(8, size * 0.45, math.pi / 8)
+
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.15)
+    love.graphics.polygon("fill", verts)
+    love.graphics.setBlendMode("alpha")
+
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.95)
+    love.graphics.setLineWidth(1.4)
+    love.graphics.polygon("line", verts)
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.5)
+    love.graphics.polygon("line", innerVerts)
+    drawVFXCore(color, alpha * 0.9, math.max(1.0, size * 0.22))
+end
+
+local function drawVFXBeam(particle)
+    local color = particle.color
+    local alpha = particle.alpha
+    local size = particle.size
+
+    love.graphics.setColor(color[1], color[2], color[3], alpha)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.polygon("line",
+        0, -size * 2,
+        size * 0.45, -size * 0.35,
+        size * 0.3, size * 2,
+        -size * 0.3, size * 2,
+        -size * 0.45, -size * 0.35
+    )
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.25)
+    love.graphics.ellipse("fill", 0, 0, size * 0.35, size * 1.6)
+    love.graphics.setBlendMode("alpha")
+    drawVFXCore(color, alpha * 0.9, math.max(0.9, size * 0.2))
+end
+
+local function drawDashTrailParticle(particle)
+    local color = particle.color
+    local alpha = particle.alpha
+    local size = particle.size
+    local length = particle.length or (size * 3.5)
+
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.18)
+    love.graphics.rectangle("fill", -size * 0.8, -length * 0.5, size * 1.6, length)
+    love.graphics.setBlendMode("alpha")
+
+    love.graphics.setColor(color[1], color[2], color[3], alpha * 0.9)
+    love.graphics.setLineWidth(1.2)
+    love.graphics.rectangle("line", -size * 0.55, -length * 0.5, size * 1.1, length)
+    love.graphics.setColor(1, 1, 1, alpha * 0.85)
+    love.graphics.line(0, -length * 0.5, 0, length * 0.5)
+end
+
 -- Active particle systems
 VFXLibrary.activeEffects = {}
 
@@ -277,6 +381,49 @@ function VFXLibrary.spawnSynergyEffect(synergyName, x, y)
     end
 end
 
+function VFXLibrary.spawnDashTrail(x, y, color, dirX, dirY)
+    color = color or {1, 1, 1}
+    dirX = dirX or 0
+    dirY = dirY or -1
+
+    local length = math.sqrt(dirX * dirX + dirY * dirY)
+    if length <= 0 then
+        dirX, dirY = 0, -1
+    else
+        dirX = dirX / length
+        dirY = dirY / length
+    end
+
+    local angle = MathUtils.atan2(dirY, dirX) + math.pi * 0.5
+
+    for i = 1, 2 do
+        local lateral = (i == 1) and -6 or 6
+        local offsetX = -dirX * 10 + (-dirY * lateral)
+        local offsetY = -dirY * 10 + (dirX * lateral)
+        table.insert(VFXLibrary.activeEffects, {
+            x = x + offsetX,
+            y = y + offsetY,
+            vx = -dirX * (40 + i * 12),
+            vy = -dirY * (40 + i * 12),
+            lifetime = 0.18,
+            maxLifetime = 0.18,
+            size = 3.5,
+            startSize = 3.5,
+            endSize = 1.2,
+            alpha = 0.75,
+            startAlpha = 0.75,
+            endAlpha = 0,
+            color = {color[1], color[2], color[3]},
+            baseColor = {color[1], color[2], color[3]},
+            rotation = angle,
+            rotationSpeed = 0,
+            dashTrail = true,
+            length = 18 + i * 4,
+            effectType = "DASH_TRAIL"
+        })
+    end
+end
+
 -- Update all particles
 function VFXLibrary.update(dt)
     -- Update formation effects
@@ -365,35 +512,15 @@ function VFXLibrary.draw()
         love.graphics.translate(particle.x, particle.y)
         love.graphics.rotate(particle.rotation)
         
-        -- Glow effect (outer ring)
-        if particle.trail or particle.explosion then
-            love.graphics.setColor(particle.color[1], particle.color[2], particle.color[3], particle.alpha * 0.3)
-            love.graphics.circle("fill", 0, 0, particle.size * 1.8)
-        end
-        
-        -- Main particle
-        love.graphics.setColor(particle.color[1], particle.color[2], particle.color[3], particle.alpha)
-        
-        if particle.geometric then
-            -- Draw hexagon
-            local verts = {}
-            for i = 0, 5 do
-                local a = (i / 6) * math.pi * 2
-                table.insert(verts, math.cos(a) * particle.size)
-                table.insert(verts, math.sin(a) * particle.size)
-            end
-            love.graphics.polygon("fill", verts)
-        elseif particle.laser then
-            -- Draw elongated laser
-            love.graphics.rectangle("fill", -particle.size * 0.5, -particle.size * 2, particle.size, particle.size * 4)
+        if particle.dashTrail then
+            drawDashTrailParticle(particle)
+        elseif particle.laser or particle.focused then
+            drawVFXBeam(particle)
+        elseif particle.geometric or particle.explosion or particle.trail then
+            drawVFXShard(particle)
         else
-            -- Default circle
-            love.graphics.circle("fill", 0, 0, particle.size)
+            drawVFXOrb(particle)
         end
-        
-        -- Bright core
-        love.graphics.setColor(1, 1, 1, particle.alpha * 0.8)
-        love.graphics.circle("fill", 0, 0, particle.size * 0.4)
         
         love.graphics.pop()
     end
@@ -464,6 +591,7 @@ function VFXLibrary.spawnImpactBurst(x, y, color, count)
             life  = 1,
             maxLife = 0.28 + math.random() * 0.27,
             size  = 2 + math.random() * 2,
+            rotation = math.random() * math.pi * 2,
         })
     end
 
@@ -507,9 +635,20 @@ function VFXLibrary.drawImpactBursts()
     for _, p in ipairs(VFXLibrary.impactParticles) do
         local c = p.color
         if p.type == "spark" then
-            love.graphics.setColor(c[1], c[2], c[3], p.life)
             local sz = p.size * p.life
-            love.graphics.rectangle("fill", p.x - sz * 0.5, p.y - sz * 0.5, sz, sz)
+            love.graphics.push()
+            love.graphics.translate(p.x, p.y)
+            love.graphics.rotate((p.rotation or 0) + (1 - p.life) * 4)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(c[1], c[2], c[3], p.life * 0.18)
+            love.graphics.polygon("fill", buildPolygonVerts(4, sz * 1.4, math.pi / 4))
+            love.graphics.setBlendMode("alpha")
+            love.graphics.setColor(c[1], c[2], c[3], p.life)
+            love.graphics.setLineWidth(1.3)
+            love.graphics.polygon("line", buildPolygonVerts(4, sz, math.pi / 4))
+            love.graphics.setColor(1, 1, 1, p.life * 0.9)
+            love.graphics.circle("fill", 0, 0, math.max(0.7, sz * 0.3))
+            love.graphics.pop()
         elseif p.type == "ring" then
             love.graphics.setBlendMode("add")
             love.graphics.setColor(c[1], c[2], c[3], p.life * 0.85)

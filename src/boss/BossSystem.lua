@@ -6,6 +6,8 @@ BossSystem.__index = BossSystem
 local BossBehaviors = require("src.data.BossBehaviors")
 local BehaviorSelector = require("src.combat.BehaviorSelector")
 local MathUtils = require("src.utils.MathUtils")
+local GameConfig = require("src.core.GameConfig")
+local SimpleGrid = require("src.gameplay.SimpleGrid")
 
 -- Canonical spawn policy is kill-based via SpawnController.
 -- Wave-based spawn fields are retired to avoid dual policy drift.
@@ -17,7 +19,6 @@ local WHITE_COLOR = {1, 1, 1}
 
 function BossSystem.init()
     -- Setup boss ship color via GameConfig
-    local GameConfig = require("src.core.GameConfig")
     GameConfig.currentShipColor = BOSS_COLOR
 end
 
@@ -38,11 +39,16 @@ end
 
 function BossSystem.spawnBoss()
     local boss = setmetatable({}, BossSystem)
+    local screenWidth, screenHeight = GameConfig.getScreenSize()
+    local cellSize = SimpleGrid.cellSize or 48
+    local topBandHeight = cellSize * 2
     
     -- Position (spawn at top center)
-    boss.x = love.graphics.getWidth() / 2
+    boss.x = screenWidth / 2
     boss.y = -200 -- Start off-screen
-    boss.targetY = 150 -- Move to this Y position
+    boss.targetY = topBandHeight + math.floor(cellSize * 3.8)
+    boss.minY = boss.targetY
+    boss.maxY = math.max(boss.targetY + cellSize * 2, math.floor(screenHeight * 0.42))
     
     -- Stats
     boss.health = 2000
@@ -192,10 +198,11 @@ function BossSystem:update(dt, playerX, playerY)
         end
         
     elseif self.phase == "defeated" then
+        local _, screenHeight = GameConfig.getScreenSize()
         -- Death animation: fall off screen
         self.y = self.y + 200 * dt
         
-        if self.y > love.graphics.getHeight() + 200 then
+        if self.y > screenHeight + 200 then
             self:onDefeat()
             self.alive = false
             BossSystem.clearBossReferences(self)
@@ -273,7 +280,8 @@ function BossSystem:onDefeat()
     
     -- Announcement
     local FloatingTextSystem = require("src.effects.FloatingTextSystem")
-    FloatingTextSystem.add("⚡ BOSS DEFEATED ⚡", love.graphics.getWidth()/2, love.graphics.getHeight()/2, "BOSS")
+    local screenWidth, screenHeight = GameConfig.getScreenSize()
+    FloatingTextSystem.add("⚡ BOSS DEFEATED ⚡", screenWidth / 2, screenHeight / 2, "BOSS")
 end
 
 function BossSystem:draw()
@@ -322,34 +330,8 @@ function BossSystem:draw()
 end
 
 function BossSystem:drawHealthBar()
-    local barWidth = 400
-    local barHeight = 20
-    local barX = love.graphics.getWidth()/2 - barWidth/2
-    local barY = 30
-    
-    local healthPercent = math.max(0, self.health / self.maxHealth)
-    
-    -- Background
-    love.graphics.setColor(0.2, 0.2, 0.2, 0.8)
-    love.graphics.rectangle("fill", barX - 2, barY - 2, barWidth + 4, barHeight + 4)
-    
-    -- Health bar (gradient from green to red)
-    local r = 1.0 - healthPercent
-    local g = healthPercent
-    love.graphics.setColor(r, g, 0.2, 0.9)
-    love.graphics.rectangle("fill", barX, barY, barWidth * healthPercent, barHeight)
-    
-    -- Border
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", barX, barY, barWidth, barHeight)
-    
-    -- Text
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.printf(
-        "BOSS: " .. math.floor(self.health) .. " / " .. self.maxHealth,
-        barX, barY + 2, barWidth, "center"
-    )
+    local BossPanel = require("src.ui.BossPanel")
+    BossPanel.drawBossInfo(self)
 end
 
 -- Helper

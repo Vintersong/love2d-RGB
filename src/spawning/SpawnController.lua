@@ -22,6 +22,10 @@ end
 -- Update spawning logic
 function SpawnController.update(dt, playerLevel, musicReactor, enemies)
     SpawnController.gameTime = SpawnController.gameTime + dt
+
+    if BossSystem.activeBoss then
+        return
+    end
     
     -- Use EnemySpawner system for procedural enemy waves
     local enemyCountBefore = #enemies
@@ -76,6 +80,9 @@ end
 -- Helper: Spawn powerup logic
 function SpawnController.spawnPowerup(target)
     local powerupType = Powerup.getRandomType()
+    if not powerupType then
+        return nil
+    end
     local powerupX = target.x + target.width/2
     local powerupY = target.y + target.height/2
 

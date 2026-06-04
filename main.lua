@@ -9,6 +9,7 @@ local Gamestate = require("libs.hump-master.gamestate")
 local StateManager = require("src.core.StateManager")
 local GameConfig = require("src.core.GameConfig")
 local Runtime = require("src.core.Runtime")
+local MetaProgression = require("src.core.MetaProgression")
 
 -- Game systems (initialized once)
 local MusicReactor = require("src.audio.MusicReactor")
@@ -40,6 +41,7 @@ local BehaviorSelector = require("src.combat.BehaviorSelector")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
 local BossBehaviors = require("src.data.BossBehaviors")
 local CustomCursor = require("src.render.CustomCursor")
+local Viewport = require("src.render.Viewport")
 
 -- Game states
 local SplashScreen = require("src.states.SplashScreenState")
@@ -51,14 +53,67 @@ local VictoryState = require("src.states.VictoryState")
 local PauseState = require("src.states.PauseState")
 local UISandboxState = require("src.states.UISandboxState")
 local OptionsState = require("src.states.OptionsState")
+local LoadingState = require("src.states.LoadingState")
+local TutorialState = require("src.states.TutorialState")
+local ProgressionState = require("src.states.ProgressionState")
+local ConfirmState = require("src.states.ConfirmState")
+local RunSummaryState = require("src.states.RunSummaryState")
 
 -- Constants
 local Config = require("src.Config")
 local screenWidth = Config.screen.width
 local screenHeight = Config.screen.height
 
+local function wrapPointerCallback(name, original)
+    if not original then
+        return nil
+    end
+
+    if name == "mousepressed" or name == "mousereleased" then
+        return function(x, y, button, istouch, presses)
+            local gx, gy = Viewport.toGameCoords(x, y)
+            return original(gx, gy, button, istouch, presses)
+        end
+    end
+
+    if name == "mousemoved" then
+        return function(x, y, dx, dy, istouch)
+            local gx, gy = Viewport.toGameCoords(x, y)
+            local gdx, gdy = Viewport.toGameDelta(dx, dy)
+            return original(gx, gy, gdx, gdy, istouch)
+        end
+    end
+
+    if name == "touchpressed" then
+        return function(id, x, y, dx, dy, pressure)
+            local gx, gy = Viewport.toGameCoords(x, y)
+            local gdx, gdy = Viewport.toGameDelta(dx or 0, dy or 0)
+            return original(id, gx, gy, gdx, gdy, pressure)
+        end
+    end
+
+    return original
+end
+
+local function installViewportCallbacks()
+    local gamestateDraw = love.draw
+    if gamestateDraw then
+        love.draw = function(...)
+            Viewport.beginFrame()
+            gamestateDraw(...)
+            Viewport.endFrame()
+        end
+    end
+
+    for _, callbackName in ipairs({"mousepressed", "mousereleased", "mousemoved", "touchpressed"}) do
+        love[callbackName] = wrapPointerCallback(callbackName, love[callbackName])
+    end
+end
+
 function love.load(args)
     Runtime.init(args)
+
+    Viewport.init(screenWidth, screenHeight)
 
     -- Apply custom glowing cursor (hardware cursor image).
     CustomCursor.init()
@@ -77,6 +132,7 @@ function love.load(args)
     BootLoader.registerSystem("BackgroundShader", BackgroundShader, {"init", "update", "draw"})
     BootLoader.registerSystem("SimpleGrid", SimpleGrid, {"init", "update", "draw"})
     BootLoader.registerSystem("GameConfig", GameConfig, {"init", "getMusicReactor", "getScreenSize", "isDebugMode"})
+    BootLoader.registerSystem("MetaProgression", MetaProgression, {"load", "save", "recordRun", "reset"})
     BootLoader.registerSystem("MusicReactor", MusicReactor, {"new"})
     BootLoader.registerSystem("SongLibrary", SongLibrary, {"getRandomSong", "getSongCount"})
     BootLoader.registerSystem("AttackSystem", AttackSystem, {"projectileHit", "enemyContactDamage", "updateDoTs", "processExplosion"})
@@ -122,6 +178,7 @@ function love.load(args)
     BootLoader.initializeSystem("GridAttackSystem", GridAttackSystem.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("BackgroundShader", BackgroundShader.init, screenWidth, screenHeight)
     BootLoader.initializeSystem("SimpleGrid", SimpleGrid.init, screenWidth, screenHeight)
+    BootLoader.initializeSystem("MetaProgression", MetaProgression.load)
 
     -- Load persisted player preferences (mirrors known keys into Config)
     require("src.core.Settings").load()
@@ -205,6 +262,26 @@ function love.load(args)
         description = "Options and settings menu",
         tags = {"menu", "settings"}
     })
+    StateManager.register("Loading", LoadingState, {
+        description = "Run loading and preparation",
+        tags = {"system", "transition"}
+    })
+    StateManager.register("Tutorial", TutorialState, {
+        description = "Onboarding and replayable tutorial deck",
+        tags = {"menu", "tutorial"}
+    })
+    StateManager.register("Progression", ProgressionState, {
+        description = "Persistent profile and unlock screen",
+        tags = {"menu", "meta"}
+    })
+    StateManager.register("Confirm", ConfirmState, {
+        description = "Generic confirmation modal",
+        tags = {"menu", "modal"}
+    })
+    StateManager.register("RunSummary", RunSummaryState, {
+        description = "Post-run summary and unlock recap",
+        tags = {"menu", "meta", "end"}
+    })
 
     -- Validate state dependencies
     if not StateManager.validateAll() then
@@ -214,6 +291,7 @@ function love.load(args)
 
     -- Register gamestate events and start with SplashScreen
     Gamestate.registerEvents()
+    installViewportCallbacks()
 
     -- Use StateManager to track current state
     if not StateManager.switch("Splash") then
@@ -222,5 +300,5 @@ function love.load(args)
 end
 
 function love.resize(w, h)
-    -- UI is designed for 1920x1080 fixed resolution - ignore resize events
+    Viewport.resize(w, h)
 end

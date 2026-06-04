@@ -78,7 +78,11 @@ function PlayingState.startNewRun()
     SpawnControllerLocal.init(PlayingState.screenWidth, PlayingState.screenHeight)
     BossSystem.reset()
 
-    PlayingState.player = Player(512, 360, Weapon())
+    local playerWidth = 32
+    local playerHeight = 32
+    local playerX = (PlayingState.screenWidth - playerWidth) * 0.5
+    local playerY = (PlayingState.screenHeight - playerHeight) * 0.5
+    PlayingState.player = Player(playerX, playerY, Weapon())
     PlayingState.enemies = {}
     PlayingState.xpOrbs = {}
     PlayingState.powerups = {}
@@ -155,10 +159,6 @@ end
 
 function PlayingState:rewardNewEnemyDeaths(aliveBefore)
     PlayingEnemyFlow.rewardNewEnemyDeaths(self, aliveBefore, getDeps())
-end
-
-function PlayingState:activateSupernova()
-    return PlayingEnemyFlow.activateSupernova(self, getDeps())
 end
 
 function PlayingState:updateSupernovaEffects(dt)

@@ -1,4 +1,5 @@
 local PlayingEnemyFlow = {}
+local RunSummary = require("src.core.RunSummary")
 
 local function captureAliveEnemies(state)
     local alive = {}
@@ -17,35 +18,6 @@ function PlayingEnemyFlow.rewardNewEnemyDeaths(state, aliveBefore, deps)
             SpawnController.handleEnemyDeath(enemy, state.player, state.xpOrbs, state.powerups)
         end
     end
-end
-
-function PlayingEnemyFlow.activateSupernova(state, deps)
-    local VFXLibrary = deps.VFXLibrary
-    local FloatingTextSystem = deps.FloatingTextSystem
-
-    local aliveBefore = captureAliveEnemies(state)
-    local success, effectData, color = state.player:useActiveAbility(state.enemies)
-    if not success then
-        return false
-    end
-
-    PlayingEnemyFlow.rewardNewEnemyDeaths(state, aliveBefore, deps)
-
-    local centerX = state.player.x + state.player.width / 2
-    local centerY = state.player.y + state.player.height / 2
-    VFXLibrary.spawnArtifactEffect("SUPERNOVA", centerX, centerY)
-    FloatingTextSystem.add((color or "RED") .. " SUPERNOVA", centerX, centerY - 80, "SYNERGY")
-
-    if effectData and effectData.field then
-        table.insert(state.supernovaEffects, {
-            type = effectData.type,
-            field = effectData.field,
-            color = effectData.color or {1, 0.3, 0.2},
-            radius = effectData.radius or 120,
-        })
-    end
-
-    return true
 end
 
 function PlayingEnemyFlow.updateSupernovaEffects(state, dt, deps)
@@ -102,13 +74,26 @@ function PlayingEnemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
 
     local collidingEnemies = CollisionSystem.checkPlayerEnemyCollisions(state.player)
     for _, enemy in ipairs(collidingEnemies) do
-        local died = AttackSystem.enemyContactDamage(enemy, state.player, dt)
+        local died = AttackSystem.enemyContactDamage(enemy, state.player, dt, {
+            enemies = state.enemies,
+            onEnemyKilled = function(target)
+                SpawnController.handleEnemyDeath(target, state.player, state.xpOrbs, state.powerups)
+            end,
+        })
         if died then
             local StateManager = require("src.core.StateManager")
             StateManager.switch("GameOver", {
                 player = state.player,
                 enemies = state.enemies,
-                musicReactor = state.musicReactor
+                xpOrbs = state.xpOrbs,
+                powerups = state.powerups,
+                explosions = state.explosions,
+                bossProjectiles = state.bossProjectiles,
+                supernovaEffects = state.supernovaEffects,
+                gameTime = state.gameTime,
+                enemyKillCount = state.enemyKillCount or 0,
+                musicReactor = state.musicReactor,
+                summary = RunSummary.build("defeat", state),
             })
             return
         end
@@ -117,21 +102,34 @@ end
 
 function PlayingEnemyFlow.updateEnemyProjectileCollisions(state, deps)
     local CollisionSystem = deps.CollisionSystem
-    local HealthSystem = deps.HealthSystem
+    local SpawnController = deps.SpawnController
 
     for _, enemy in ipairs(state.enemies) do
         if not enemy.dead and enemy.projectiles then
             for i = #enemy.projectiles, 1, -1 do
                 local proj = enemy.projectiles[i]
                 if CollisionSystem.checkEnemyProjectilePlayerCollision(proj, state.player) then
-                    local died = HealthSystem.takeDamage(state.player, proj.damage)
+                    local died = state.player:takeDamage(proj.damage, proj, {
+                        enemies = state.enemies,
+                        onEnemyKilled = function(target)
+                            SpawnController.handleEnemyDeath(target, state.player, state.xpOrbs, state.powerups)
+                        end,
+                    })
                     table.remove(enemy.projectiles, i)
                     if died then
                         local StateManager = require("src.core.StateManager")
                         StateManager.switch("GameOver", {
                             player = state.player,
                             enemies = state.enemies,
-                            musicReactor = state.musicReactor
+                            xpOrbs = state.xpOrbs,
+                            powerups = state.powerups,
+                            explosions = state.explosions,
+                            bossProjectiles = state.bossProjectiles,
+                            supernovaEffects = state.supernovaEffects,
+                            gameTime = state.gameTime,
+                            enemyKillCount = state.enemyKillCount or 0,
+                            musicReactor = state.musicReactor,
+                            summary = RunSummary.build("defeat", state),
                         })
                         return
                     end

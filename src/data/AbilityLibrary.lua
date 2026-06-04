@@ -26,6 +26,19 @@ local function getHealthSystem()
     return require("src.combat.HealthSystem")
 end
 
+local function clampPlayerToPlayArea(entity)
+    local GameConfig = require("src.core.GameConfig")
+    local Config = require("src.Config")
+    local SimpleGrid = require("src.gameplay.SimpleGrid")
+    local screenWidth, screenHeight = GameConfig.getScreenSize()
+    screenWidth = screenWidth or Config.screen.width
+    screenHeight = screenHeight or Config.screen.height
+    local bandHeight = (SimpleGrid.cellSize or 48) * 2
+
+    entity.x = math.max(0, math.min(screenWidth - entity.width, entity.x))
+    entity.y = math.max(bandHeight, math.min(screenHeight - bandHeight - entity.height, entity.y))
+end
+
 -- ============================================================================
 -- DASH ABILITY
 -- ============================================================================
@@ -71,25 +84,12 @@ AbilityLibrary.DASH = {
         entity.invulnerable = true
         entity.invulnerableTime = AbilityLibrary.DASH.duration
 
-        -- Spawn color-specific dash VFX
+        -- Spawn a dedicated dash streak, distinct from projectile visuals.
         local VFXLibrary = getVFXLibrary()
         local centerX = entity.x + entity.width / 2
         local centerY = entity.y + entity.height / 2
-
-        if dominantColor then
-            local colorVFXMap = {
-                RED = "SUPERNOVA",
-                GREEN = "AURORA",
-                BLUE = "LENS",
-                YELLOW = "REFRACTION",
-                MAGENTA = "PRISM",
-                CYAN = "DIFFRACTION"
-            }
-
-            local vfxType = colorVFXMap[dominantColor] or "DASH"
-            VFXLibrary.spawnArtifactEffect(vfxType, centerX, centerY,
-                                           centerX + dx * 50, centerY + dy * 50)
-        end
+        local dashColor = dominantColor and ColorSystem.getColorRGB(dominantColor) or {1, 1, 1}
+        VFXLibrary.spawnDashTrail(centerX, centerY, dashColor, dx, dy)
 
         print(string.format("[Dash] %s Dash activated!", dominantColor or "NEUTRAL"))
         return true
@@ -105,33 +105,11 @@ AbilityLibrary.DASH = {
         local centerX = entity.x + entity.width / 2
         local centerY = entity.y + entity.height / 2
 
-        if state.color then
-            local trailColor = ColorSystem.getColorRGB(state.color)
-            VFXLibrary.spawnImpactBurst(centerX, centerY, trailColor, 2)
-        end
-
-        -- Spawn color-specific trail VFX periodically
-        if state.color then
-            state.trailTimer = (state.trailTimer or 0) + dt
-            if state.trailTimer >= 0.05 then
-                state.trailTimer = 0
-
-                local colorVFXMap = {
-                    RED = "SUPERNOVA",
-                    GREEN = "AURORA",
-                    BLUE = "LENS",
-                    YELLOW = "REFRACTION",
-                    MAGENTA = "PRISM",
-                    CYAN = "DIFFRACTION"
-                }
-
-                local vfxType = colorVFXMap[state.color]
-                if vfxType then
-                    VFXLibrary.spawnArtifactEffect(vfxType, centerX, centerY,
-                                                   centerX - state.direction.x * 20,
-                                                   centerY - state.direction.y * 20)
-                end
-            end
+        local trailColor = state.color and ColorSystem.getColorRGB(state.color) or {1, 1, 1}
+        state.trailTimer = (state.trailTimer or 0) + dt
+        if state.trailTimer >= 0.025 then
+            state.trailTimer = 0
+            VFXLibrary.spawnDashTrail(centerX, centerY, trailColor, state.direction.x, state.direction.y)
         end
 
         -- Move entity during dash
@@ -141,13 +119,7 @@ AbilityLibrary.DASH = {
         entity.y = entity.y + moveY
 
         -- Keep in bounds
-        local GameConfig = require("src.core.GameConfig")
-        local Config = require("src.Config")
-        local screenWidth, screenHeight = GameConfig.getScreenSize()
-        screenWidth = screenWidth or Config.screen.width
-        screenHeight = screenHeight or Config.screen.height
-        entity.x = math.max(0, math.min(screenWidth - entity.width, entity.x))
-        entity.y = math.max(0, math.min(screenHeight - entity.height, entity.y))
+        clampPlayerToPlayArea(entity)
 
         -- Check if dash duration expired
         if state.timer >= AbilityLibrary.DASH.duration then
@@ -290,11 +262,13 @@ AbilityLibrary.BLINK = {
 
     onActivate = function(entity, state, context)
         -- Get mouse position or direction
-        local mouseX, mouseY = love.mouse.getPosition()
+        local Viewport = require("src.render.Viewport")
+        local mouseX, mouseY = Viewport.getMousePosition()
 
         -- Teleport entity to mouse position
         entity.x = mouseX - entity.width / 2
         entity.y = mouseY - entity.height / 2
+        clampPlayerToPlayArea(entity)
 
         -- Spawn VFX at start and end position
         local VFXLibrary = getVFXLibrary()

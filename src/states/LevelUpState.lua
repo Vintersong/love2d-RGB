@@ -7,6 +7,7 @@ local ColorSystem = require("src.gameplay.ColorSystem")
 local ArtifactManager = require("src.gameplay.ArtifactManager")
 local TutorialSystem = require("src.gameplay.TutorialSystem")
 local Theme = require("src.render.Theme")
+local Icons = require("src.render.Icons")
 
 -- Per-card design tokens: neon edge (brand color) + deep fill (committed tint).
 local CARD_COLORS = {
@@ -16,6 +17,17 @@ local CARD_COLORS = {
     y = {edge = "yellow",  fill = "yellowDeep"},
     m = {edge = "magenta", fill = "magentaDeep"},
     c = {edge = "cyan",    fill = "cyanDeep"},
+}
+
+local ARTIFACT_ICON_COLORS = {
+    PRISM = "magenta",
+    HALO = "yellow",
+    MIRROR = "cyan",
+    LENS = "blue",
+    AURORA = "green",
+    DIFFRACTION = "red",
+    REFRACTION = "accent",
+    SUPERNOVA = "warn",
 }
 
 -- Notched-rectangle polygon (clipped top-left + bottom-right corners) matching
@@ -40,6 +52,49 @@ local function lighten(c, amt)
     }
 end
 
+local function drawCollectedArtifactIcons(artifacts, centerX, y, width)
+    if not artifacts or #artifacts == 0 then
+        return
+    end
+
+    local count = #artifacts
+    local iconSize = 52
+    local slotWidth = width / count
+    local startX = centerX - width / 2
+
+    love.graphics.setFont(Theme.font("mono", 11))
+
+    for i, artifact in ipairs(artifacts) do
+        local slotCenterX = startX + (i - 0.5) * slotWidth
+        local iconX = slotCenterX - iconSize / 2
+        local iconY = y
+        local iconName = artifact.type and string.lower(artifact.type) or nil
+        local colorName = ARTIFACT_ICON_COLORS[artifact.type] or "fg3"
+        local color = Theme.color[colorName] or Theme.color.fg3
+        local levelText = string.format("Lv%d/%d", artifact.level or 0, artifact.maxLevel or 0)
+        local textW = love.graphics.getFont():getWidth(levelText)
+
+        love.graphics.setColor(0, 0, 0, 0.42)
+        love.graphics.rectangle("fill", iconX, iconY, iconSize, iconSize)
+
+        love.graphics.setColor(color[1], color[2], color[3], 0.14)
+        love.graphics.rectangle("fill", iconX + 1, iconY + 1, iconSize - 2, iconSize - 2)
+
+        love.graphics.setColor(color[1], color[2], color[3], 0.55)
+        love.graphics.rectangle("line", iconX, iconY, iconSize, iconSize)
+
+        if iconName and Icons.has(iconName) then
+            Icons.draw(iconName, iconX + 8, iconY + 8, iconSize - 16, {
+                width = 1.8,
+                color = {color[1], color[2], color[3], 0.95}
+            })
+        end
+
+        love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], 0.95)
+        love.graphics.print(levelText, slotCenterX - textW / 2, iconY + iconSize + 8)
+    end
+end
+
 -- Valid color choices, narrowed to the tutorial's forced phase when active.
 local function getChoices(playerLevel)
     return TutorialSystem.filterChoices(ColorSystem.getValidChoices(playerLevel))
@@ -49,8 +104,12 @@ end
 local cardRects = {}
 local hoveredCard = nil
 
-local CARD_START_Y = 200  -- y offset for the level-up overlay header
-local CARD_OFFSET_Y = 250 -- cards sit this many pixels below CARD_START_Y
+local fontDisplay = nil
+local fontSemiBold = nil
+local fontUI = nil
+local fontMono = nil
+
+local CARD_START_Y = 200
 
 -- Static per-color card definitions
 local CARD_DEFS = {
@@ -105,16 +164,14 @@ local CARD_DEFS = {
         isSecondary = true,
         isIntensityFn = function(CS) return CS.secondary.CYAN and CS.secondary.CYAN.level >= 9 end,
         locked    = {"LOCKED!", "Level 10 req."},
-        normal    = {"+3° homing", "+2 damage", "Track better!"},
-        intensity = {"INTENSITY!", "+6° homing", "Perfect aim!"},
+        normal    = {"+3 deg homing", "+2 damage", "Track better!"},
+        intensity = {"INTENSITY!", "+6 deg homing", "Perfect aim!"},
     },
 }
 
 -- Map number keys (1..n) to the currently-valid choices. Keys are assigned in a
 -- stable color-identity order (committed primaries first, then their secondary,
--- then the rest) but only to choices that are actually selectable, so the key
--- shown on a card always selects that card — including during tutorial phases
--- where only a subset is offered.
+-- then the rest) but only to choices that are actually selectable.
 local function buildKeyMap(validChoices)
     local valid = {}
     for _, c in ipairs(validChoices) do valid[c] = true end
@@ -143,7 +200,7 @@ local function buildKeyMap(validChoices)
 end
 
 -- Angular cyberpunk color card: notched corners, neon rim, additive orb,
--- centered content (CHROMATIC design system — comp-color-cards).
+-- centered content (CHROMATIC design system).
 local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory, isHover)
     local tok = CARD_COLORS[def.code] or {edge = "fg1", fill = "bgRaised"}
     local edge = Theme.color[tok.edge]
@@ -152,15 +209,12 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
     local notch = 22
     local inset = 2
 
-    -- Outer notched polygon = glowing neon rim.
     love.graphics.setColor(edge[1], edge[2], edge[3], 1)
     love.graphics.polygon("fill", notchedPoly(left, cardY, cardWidth, cardHeight, notch))
 
-    -- Inner inset polygon = deep fill, leaving a ~2px neon edge.
     love.graphics.setColor(fill[1], fill[2], fill[3], 0.94)
     love.graphics.polygon("fill", notchedPoly(left + inset, cardY + inset, cardWidth - inset * 2, cardHeight - inset * 2, notch - inset))
 
-    -- Hover lifts the rim: brighter, thicker notched outline.
     if isHover then
         local hl = lighten(edge, 0.5)
         love.graphics.setLineWidth(2)
@@ -169,7 +223,6 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
         love.graphics.setLineWidth(1)
     end
 
-    -- Pick the content lines for this card's state.
     local lines
     if def.isSecondary and #colorHistory < 10 then
         lines = def.locked
@@ -181,8 +234,7 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
         lines = def.normal
     end
 
-    -- Additive glow orb (the signature additive-light motif).
-    local orbY = cardY + 40
+    local orbY = cardY + 46
     local prevBlend = love.graphics.getBlendMode()
     love.graphics.setBlendMode("add")
     love.graphics.setColor(edge[1], edge[2], edge[3], 0.30)
@@ -194,46 +246,56 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
     love.graphics.circle("fill", cardX, orbY, 4)
     love.graphics.setBlendMode(prevBlend)
 
-    -- Centered text block: NAME, then effect title + description lines.
+    local textHeights = {}
+    local totalTextHeight = 0
+
+    textHeights[1] = Theme.font("uiSemiBold", 24):getHeight()
+    totalTextHeight = totalTextHeight + textHeights[1]
+
+    for i = 1, #lines do
+        if i == 1 then
+            textHeights[i + 1] = Theme.font("uiMedium", 15):getHeight()
+        else
+            textHeights[i + 1] = Theme.font("ui", 13):getHeight()
+        end
+        totalTextHeight = totalTextHeight + textHeights[i + 1]
+    end
+
+    local internalBottom = cardY + cardHeight - 24
+    local contentTop = orbY - 18
+    local contentHeight = internalBottom - contentTop
+    local gaps = 20 + (#lines * 10)
+    local blockHeight = totalTextHeight + gaps
+    local ty = contentTop + math.max(0, (contentHeight - blockHeight) * 0.5) + 52
+
     love.graphics.setFont(Theme.font("uiSemiBold", 24))
     local nm = lighten(edge, 0.35)
     love.graphics.setColor(nm[1], nm[2], nm[3], 1)
-    love.graphics.printf(def.label, left, cardY + 66, cardWidth, "center")
+    love.graphics.printf(def.label, left, ty, cardWidth, "center")
+    ty = ty + textHeights[1] + 20
 
-    local ty = cardY + 100
     for i, line in ipairs(lines) do
         if i == 1 then
             love.graphics.setFont(Theme.font("uiMedium", 15))
             love.graphics.setColor(Theme.color.fg1)
             love.graphics.printf(line, left, ty, cardWidth, "center")
-            ty = ty + 24
+            ty = ty + textHeights[i + 1] + 10
         else
             love.graphics.setFont(Theme.font("ui", 13))
             love.graphics.setColor(Theme.color.fg2)
             love.graphics.printf(line, left, ty, cardWidth, "center")
-            ty = ty + 18
+            ty = ty + textHeights[i + 1] + 10
         end
-    end
-
-    -- Small mono keycap (keeps number-key selection discoverable without a
-    -- "[Press N]" sentence, per the centered-card redesign).
-    if keyNum then
-        local capW, capH = 26, 22
-        local capX = cardX - capW / 2
-        local capY = cardY + cardHeight - capH - 12
-        love.graphics.setColor(0, 0, 0, 0.55)
-        love.graphics.rectangle("fill", capX, capY, capW, capH, 4, 4)
-        love.graphics.setColor(edge[1], edge[2], edge[3], 0.6)
-        love.graphics.setLineWidth(1)
-        love.graphics.rectangle("line", capX, capY, capW, capH, 4, 4)
-        love.graphics.setFont(Theme.font("mono", 14))
-        love.graphics.setColor(Theme.color.fg1)
-        love.graphics.printf(tostring(keyNum), capX, capY + 3, capW, "center")
     end
 end
 
 function LevelUpState:enter(previous, data)
     self.previousState = previous
+    fontDisplay = fontDisplay or Theme.font("display", 75)
+    fontSemiBold = fontSemiBold or Theme.font("uiSemiBold", 24)
+    fontUI = fontUI or Theme.font("ui", 16)
+    fontMono = fontMono or Theme.font("mono", 12)
+
     if data then
         self.player = data.player
         self.enemies = data.enemies or {}
@@ -261,8 +323,7 @@ function LevelUpState:draw()
     if self.previousState and self.previousState.draw then
         self.previousState:draw()
     end
-    -- Capture whatever font the gameplay layer left active and restore it after,
-    -- so the overlay's branded fonts never leak into the resumed HUD.
+
     local entryFont = love.graphics.getFont()
     local popup = TutorialSystem.peekPopup()
     if popup then
@@ -291,22 +352,21 @@ function LevelUpState:drawTutorialPopup(def)
     love.graphics.setColor(0, 0.85, 1, 0.5)
     love.graphics.rectangle("line", panelX, panelY, panelW, panelH, 14, 14)
 
-    -- Title
+    love.graphics.setFont(fontSemiBold)
     love.graphics.setColor(1, 1, 0.85)
-    love.graphics.print(def.title, panelX + 50, panelY + 45, 0, 2.2, 2.2)
+    love.graphics.print(def.title, panelX + 50, panelY + 45)
 
     love.graphics.setColor(0, 0.85, 1, 0.3)
     love.graphics.line(panelX + 50, panelY + 105, panelX + panelW - 50, panelY + 105)
 
-    -- Body
+    love.graphics.setFont(fontUI)
     love.graphics.setColor(0.85, 0.9, 0.95, 1)
     for i, line in ipairs(def.lines) do
-        love.graphics.print(line, panelX + 50, panelY + 130 + (i - 1) * 38, 0, 1.4, 1.4)
+        love.graphics.print(line, panelX + 50, panelY + 130 + (i - 1) * 38)
     end
 
-    -- Footer
     love.graphics.setColor(0.5, 0.55, 0.65, 0.9)
-    love.graphics.print("[Press SPACE / ENTER to continue]", panelX + 50, panelY + panelH - 50, 0, 1.2, 1.2)
+    love.graphics.print("[Press SPACE / ENTER to continue]", panelX + 50, panelY + panelH - 50)
 end
 
 function LevelUpState:drawColorSelect()
@@ -319,16 +379,31 @@ function LevelUpState:drawColorSelect()
     local centerX = screenWidth / 2
     local startY = CARD_START_Y
 
-    love.graphics.setColor(Theme.color.yellow)
-    love.graphics.print("🎉 LEVEL UP! 🎉", centerX - 180, startY, 0, 3.5, 3.5)
+    love.graphics.setFont(fontDisplay)
+    local title = "LEVEL UP"
+    Theme.setColor("yellow")
+    love.graphics.print(title, centerX - fontDisplay:getWidth(title) / 2, startY)
 
+    local ruleW = screenWidth * 0.28
+    Theme.setColor("accent", 0.45)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(centerX - ruleW / 2, startY + 106, centerX + ruleW / 2, startY + 106)
+
+    love.graphics.setFont(fontSemiBold)
     Theme.setColor("fg1")
-    love.graphics.print("Level " .. self.player.level, centerX - 60, startY + 90, 0, 2, 2)
+    local levelText = "Level " .. self.player.level
+    love.graphics.print(levelText, centerX - fontSemiBold:getWidth(levelText) / 2, startY + 132)
 
     if ColorSystem.commitment.primary1 then
         local pathName = ColorSystem.getCurrentPath()
+        love.graphics.setFont(fontUI)
+        Theme.setColor("fg3")
+        local pathLabel = "Current Path"
+        love.graphics.print(pathLabel, centerX - fontUI:getWidth(pathLabel) / 2, startY + 172)
+
+        love.graphics.setFont(fontSemiBold)
         Theme.setColor("accent")
-        love.graphics.print("Current Path: " .. pathName, centerX - 180, startY + 130, 0, 1.5, 1.5)
+        love.graphics.print(pathName, centerX - fontSemiBold:getWidth(pathName) / 2, startY + 194)
 
         local secondaryName = ColorSystem.getCommittedSecondaryName()
         local secondary = secondaryName and ColorSystem.secondary[secondaryName] or nil
@@ -336,14 +411,17 @@ function LevelUpState:drawColorSelect()
             local req1, req2 = secondary.requires[1], secondary.requires[2]
             local pCount = ColorSystem.primary[req1].level
             local sCount = ColorSystem.primary[req2].level
+            love.graphics.setFont(fontUI)
             if pCount >= 10 and sCount >= 10 then
-                love.graphics.setColor(1, 1, 0)
-                love.graphics.print(secondaryName .. " UNLOCKED!", centerX - 180, startY + 165, 0, 1.5, 1.5)
+                Theme.setColor("yellow")
+                local unlockText = secondaryName .. " UNLOCKED!"
+                love.graphics.print(unlockText, centerX - fontUI:getWidth(unlockText) / 2, startY + 226)
             elseif pCount >= 10 or sCount >= 10 then
-                love.graphics.setColor(1, 0.7, 0)
+                Theme.setColor("warn")
                 local needed = pCount < 10 and ((10 - pCount) .. " more " .. req1)
                                            or  ((10 - sCount) .. " more " .. req2)
-                love.graphics.print(secondaryName .. " unlock in: " .. needed, centerX - 220, startY + 165, 0, 1.5, 1.5)
+                local unlockText = secondaryName .. " unlock in: " .. needed
+                love.graphics.print(unlockText, centerX - fontUI:getWidth(unlockText) / 2, startY + 226)
             end
         end
     end
@@ -358,10 +436,11 @@ function LevelUpState:drawColorSelect()
         return false
     end
 
+    love.graphics.setFont(fontSemiBold)
     Theme.setColor("fg1")
     local instructionText
     if recommendedCode then
-        instructionText = "Green light reflects — choose your second wavelength:"
+        instructionText = "Green light reflects - choose your second wavelength:"
     elseif #ColorSystem.colorHistory == 0 then
         instructionText = "Choose your weapon type:"
     elseif self.player.level == 10 and #validChoices > 1 then
@@ -369,27 +448,13 @@ function LevelUpState:drawColorSelect()
     else
         instructionText = "Continue upgrading:"
     end
-    love.graphics.print(instructionText, centerX - 250, startY + 200, 0, 1.5, 1.5)
+    love.graphics.print(instructionText, centerX - fontSemiBold:getWidth(instructionText) / 2, startY + 266)
 
-    local artifacts = ArtifactManager.getCollectedArtifacts()
-    if #artifacts > 0 then
-        local artifactX = screenWidth - 350
-        local artifactY = startY + 250
-        Theme.setColor("accent")
-        love.graphics.print("💎 Collected Artifacts:", artifactX, artifactY, 0, 1.3, 1.3)
-        artifactY = artifactY + 35
-        for _, artifact in ipairs(artifacts) do
-            Theme.setColor("fg2")
-            local levelText = string.format("Lv%d/%d", artifact.level, artifact.maxLevel)
-            love.graphics.print(string.format("%s %s", artifact.name, levelText), artifactX, artifactY, 0, 1.1, 1.1)
-            artifactY = artifactY + 28
-        end
-    end
-
-    local cardY = startY + 250
+    local cardY = startY + 320
     local cardWidth = 200
-    local cardHeight = 196
+    local cardHeight = 244
     local cardSpacing = 250
+    local artifacts = ArtifactManager.getCollectedArtifacts()
 
     local keyMap = buildKeyMap(validChoices)
 
@@ -409,15 +474,28 @@ function LevelUpState:drawColorSelect()
             local isIntensity = def.isIntensityFn(ColorSystem)
             drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory, hoveredCard == def.code)
 
-            cardRects[#cardRects + 1] = {x = cardX - cardWidth/2, y = cardY, w = cardWidth, h = cardHeight, code = def.code}
+            cardRects[#cardRects + 1] = {
+                x = cardX - cardWidth / 2,
+                y = cardY,
+                w = cardWidth,
+                h = cardHeight,
+                code = def.code
+            }
 
             if recommendedCode and def.code == recommendedCode then
                 love.graphics.setFont(Theme.font("uiMedium", 14))
                 love.graphics.setColor(Theme.color.yellow)
-                love.graphics.printf("RECOMMENDED", cardX - cardWidth/2, cardY - 26, cardWidth, "center")
+                love.graphics.printf("RECOMMENDED", cardX - cardWidth / 2, cardY - 26, cardWidth, "center")
             end
             cardIndex = cardIndex + 1
         end
+    end
+
+    if #artifacts > 0 then
+        local cardGroupWidth = math.max(cardWidth * #validChoices, cardSpacing * math.max(0, #validChoices - 1) + cardWidth)
+        local artifactStripWidth = math.min(screenWidth * 0.68, math.max(cardGroupWidth + 140, #artifacts * 88))
+        local artifactY = cardY + cardHeight + 58
+        drawCollectedArtifactIcons(artifacts, centerX, artifactY, artifactStripWidth)
     end
 end
 
@@ -430,8 +508,6 @@ function LevelUpState:selectColor(colorCode)
             ColorSystem.applyEffects(self.player.weapon)
             TutorialSystem.onColorAdded(colorCode)
 
-            -- Stay open if a tutorial popup was just queued (it must be shown even
-            -- when the player has no further level-ups banked).
             if not self.player:canLevelUp() and not TutorialSystem.hasPopup() then
                 local StateManager = require("src.core.StateManager")
                 StateManager.pop()
@@ -442,7 +518,6 @@ function LevelUpState:selectColor(colorCode)
 end
 
 function LevelUpState:keypressed(key)
-    -- A pending tutorial popup eats input until dismissed.
     if TutorialSystem.hasPopup() then
         if key == "space" or key == "return" or key == "escape" then
             self:dismissTutorialPopup()
@@ -464,8 +539,6 @@ function LevelUpState:keypressed(key)
     end
 end
 
--- Dismiss the current tutorial popup; when the queue empties and the player has
--- no level-up left to spend, return to gameplay.
 function LevelUpState:dismissTutorialPopup()
     TutorialSystem.dismissPopup()
     if not TutorialSystem.hasPopup() and not self.player:canLevelUp() then
@@ -473,7 +546,6 @@ function LevelUpState:dismissTutorialPopup()
     end
 end
 
--- Code of the card under a point, or nil. Uses the bounds recorded during draw.
 local function cardAt(x, y)
     for _, rect in ipairs(cardRects) do
         if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then

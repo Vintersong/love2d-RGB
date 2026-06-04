@@ -8,10 +8,17 @@ local PlayerInput = {}
 local AbilitySystem = require("src.combat.AbilitySystem")
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
+local SimpleGrid = require("src.gameplay.SimpleGrid")
 
 local function getScreenSize()
     local w, h = GameConfig.getScreenSize()
     return w or Config.screen.width, h or Config.screen.height
+end
+
+local function getMovementBounds(player)
+    local screenWidth, screenHeight = getScreenSize()
+    local bandHeight = (SimpleGrid.cellSize or 48) * 2
+    return 0, bandHeight, screenWidth - player.width, screenHeight - bandHeight - player.height
 end
 
 -- Process keyboard input and update player position
@@ -68,9 +75,9 @@ function PlayerInput.update(player, dt)
     player.y = player.y + moveY
 
     -- Keep player in bounds
-    local screenWidth, screenHeight = getScreenSize()
-    player.x = math.max(0, math.min(screenWidth - player.width, player.x))
-    player.y = math.max(0, math.min(screenHeight - player.height, player.y))
+    local minX, minY, maxX, maxY = getMovementBounds(player)
+    player.x = math.max(minX, math.min(maxX, player.x))
+    player.y = math.max(minY, math.min(maxY, player.y))
 end
 
 -- Get player center position (useful for targeting/collision)

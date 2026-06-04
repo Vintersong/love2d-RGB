@@ -236,25 +236,38 @@ function Powerup.shouldDrop()
 end
 
 function Powerup.getRandomType()
+    local MetaProgression = require("src.core.MetaProgression")
+    local ownedArtifacts = MetaProgression.getOwnedArtifacts()
+    if #ownedArtifacts == 0 then
+        return nil
+    end
+
     local totalWeight = 0
     local weights = {}
-    
-    for typeName, typeData in pairs(Powerup.Types) do
-        table.insert(weights, {name = typeName, chance = typeData.dropChance})
-        totalWeight = totalWeight + typeData.dropChance
+
+    for _, typeName in ipairs(ownedArtifacts) do
+        local typeData = Powerup.Types[typeName]
+        if typeData then
+            table.insert(weights, {name = typeName, chance = typeData.dropChance})
+            totalWeight = totalWeight + typeData.dropChance
+        end
     end
-    
+
+    if totalWeight <= 0 then
+        return nil
+    end
+
     local roll = math.random() * totalWeight
     local current = 0
-    
+
     for _, weight in ipairs(weights) do
         current = current + weight.chance
         if roll <= current then
             return weight.name
         end
     end
-    
-    return "PRISM"  -- Fallback
+
+    return ownedArtifacts[1]
 end
 
 return Powerup

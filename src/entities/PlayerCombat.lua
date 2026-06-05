@@ -18,6 +18,21 @@ local function getCombatState(player)
 end
 
 local BOSS_PRIORITY_RANGE = 1000  -- Auto-target boss if within this range (covers most of screen)
+local ARTIFACT_SIGNAL_COOLDOWN = 4.5
+
+local function signalArtifactMutation(player, artifactType, centerX, centerY)
+    player.artifactSignalCooldowns = player.artifactSignalCooldowns or {}
+    if (player.artifactSignalCooldowns[artifactType] or 0) > 0 then
+        return
+    end
+
+    player.artifactSignalCooldowns[artifactType] = ARTIFACT_SIGNAL_COOLDOWN
+
+    local VFXLibrary = require("src.effects.VFXLibrary")
+    local SFXLibrary = require("src.audio.SFXLibrary")
+    VFXLibrary.spawnArtifactActivationBurst(artifactType, centerX, centerY)
+    SFXLibrary.playArtifactCue(artifactType)
+end
 
 local function getScreenSize()
     local w, h = GameConfig.getScreenSize()
@@ -142,6 +157,7 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         local PrismArtifact = require("src.artifacts.PrismArtifact")
         local prismLevel = ArtifactManager.getLevel("PRISM")
         projectiles = PrismArtifact.apply(projectiles, prismLevel, dominantColor, targetX, targetY, player)
+        signalArtifactMutation(player, "PRISM", centerX, centerY)
     end
 
     -- Apply MIRROR effects (duplication, echoing, etc.)
@@ -149,6 +165,7 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         local MirrorArtifact = require("src.artifacts.MirrorArtifact")
         local mirrorLevel = ArtifactManager.getLevel("MIRROR")
         projectiles = MirrorArtifact.apply(projectiles, mirrorLevel, dominantColor, player)
+        signalArtifactMutation(player, "MIRROR", centerX, centerY)
     end
 
     -- Apply LENS effects (merging, enlarging, pull, etc.)
@@ -156,6 +173,7 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         local LensArtifact = require("src.artifacts.LensArtifact")
         local lensLevel = ArtifactManager.getLevel("LENS")
         projectiles = LensArtifact.apply(projectiles, lensLevel, dominantColor)
+        signalArtifactMutation(player, "LENS", centerX, centerY)
     end
 
     -- Apply DIFFRACTION effects (bursts, cones, orbital sources, etc.)
@@ -163,6 +181,7 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         local DiffractionArtifact = require("src.artifacts.DiffractionArtifact")
         local diffractionLevel = ArtifactManager.getLevel("DIFFRACTION")
         projectiles = DiffractionArtifact.apply(projectiles, diffractionLevel, dominantColor, targetX, targetY, player)
+        signalArtifactMutation(player, "DIFFRACTION", centerX, centerY)
     end
 
     -- Apply REFRACTION effects (curving, seeking, satellites, power growth, etc.)
@@ -170,6 +189,7 @@ function PlayerCombat.applyArtifactEffects(player, projectiles, targetX, targetY
         local RefractionArtifact = require("src.artifacts.RefractionArtifact")
         local refractionLevel = ArtifactManager.getLevel("REFRACTION")
         projectiles = RefractionArtifact.apply(projectiles, refractionLevel, dominantColor, targetX, targetY, player)
+        signalArtifactMutation(player, "REFRACTION", centerX, centerY)
     end
 
     return projectiles
@@ -231,6 +251,12 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
     local combatState = getCombatState(player)
     local screenWidth, screenHeight = getScreenSize()
 
+    if player.artifactSignalCooldowns then
+        for artifactType, cooldown in pairs(player.artifactSignalCooldowns) do
+            player.artifactSignalCooldowns[artifactType] = math.max(0, cooldown - dt)
+        end
+    end
+
     for i = #combatState.projectiles, 1, -1 do
         local proj = combatState.projectiles[i]
 
@@ -256,6 +282,28 @@ function PlayerCombat.updateProjectiles(player, dt, enemies)
         local spawnedProjectiles = PlayerCombat.updateProjectileArtifactEffects(proj, enemies, dt, player)
         for _, spawned in ipairs(spawnedProjectiles or {}) do
             table.insert(combatState.projectiles, spawned)
+        end
+
+        if proj.mirrorFireTrail or proj.refractionFireArms or proj.electricTrail then
+            proj._synergyTrailTimer = (proj._synergyTrailTimer or 0) - dt
+            if proj._synergyTrailTimer <= 0 then
+                proj._synergyTrailTimer = 0.14
+                local VFXLibrary = require("src.effects.VFXLibrary")
+                if proj.mirrorFireTrail or proj.refractionFireArms then
+                    VFXLibrary.spawnGroundEffect("fire", proj.x, proj.y, {
+                        radius = 28,
+                        duration = proj.mirrorTrailDuration or proj.spiralTrailDuration or 1.0,
+                        dps = proj.mirrorTrailDamage or proj.spiralTrailDPS or 5,
+                    })
+                end
+                if proj.electricTrail then
+                    VFXLibrary.spawnGroundEffect("lightning", proj.x, proj.y, {
+                        radius = 34,
+                        duration = proj.trailDuration or 1.0,
+                        dps = proj.trailDamage or 4,
+                    })
+                end
+            end
         end
 
         if proj.expired then
@@ -423,7 +471,44 @@ function PlayerCombat.splitProjectile(player, parentProj, index)
             -- NO more splits (already split)
             canSplit = false,
             splitCount = 0,
-            hasSplit = true
+            hasSplit = true,
+
+            -- Inherit artifact-synergy field behavior.
+            lensThunderball = parentProj.lensThunderball,
+            thunderfieldRadius = parentProj.thunderfieldRadius,
+            thunderfieldDPS = parentProj.thunderfieldDPS,
+            thunderfieldDuration = parentProj.thunderfieldDuration,
+            mirrorFireTrail = parentProj.mirrorFireTrail,
+            mirrorTrailDamage = parentProj.mirrorTrailDamage,
+            mirrorTrailDuration = parentProj.mirrorTrailDuration,
+            electricTrail = parentProj.electricTrail,
+            trailDamage = parentProj.trailDamage,
+            trailDuration = parentProj.trailDuration,
+            diffractionBurnZone = parentProj.diffractionBurnZone,
+            burnZoneRadius = parentProj.burnZoneRadius,
+            burnZoneDPS = parentProj.burnZoneDPS,
+            burnZoneDuration = parentProj.burnZoneDuration,
+            waveEcho = parentProj.waveEcho,
+            waveRadius = parentProj.waveRadius,
+            wavePullForce = parentProj.wavePullForce,
+            gravityWell = parentProj.gravityWell,
+            wellRadius = parentProj.wellRadius,
+            wellPullForce = parentProj.wellPullForce,
+            poisonBloom = parentProj.poisonBloom,
+            bloomRadius = parentProj.bloomRadius,
+            bloomDamageRatio = parentProj.bloomDamageRatio,
+            dotCloud = parentProj.dotCloud,
+            cloudRadius = parentProj.cloudRadius,
+            cloudDamageRatio = parentProj.cloudDamageRatio,
+            refractionFrostPatches = parentProj.refractionFrostPatches,
+            frostPatchRadius = parentProj.frostPatchRadius,
+            frostPatchSlow = parentProj.frostPatchSlow,
+            frostPatchDuration = parentProj.frostPatchDuration,
+            refractionFireArms = parentProj.refractionFireArms,
+            spiralTrailDPS = parentProj.spiralTrailDPS,
+            spiralTrailDuration = parentProj.spiralTrailDuration,
+            prismRootBonus = parentProj.prismRootBonus,
+            rootRadius = parentProj.rootRadius,
         }
 
         table.insert(combatState.projectiles, newProj)

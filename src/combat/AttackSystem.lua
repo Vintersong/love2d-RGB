@@ -2,6 +2,25 @@
 local AttackSystem = {}
 local HealthSystem = require("src.combat.HealthSystem")
 
+local function spawnDotDeathFields(target)
+    if not target.dotStacks then
+        return
+    end
+
+    for _, dot in ipairs(target.dotStacks) do
+        if dot.poisonBloom then
+            local VFXLibrary = require("src.effects.VFXLibrary")
+            VFXLibrary.spawnGroundEffect("poison", target.x + target.width / 2, target.y + target.height / 2, {
+                radius = dot.bloomRadius or 90,
+                duration = 2.2,
+                dps = dot.damage * (dot.bloomDamageRatio or 2),
+                color = {0.25, 1, 0.45},
+            })
+            return
+        end
+    end
+end
+
 -- Process projectile hitting an enemy/boss
 -- Returns: explosion data (if MAGENTA effect), or nil
 function AttackSystem.projectileHit(projectile, target, onKillCallback)
@@ -26,6 +45,7 @@ function AttackSystem.projectileHit(projectile, target, onKillCallback)
     
     -- Call callback if target died
     if died and onKillCallback then
+        spawnDotDeathFields(target)
         onKillCallback(target)
     end
     
@@ -47,6 +67,44 @@ end
 
 -- Apply special projectile effects (tertiary colors)
 function AttackSystem.applyEffects(projectile, target)
+    local VFXLibrary = require("src.effects.VFXLibrary")
+    local targetX = target.x + target.width / 2
+    local targetY = target.y + target.height / 2
+
+    if projectile.lensThunderball then
+        VFXLibrary.spawnGroundEffect("lightning", targetX, targetY, {
+            radius = projectile.thunderfieldRadius or 80,
+            duration = projectile.thunderfieldDuration or 2.0,
+            dps = projectile.thunderfieldDPS or 12,
+        })
+    end
+
+    if projectile.diffractionBurnZone then
+        VFXLibrary.spawnGroundEffect("fire", targetX, targetY, {
+            radius = projectile.burnZoneRadius or 50,
+            duration = projectile.burnZoneDuration or 2.5,
+            dps = projectile.burnZoneDPS or 6,
+        })
+    end
+
+    if projectile.refractionFrostPatches then
+        VFXLibrary.spawnGroundEffect("frost", targetX, targetY, {
+            radius = projectile.frostPatchRadius or 50,
+            duration = projectile.frostPatchDuration or 2.0,
+            slow = projectile.frostPatchSlow or 0.4,
+        })
+    end
+
+    if projectile.waveEcho then
+        VFXLibrary.spawnGroundEffect("gravity", targetX, targetY, {
+            radius = projectile.waveRadius or 100,
+            duration = 1.1,
+            slow = 0.18,
+            pull = projectile.wavePullForce or 50,
+            color = {0.45, 1, 0.5},
+        })
+    end
+
     -- Root effect (YELLOW) - slow/stop enemy
     if projectile.canRoot then
         -- Only capture originalSpeed / apply the slow on the FIRST root; re-rooting an
@@ -58,6 +116,23 @@ function AttackSystem.applyEffects(projectile, target)
         end
         target.rooted = true
         target.rootDuration = projectile.rootDuration or 2.0  -- refresh duration
+
+        if projectile.gravityWell then
+            VFXLibrary.spawnGroundEffect("gravity", targetX, targetY, {
+                radius = projectile.wellRadius or 120,
+                duration = projectile.rootDuration or 2.0,
+                slow = 0.25,
+                pull = projectile.wellPullForce or 80,
+                color = {1, 0.82, 0.28},
+            })
+        elseif projectile.prismRootBonus then
+            VFXLibrary.spawnGroundEffect("frost", targetX, targetY, {
+                radius = projectile.rootRadius or 60,
+                duration = projectile.rootDuration or 2.0,
+                slow = 0.3,
+                color = {1, 1, 0.5},
+            })
+        end
     end
     
     -- Explode effect (MAGENTA) - AoE damage
@@ -83,8 +158,23 @@ function AttackSystem.applyEffects(projectile, target)
         table.insert(target.dotStacks, {
             duration = projectile.dotDuration or 3.0,
             damage = projectile.dotDamage or projectile.damage * 0.2,
-            tickRate = 0.5  -- Damage every 0.5 seconds
+            tickRate = 0.5,  -- Damage every 0.5 seconds
+            dotCloud = projectile.dotCloud,
+            cloudRadius = projectile.cloudRadius,
+            cloudDamageRatio = projectile.cloudDamageRatio,
+            poisonBloom = projectile.poisonBloom,
+            bloomRadius = projectile.bloomRadius,
+            bloomDamageRatio = projectile.bloomDamageRatio
         })
+
+        if projectile.dotCloud then
+            VFXLibrary.spawnGroundEffect("poison", targetX, targetY, {
+                radius = projectile.cloudRadius or 60,
+                duration = projectile.dotDuration or 3.0,
+                dps = (projectile.dotDamage or projectile.damage * 0.2) * (projectile.cloudDamageRatio or 0.3),
+                color = {0.28, 1, 0.82},
+            })
+        end
     end
     
     return nil
@@ -102,6 +192,7 @@ function AttackSystem.updateDoTs(entities, dt, onKillCallback)
                 if dot.tickRate <= 0 then
                     local died = HealthSystem.takeDamage(entity, dot.damage)
                     if died and onKillCallback then
+                        spawnDotDeathFields(entity)
                         onKillCallback(entity)
                         break
                     end

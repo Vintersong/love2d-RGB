@@ -170,7 +170,7 @@ function ColorSystem.checkSecondaryUnlock()
                 
                 -- Show floating text if available
                 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
-                FloatingTextSystem.add(secColor .. " UNLOCKED!", 960, 400, "SYNERGY")
+                FloatingTextSystem.addAchievement("Color Unlocked", secColor, ColorSystem.getColorRGB(secColor))
             end
         end
     end
@@ -180,6 +180,11 @@ function ColorSystem.applyEffects(weapon)
     -- PURE ADDITIVE MIXING SYSTEM
     -- All color traits stack independently
     -- RED 20 + GREEN 20 = BOTH traits active at full strength
+
+    local function effectSteps(level)
+        level = math.max(0, level or 0)
+        return math.floor(level / 10), (level % 10) * 0.1
+    end
     
     -- Reset to base stats
     weapon.damage = 10
@@ -189,8 +194,8 @@ function ColorSystem.applyEffects(weapon)
     weapon.spreadChance = 0
     weapon.bounceChance = 0
     weapon.pierceChance = 0
-    weapon.bounceCount = 1
-    weapon.pierceCount = 1
+    weapon.bounceCount = 0
+    weapon.pierceCount = 0
     weapon.spreadAngle = 0
     
     weapon.rootChance = 0
@@ -214,12 +219,12 @@ function ColorSystem.applyEffects(weapon)
     -- Apply RED traits (Multi-target aggression)
     local redLevel = ColorSystem.primary.RED.level
     if redLevel > 0 then
-        -- Every 10 levels = +1 projectile
-        weapon.guaranteedBullets = math.floor(redLevel / 10)
-        
-        -- Progress within tier gives chance for next projectile
-        local progressInTier = redLevel % 10
-        weapon.spreadChance = progressInTier * 0.1  -- 0% to 90%
+        -- Every 10 levels = +1 guaranteed extra projectile.
+        -- Each partial level gives +10% chance for the next extra projectile.
+        local guaranteed, chance = effectSteps(redLevel)
+        weapon.guaranteedBullets = guaranteed
+        weapon.spreadChance = chance
+        weapon.bulletCount = 1 + guaranteed
         
         weapon.damage = weapon.damage + (redLevel * 2)
         weapon.fireRate = weapon.fireRate - (redLevel * 0.001)  -- Slightly faster
@@ -232,15 +237,11 @@ function ColorSystem.applyEffects(weapon)
     -- Apply GREEN traits (Adaptation/seeking)
     local greenLevel = ColorSystem.primary.GREEN.level
     if greenLevel > 0 then
-        -- Every 10 levels = +1 bounce
-        weapon.bounceCount = 1 + math.floor(greenLevel / 10)
-        
-        -- Chance to activate bounce
-        if greenLevel <= 10 then
-            weapon.bounceChance = greenLevel * 0.1
-        else
-            weapon.bounceChance = 1.0
-        end
+        -- Every 10 levels = +1 guaranteed bounce.
+        -- Each partial level gives +10% chance for one additional bounce.
+        local guaranteed, chance = effectSteps(greenLevel)
+        weapon.bounceCount = guaranteed
+        weapon.bounceChance = chance
         
         weapon.damage = weapon.damage + (greenLevel * 3)
         weapon.fireRate = weapon.fireRate + (greenLevel * 0.002)  -- Slightly slower
@@ -249,15 +250,11 @@ function ColorSystem.applyEffects(weapon)
     -- Apply BLUE traits (Control/precision)
     local blueLevel = ColorSystem.primary.BLUE.level
     if blueLevel > 0 then
-        -- Every 10 levels = +1 pierce
-        weapon.pierceCount = 1 + math.floor(blueLevel / 10)
-        
-        -- Chance to activate pierce
-        if blueLevel <= 10 then
-            weapon.pierceChance = blueLevel * 0.1
-        else
-            weapon.pierceChance = 1.0
-        end
+        -- Every 10 levels = +1 guaranteed pierce.
+        -- Each partial level gives +10% chance for one additional pierce.
+        local guaranteed, chance = effectSteps(blueLevel)
+        weapon.pierceCount = guaranteed
+        weapon.pierceChance = chance
         
         weapon.damage = weapon.damage + (blueLevel * 3)
         weapon.fireRate = weapon.fireRate + (blueLevel * 0.003)  -- Slower but powerful

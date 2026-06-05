@@ -3,6 +3,32 @@
 
 local LensArtifact = {}
 
+local SYNERGY_FIELDS = {
+    "canBounceToNearest", "maxBounces", "canPierce", "maxPierces",
+    "canRoot", "rootDuration", "canExplode", "explodeRadius", "explodeDamage",
+    "canDot", "dotDuration", "dotDamage", "colorName", "shape",
+    "lensThunderball", "thunderfieldRadius", "thunderfieldDPS", "thunderfieldDuration",
+    "mirrorFireTrail", "mirrorTrailDamage", "mirrorTrailDuration",
+    "electricTrail", "trailDamage", "trailDuration",
+    "diffractionBurnZone", "burnZoneRadius", "burnZoneDPS", "burnZoneDuration",
+    "waveEcho", "waveRadius", "wavePullForce",
+    "gravityWell", "wellRadius", "wellPullForce",
+    "poisonBloom", "bloomRadius", "bloomDamageRatio",
+    "dotCloud", "cloudRadius", "cloudDamageRatio",
+    "refractionFrostPatches", "frostPatchRadius", "frostPatchSlow", "frostPatchDuration",
+    "refractionFireArms", "spiralTrailDPS", "spiralTrailDuration",
+    "prismRootBonus", "rootRadius",
+}
+
+local function inheritSynergyFields(source, target)
+    for _, field in ipairs(SYNERGY_FIELDS) do
+        target[field] = source[field]
+    end
+    target.currentBounces = source.currentBounces or 0
+    target.pierceCount = source.pierceCount or 0
+    target.hitEnemies = {}
+end
+
 local function getMergedVelocity(projectiles, speedMultiplier)
     local vx, vy = 0, 0
 
@@ -55,6 +81,7 @@ LensArtifact.RED = {
                 merged = true,
                 mergeCount = #projectiles
             }
+            inheritSynergyFields(projectiles[1], merged)
             
             -- Return only the merged projectile
             return {merged}
@@ -165,6 +192,8 @@ LensArtifact.YELLOW = {
                 pullStrength = 250,
                 electricTrail = true
             }
+            inheritSynergyFields(projectiles[1], merged)
+            merged.electricTrail = true
             
             return {merged}
         end
@@ -211,6 +240,7 @@ LensArtifact.MAGENTA = {
                 timeDelay = 0.5,  -- Hits 0.5s after contact
                 temporalEcho = true
             }
+            inheritSynergyFields(projectiles[1], merged)
             
             return {merged}
         end

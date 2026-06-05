@@ -14,6 +14,7 @@ function PlayingRenderLayers.draw(state, deps)
     -- World.draw()
 
     state.player:drawAura()
+    VFXLibrary.drawGroundEffects()
     VFXLibrary.draw()
 
     state.player:drawProjectileTrails()

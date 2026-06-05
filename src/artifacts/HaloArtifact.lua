@@ -422,12 +422,60 @@ end
 -- Process halo damage/healing effects on enemies (called from game state)
 function HaloArtifact.processEffects(enemy, player, onKillCallback)
     local HealthSystem = require("src.combat.HealthSystem")
+    local VFXLibrary = require("src.effects.VFXLibrary")
+
+    local function enemyCenter(target)
+        return target.x + target.width / 2, target.y + target.height / 2
+    end
+
+    local function applyHaloKillSynergy(target)
+        local x, y = enemyCenter(target)
+
+        if player.haloGlacialPatches then
+            VFXLibrary.spawnGroundEffect("frost", x, y, {
+                radius = player.glacialPatchRadius or 60,
+                duration = player.glacialPatchDuration or 4.0,
+                slow = player.glacialPatchSlow or 0.4,
+            })
+        end
+
+        if player.haloKillExplosion then
+            VFXLibrary.spawnGroundEffect("fire", x, y, {
+                radius = player.haloExplosionRadius or 60,
+                duration = 1.2,
+                dps = player.haloExplosionDamage or 12,
+            })
+        end
+
+        if player.haloStormChain then
+            VFXLibrary.spawnGroundEffect("lightning", x, y, {
+                radius = player.haloChainRange or 150,
+                duration = 0.75,
+                dps = player.haloChainDamage or 8,
+            })
+        end
+
+        if player.haloHarvestOrbs then
+            VFXLibrary.spawnGroundEffect("harvest", x, y, {
+                radius = 58,
+                duration = 0.9,
+            })
+            HealthSystem.heal(player, player.haloHarvestHeal or 8)
+        end
+    end
+
+    local function rewardHaloKill(target)
+        applyHaloKillSynergy(target)
+        if onKillCallback then
+            onKillCallback(target)
+        end
+    end
 
     -- RED HALO: Fire pulse damage
     if enemy.inFireAura and player.redHalo then
         local died = HealthSystem.takeDamage(enemy, player.redHalo.damage * 0.016) -- Approximate dt
-        if died and onKillCallback then
-            onKillCallback(enemy)
+        if died then
+            rewardHaloKill(enemy)
         end
         enemy.inFireAura = false
     end
@@ -436,8 +484,8 @@ function HaloArtifact.processEffects(enemy, player, onKillCallback)
     if enemy.inDrainAura and enemy.drainAmount and player.greenHalo then
         local died = HealthSystem.takeDamage(enemy, enemy.drainAmount)
         HealthSystem.heal(player, enemy.drainAmount * (player.greenHalo.healPercent or 0.5))
-        if died and onKillCallback then
-            onKillCallback(enemy)
+        if died then
+            rewardHaloKill(enemy)
         end
         enemy.inDrainAura = false
         enemy.drainAmount = nil
@@ -446,8 +494,8 @@ function HaloArtifact.processEffects(enemy, player, onKillCallback)
     -- YELLOW HALO: Electric pulse damage + heal
     if enemy.electricPulse and enemy.pulseDamage then
         local died = HealthSystem.takeDamage(enemy, enemy.pulseDamage)
-        if died and onKillCallback then
-            onKillCallback(enemy)
+        if died then
+            rewardHaloKill(enemy)
         end
         enemy.electricPulse = false
         enemy.pulseDamage = nil
@@ -461,9 +509,23 @@ function HaloArtifact.processEffects(enemy, player, onKillCallback)
 
     -- MAGENTA HALO: Time bubble damage
     if enemy.inTimeBubble and enemy.timeBubbleDamage then
+        if player.haloTemporalAmp then
+            enemy.timeBubbleDamage = enemy.timeBubbleDamage * (1 + (player.temporalDamageBonus or 0.25))
+            local now = love.timer.getTime()
+            if (enemy._temporalWardVFXAt or 0) <= now then
+                enemy._temporalWardVFXAt = now + 0.45
+                local x, y = enemyCenter(enemy)
+                VFXLibrary.spawnGroundEffect("temporal", x, y, {
+                    radius = 46,
+                    duration = 0.55,
+                    slow = 0.16,
+                })
+            end
+        end
+
         local died = HealthSystem.takeDamage(enemy, enemy.timeBubbleDamage)
-        if died and onKillCallback then
-            onKillCallback(enemy)
+        if died then
+            rewardHaloKill(enemy)
         end
     end
 
@@ -471,8 +533,8 @@ function HaloArtifact.processEffects(enemy, player, onKillCallback)
     if enemy.inFrostDrain and enemy.frostDrainAmount and player.cyanHalo then
         local died = HealthSystem.takeDamage(enemy, enemy.frostDrainAmount)
         HealthSystem.heal(player, enemy.frostDrainAmount * (player.cyanHalo.healPercent or 0.4))
-        if died and onKillCallback then
-            onKillCallback(enemy)
+        if died then
+            rewardHaloKill(enemy)
         end
         enemy.inFrostDrain = false
         enemy.frostDrainAmount = nil

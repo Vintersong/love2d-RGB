@@ -14,94 +14,37 @@ local function lerpColor(color1, color2, t)
     }
 end
 
-local function rgbToHsv(r, g, b)
-    local maxVal = math.max(r, g, b)
-    local minVal = math.min(r, g, b)
-    local delta = maxVal - minVal
-
-    local h = 0
-    local s = 0
-    local v = maxVal
-
-    if maxVal > 0 then
-        s = delta / maxVal
-    end
-
-    if delta > 0 then
-        if maxVal == r then
-            h = ((g - b) / delta) % 6
-        elseif maxVal == g then
-            h = ((b - r) / delta) + 2
-        else
-            h = ((r - g) / delta) + 4
-        end
-        h = h / 6
-    end
-
-    return h, s, v
-end
-
-local function hsvToRgb(h, s, v)
-    if s <= 0 then
-        return v, v, v
-    end
-
-    local scaled = h * 6
-    local i = math.floor(scaled)
-    local f = scaled - i
-    local p = v * (1 - s)
-    local q = v * (1 - s * f)
-    local t = v * (1 - s * (1 - f))
-    local sector = i % 6
-
-    if sector == 0 then return v, t, p end
-    if sector == 1 then return q, v, p end
-    if sector == 2 then return p, v, t end
-    if sector == 3 then return p, q, v end
-    if sector == 4 then return t, p, v end
-    return v, p, q
-end
-
-local function rotateColorHue180(color)
-    local h, s, v = rgbToHsv(color[1], color[2], color[3])
-    local shiftedHue = (h + 0.5) % 1
-    local r, g, b = hsvToRgb(shiftedHue, s, v)
-    return {r, g, b}
-end
-
 -- Calculate enemy color based on player level
 local function getEnemyColorByLevel(playerLevel)
     playerLevel = playerLevel or 1
     
-    -- Vaporwave color palette
-    local pink = {1, 0.4, 0.7}      -- Level 1-10
-    local purple = {0.8, 0.4, 1}    -- Level 10-20
-    local cyan = {0.3, 0.9, 1}      -- Level 20-30
-    local orange = {1, 0.6, 0.2}    -- Level 30+
+    -- Hostile spectrum: hot, saturated enemy tones kept away from player-green.
+    local pink = {1.0, 0.18, 0.58}      -- Level 1-10
+    local violet = {0.82, 0.22, 1.0}    -- Level 10-20
+    local amber = {1.0, 0.56, 0.08}     -- Level 20-30
+    local crimson = {1.0, 0.16, 0.24}   -- Level 30+
     
     -- Normalize level for cycling (50-60 uses same progression as 1-10, etc.)
     local cycleLevel = ((playerLevel - 1) % 40) + 1
     
     local baseColor
     if cycleLevel <= 10 then
-        -- Pink to Purple
+        -- Pink to violet
         local t = (cycleLevel - 1) / 9
-        baseColor = lerpColor(pink, purple, t)
+        baseColor = lerpColor(pink, violet, t)
     elseif cycleLevel <= 20 then
-        -- Purple to Cyan
+        -- Violet to amber
         local t = (cycleLevel - 10) / 10
-        baseColor = lerpColor(purple, cyan, t)
+        baseColor = lerpColor(violet, amber, t)
     elseif cycleLevel <= 30 then
-        -- Cyan to Orange
+        -- Amber to crimson
         local t = (cycleLevel - 20) / 10
-        baseColor = lerpColor(cyan, orange, t)
+        baseColor = lerpColor(amber, crimson, t)
     else
-        -- Orange (30-40)
-        baseColor = orange
+        baseColor = crimson
     end
 
-    -- Keep level progression in sync with background, but shift hue 180 degrees for contrast.
-    return rotateColorHue180(baseColor)
+    return baseColor
 end
 
 -- Calculate how many rings enemy should have based on level

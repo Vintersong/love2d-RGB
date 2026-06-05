@@ -9,8 +9,13 @@ function MusicReactor:new()
     
     reactor.analyzer = audioAnalyzer
     reactor.currentSong = nil
+    reactor.currentSongInfo = nil
     reactor.soundData = nil
     reactor.isPlaying = false
+    reactor.playlist = nil
+    reactor.playlistIndex = 1
+    reactor.playlistOptions = nil
+    reactor.autoAdvance = false
     reactor.bpm = 120
     reactor.beatInterval = 60 / 120
     reactor.timeSinceLastBeat = 0
@@ -59,8 +64,19 @@ end
 function MusicReactor:loadSong(filepath, structure, options)
     options = options or {}
 
+    if self.currentSong then
+        self.currentSong:stop()
+    end
+    self.isPlaying = false
+
     self.currentSong = love.audio.newSource(filepath, options.sourceType or "stream")
-    self.currentSong:setLooping(true)
+    self.currentSong:setLooping(options.looping ~= false)
+    self.currentSongInfo = options.songInfo
+    self.songTime = 0
+    self.currentSection = "intro"
+    self.bassHistory = {}
+    self.midHistory = {}
+    self.trebleHistory = {}
 
     -- Handle debugging/mute mode
     if Config.debug.muteAudio then
@@ -94,6 +110,53 @@ function MusicReactor:loadSong(filepath, structure, options)
     return self.currentSong
 end
 
+function MusicReactor:loadSongData(songData, options)
+    if not songData then
+        return nil
+    end
+
+    options = options or {}
+    options.bpm = songData.bpm
+    options.songInfo = songData
+    return self:loadSong(songData.audioPath, songData.structure, options)
+end
+
+function MusicReactor:loadSingleSongData(songData, options)
+    self.playlist = nil
+    self.playlistIndex = 1
+    self.playlistOptions = nil
+    self.autoAdvance = false
+    return self:loadSongData(songData, options)
+end
+
+function MusicReactor:loadPlaylist(playlist, startIndex, options)
+    if not playlist or #playlist == 0 then
+        return nil
+    end
+
+    self.playlist = playlist
+    self.playlistIndex = math.max(1, math.min(#playlist, startIndex or 1))
+    self.playlistOptions = options or {}
+    self.autoAdvance = true
+    self.playlistOptions.looping = false
+
+    return self:loadSongData(self.playlist[self.playlistIndex], self.playlistOptions)
+end
+
+function MusicReactor:advancePlaylist()
+    if not self.playlist or #self.playlist == 0 then
+        return nil
+    end
+
+    self.playlistIndex = (self.playlistIndex % #self.playlist) + 1
+    local wasPlaying = self.isPlaying
+    local source = self:loadSongData(self.playlist[self.playlistIndex], self.playlistOptions or {})
+    if source and wasPlaying then
+        self:play()
+    end
+    return source
+end
+
 function MusicReactor:play()
     if self.currentSong then
         self.currentSong:play()
@@ -117,6 +180,13 @@ end
 
 function MusicReactor:update(dt)
     if not self.isPlaying then return end
+
+    if self.autoAdvance and self.currentSong and not self.currentSong:isPlaying() then
+        self:advancePlaylist()
+        if not self.currentSong then
+            return
+        end
+    end
     
     -- Update song time
     if self.currentSong then
@@ -365,6 +435,28 @@ end
 
 function MusicReactor:getSongTime()
     return self.songTime
+end
+
+function MusicReactor:getSongDuration()
+    if not self.currentSong then
+        return 0
+    end
+
+    local ok, duration = pcall(self.currentSong.getDuration, self.currentSong, "seconds")
+    if ok and duration and duration > 0 then
+        return duration
+    end
+
+    return 0
+end
+
+function MusicReactor:getSongProgress()
+    local duration = self:getSongDuration()
+    if duration <= 0 then
+        return 0
+    end
+
+    return math.max(0, math.min(1, (self.songTime or 0) / duration))
 end
 
 function MusicReactor:setSongStructure(structure)

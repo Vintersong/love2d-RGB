@@ -170,7 +170,7 @@ Local package command on Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\package-web.ps1 -GenerateWebAudio
 ```
 
-This creates `dist/rgb.love` and `dist/web/`. If `ffmpeg` is available, WAV music is converted to `assets/music_web/*.ogg` for the web package; otherwise the package keeps the WAV files so it still runs. The GitHub Pages workflow installs `ffmpeg`, assembles `dist/web`, downloads love.js, and deploys the static site.
+This creates `dist/chromatic.love` and `dist/web/`. If `ffmpeg` is available, WAV music is converted to `assets/music_web/*.ogg` for the web package; otherwise the package keeps the WAV files so it still runs. The GitHub Pages workflow installs `ffmpeg`, assembles `dist/web`, downloads love.js, and deploys the static site.
 
 In GitHub, set **Settings -> Pages -> Build and deployment -> Source** to **GitHub Actions**. If it is set to **Deploy from a branch**, GitHub runs Jekyll across the whole repo instead of publishing the generated love.js package; that branch-root mode also does not publish the generated build.
 

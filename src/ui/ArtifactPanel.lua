@@ -8,6 +8,7 @@ local AbilitySystem = require("src.combat.AbilitySystem")
 local AbilityLibrary = require("src.data.AbilityLibrary")
 local ColorSystem = require("src.gameplay.ColorSystem")
 local MetaProgression = require("src.core.MetaProgression")
+local GameConfig = require("src.core.GameConfig")
 
 local ARTIFACT_ORDER = {
     "LENS",
@@ -59,9 +60,7 @@ local function drawExperienceBandBar(player, topY, bandHeight)
     local gridX = SimpleGrid.originX or 0
     local gridW = SimpleGrid.gridWidth or 0
     local barX = gridX + cellSize
-    local chromaPanelW = math.floor(cellSize * 3.8)
-    local chromaGap = math.floor(cellSize * 0.35)
-    local barW = math.max(cellSize * 2, gridW - cellSize * 2 - chromaPanelW - chromaGap)
+    local barW = math.max(cellSize * 2, gridW - cellSize * 2)
     local barH = math.floor(cellSize * 0.5)
     local barY = topY + math.floor(cellSize * 0.35)
     local current = math.floor((player and player.exp) or 0)
@@ -70,9 +69,6 @@ local function drawExperienceBandBar(player, topY, bandHeight)
     local fill = Theme.color.accent
     local label = "XP"
     local valueText = string.format("%d / %d", current, maxValue)
-    local chromaX = barX + barW + chromaGap
-    local chromaValue = MetaProgression.getChroma()
-    local chromaText = tostring(chromaValue)
 
     love.graphics.setColor(0, 0, 0, 0.48)
     love.graphics.rectangle("fill", barX, barY, barW, barH)
@@ -96,23 +92,6 @@ local function drawExperienceBandBar(player, topY, bandHeight)
     love.graphics.print(valueText, barX + barW - valueWidth - 11, barY + 6)
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
     love.graphics.print(valueText, barX + barW - valueWidth - 12, barY + 5)
-
-    Shared.drawGlassPanel(chromaX, barY, chromaPanelW, barH, {fillAlpha = 0.5, edgeAlpha = 0.16, lineWidth = 1})
-    love.graphics.setColor(Theme.color.bgRaised[1], Theme.color.bgRaised[2], Theme.color.bgRaised[3], 0.96)
-    love.graphics.rectangle("fill", chromaX + 1, barY + 1, chromaPanelW - 2, barH - 2)
-    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 0.14)
-    love.graphics.rectangle("fill", chromaX + 1, barY + 1, chromaPanelW - 2, barH - 2)
-    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 0.55)
-    love.graphics.rectangle("line", chromaX, barY, chromaPanelW, barH)
-
-    love.graphics.setFont(Theme.font("mono", 12))
-    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 1)
-    love.graphics.print("CHR", chromaX + 10, barY + 6)
-    local chromaWidth = love.graphics.getFont():getWidth(chromaText)
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.print(chromaText, chromaX + chromaPanelW - chromaWidth - 11, barY + 6)
-    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
-    love.graphics.print(chromaText, chromaX + chromaPanelW - chromaWidth - 12, barY + 5)
 end
 
 local function drawCooldownBandBars(player, topY, bandHeight)
@@ -327,6 +306,76 @@ local function drawPathBandBars(x, y, w, h)
     end
 end
 
+local function drawChromaBandBar(x, y, w, h)
+    if w <= 0 or h <= 0 then
+        return
+    end
+
+    local chromaText = tostring(MetaProgression.getChroma())
+    local label = "CHR"
+
+    love.graphics.setColor(0, 0, 0, 0.48)
+    love.graphics.rectangle("fill", x, y, w, h)
+
+    love.graphics.setColor(Theme.color.bgRaised[1], Theme.color.bgRaised[2], Theme.color.bgRaised[3], 0.94)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2)
+
+    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 0.13)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2)
+    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 0.58)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", x, y, w, h)
+
+    love.graphics.setFont(Theme.font("mono", 11))
+    local textY = y + math.floor((h - love.graphics.getFont():getHeight()) * 0.5)
+    love.graphics.setColor(Theme.color.warn[1], Theme.color.warn[2], Theme.color.warn[3], 1)
+    love.graphics.print(label, x + 8, textY)
+
+    local chromaWidth = love.graphics.getFont():getWidth(chromaText)
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.print(chromaText, x + w - chromaWidth - 7, textY + 1)
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
+    love.graphics.print(chromaText, x + w - chromaWidth - 8, textY)
+end
+
+local function drawSongProgressBar(x, y, w, h)
+    if w <= 0 or h <= 0 then
+        return
+    end
+
+    local musicReactor = GameConfig.getMusicReactor()
+    local progress = 0
+    if musicReactor and musicReactor.getSongProgress then
+        progress = clamp01(musicReactor:getSongProgress())
+    end
+
+    local accent = Theme.color.accent
+
+    love.graphics.setColor(0, 0, 0, 0.48)
+    love.graphics.rectangle("fill", x, y, w, h)
+
+    love.graphics.setColor(Theme.color.bgRaised[1], Theme.color.bgRaised[2], Theme.color.bgRaised[3], 0.94)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2)
+
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.18)
+    love.graphics.rectangle("fill", x + 1, y + 1, (w - 2) * progress, h - 2)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.58)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", x, y, w, h)
+
+    love.graphics.setFont(Theme.font("mono", 11))
+    local textY = y + math.floor((h - love.graphics.getFont():getHeight()) * 0.5)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 1)
+    love.graphics.print("SONG", x + 8, textY)
+
+    local percentText = string.format("%02d%%", math.floor(progress * 100 + 0.5))
+    local percentWidth = love.graphics.getFont():getWidth(percentText)
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.print(percentText, x + w - percentWidth - 7, textY + 1)
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
+    love.graphics.print(percentText, x + w - percentWidth - 8, textY)
+end
+
 local function drawSlot(x, y, slotSize, artifactType, artifact, slotLabel, persistentLevel)
     local typeName = artifactType or slotLabel
     local color = ARTIFACT_COLORS[typeName] or Theme.color.fg3
@@ -430,24 +479,32 @@ function ArtifactPanel.drawArtifactPanel(player)
     local leftStartX = centerStartX - (slotSize * 4)
     local rightStartX = centerStartX + centerWidth
     local barH = math.floor(cellSize * 0.5)
+    local rowGap = math.floor(cellSize * 0.14)
+    local rowGroupH = barH * 2 + rowGap
+    local upperRowY = bottomY + math.floor((bandHeight - rowGroupH) * 0.5)
+    local lowerRowY = upperRowY + barH + rowGap
     local hpBarX = (SimpleGrid.originX or 0) + cellSize
     local hpBarW = math.max(cellSize * 2, leftStartX - hpBarX - math.floor(cellSize * 0.75))
-    local hpBarY = bottomY + math.floor((bandHeight - barH) * 0.5)
+    local hpBarY = upperRowY
+    local songBarY = lowerRowY
     local rightLaneLeft = rightStartX + (slotSize * 4) + math.floor(cellSize * 0.35)
     local rightLaneRight = (SimpleGrid.originX or 0) + SimpleGrid.gridWidth - cellSize
     local pathBarsW = math.max(0, rightLaneRight - rightLaneLeft)
     local pathBarsH = barH
     local pathBarsX = rightLaneRight - pathBarsW
-    local pathBarsY = hpBarY
+    local pathBarsY = upperRowY
+    local chromaBarY = lowerRowY
     local shieldIconSize = math.floor(cellSize * 1.55)
     local shieldIconX = centerStartX + math.floor((centerWidth - shieldIconSize) * 0.5)
     local shieldIconY = bottomY + math.floor((bandHeight - shieldIconSize) * 0.5)
 
     if hpBarW > cellSize * 2 then
         drawHealthBandBar(player, hpBarX, hpBarY, hpBarW, barH)
+        drawSongProgressBar(hpBarX, songBarY, hpBarW, barH)
     end
     if pathBarsW > cellSize * 2 then
         drawPathBandBars(pathBarsX, pathBarsY, pathBarsW, pathBarsH)
+        drawChromaBandBar(pathBarsX, chromaBarY, pathBarsW, barH)
     end
     drawShieldReadyIcon(player, shieldIconX, shieldIconY, shieldIconSize)
 

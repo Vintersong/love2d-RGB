@@ -238,7 +238,7 @@ SynergySystem.definitions = {
             description = "Bounces create mirror reflections",
             effect = function(weapon, player)
                 weapon.mirrorBounce = true
-                weapon.bounceCount = (weapon.bounceCount or 1) + 1
+                weapon.bounceCount = (weapon.bounceCount or 0) + 1
                 return "Kaleidoscope activated! Bounces reflect"
             end,
             visualEffect = {
@@ -459,7 +459,7 @@ SynergySystem.definitions = {
             effect = function(weapon, player)
                 weapon.diffractionPierceScaling = true
                 weapon.pierceDamageBonus = 0.15
-                weapon.pierceCount = (weapon.pierceCount or 1) + 1
+                weapon.pierceCount = (weapon.pierceCount or 0) + 1
                 return "Resonance Wave! Pierce shots amplify on each hit"
             end,
             visualEffect = {
@@ -589,7 +589,7 @@ SynergySystem.definitions = {
             description = "Pierce projectiles bend and multi-hit",
             effect = function(weapon, player)
                 weapon.bendingPierce = true
-                weapon.pierceCount = (weapon.pierceCount or 1) + 2  -- Pierce 2 more times
+                weapon.pierceCount = (weapon.pierceCount or 0) + 2  -- Pierce 2 more times
                 return "Light Ray! Pierce bends around enemies"
             end,
             visualEffect = {

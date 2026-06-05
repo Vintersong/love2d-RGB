@@ -131,23 +131,23 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
     -- STEP 2: Roll for GREEN/BLUE abilities (apply to ALL projectiles)
     local hasBounce = false
     local hasPierce = false
-    local bounceCount = 1
-    local pierceCount = 1
+    local bounceCount = self.bounceCount or 0
+    local pierceCount = self.pierceCount or 0
     
     -- Primary GREEN
-    if hasGreen and self.bounceChance then
-        if math.random() <= self.bounceChance then
-            hasBounce = true
-            bounceCount = self.bounceCount or 1
-        end
+    if hasGreen then
+        local guaranteed = self.bounceCount or 0
+        local bonus = (self.bounceChance and self.bounceChance > 0 and math.random() <= self.bounceChance) and 1 or 0
+        bounceCount = guaranteed + bonus
+        hasBounce = bounceCount > 0
     end
     
     -- Primary BLUE
-    if hasBlue and self.pierceChance then
-        if math.random() <= self.pierceChance then
-            hasPierce = true
-            pierceCount = self.pierceCount or 1
-        end
+    if hasBlue then
+        local guaranteed = self.pierceCount or 0
+        local bonus = (self.pierceChance and self.pierceChance > 0 and math.random() <= self.pierceChance) and 1 or 0
+        pierceCount = guaranteed + bonus
+        hasPierce = pierceCount > 0
     end
     
     -- STEP 2.5: Roll for TERTIARY color abilities (level 20+)
@@ -197,14 +197,14 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
 
         if hasBounce then
             proj.canBounceToNearest = true
-            proj.maxBounces = bounceCount  -- Track how many bounces are allowed
+            proj.maxBounces = bounceCount  -- Number of redirects after hits
             proj.currentBounces = 0
         end
         
         if hasPierce then
             proj.canPierce = true
             proj.hitEnemies = {}
-            proj.maxPierces = pierceCount  -- Track how many enemies can be pierced
+            proj.maxPierces = pierceCount  -- Number of enemies the shot can pass through
             proj.pierceCount = 0
         end
         
@@ -225,6 +225,44 @@ function Weapon:createProjectiles(x, y, targetX, targetY)
             proj.dotDuration = self.dotDuration
             proj.dotDamage = self.dotDamage
         end
+
+        -- Artifact synergies that need to manifest where the projectile hits
+        -- or travels. These are set by SynergySystem on the weapon.
+        proj.lensThunderball = self.lensThunderball
+        proj.thunderfieldRadius = self.thunderfieldRadius
+        proj.thunderfieldDPS = self.thunderfieldDPS
+        proj.thunderfieldDuration = self.thunderfieldDuration
+        proj.mirrorFireTrail = self.mirrorFireTrail
+        proj.mirrorTrailDamage = self.mirrorTrailDamage
+        proj.mirrorTrailDuration = self.mirrorTrailDuration
+        proj.electricTrail = self.electricTrail
+        proj.trailDamage = self.trailDamage
+        proj.trailDuration = self.trailDuration
+        proj.diffractionBurnZone = self.diffractionBurnZone
+        proj.burnZoneRadius = self.burnZoneRadius
+        proj.burnZoneDPS = self.burnZoneDPS
+        proj.burnZoneDuration = self.burnZoneDuration
+        proj.waveEcho = self.waveEcho
+        proj.waveRadius = self.waveRadius
+        proj.wavePullForce = self.wavePullForce
+        proj.gravityWell = self.gravityWell
+        proj.wellRadius = self.wellRadius
+        proj.wellPullForce = self.wellPullForce
+        proj.poisonBloom = self.poisonBloom
+        proj.bloomRadius = self.bloomRadius
+        proj.bloomDamageRatio = self.bloomDamageRatio
+        proj.dotCloud = self.dotCloud
+        proj.cloudRadius = self.cloudRadius
+        proj.cloudDamageRatio = self.cloudDamageRatio
+        proj.refractionFrostPatches = self.refractionFrostPatches
+        proj.frostPatchRadius = self.frostPatchRadius
+        proj.frostPatchSlow = self.frostPatchSlow
+        proj.frostPatchDuration = self.frostPatchDuration
+        proj.refractionFireArms = self.refractionFireArms
+        proj.spiralTrailDPS = self.spiralTrailDPS
+        proj.spiralTrailDuration = self.spiralTrailDuration
+        proj.prismRootBonus = self.prismRootBonus
+        proj.rootRadius = self.rootRadius
     end
     
     if projectileCount == 1 then

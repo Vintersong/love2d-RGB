@@ -49,6 +49,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
         SpawnController.handleEnemyDeath(target, state.player, state.xpOrbs, state.powerups)
     end
     AttackSystem.updateDoTs(state.enemies, dt, dotKillCallback)
+    VFXLibrary.updateGroundEffects(dt, state.enemies, state.player, dotKillCallback)
 
     ProjectileCollisionSystem.update(state.player, state.enemies, state.xpOrbs, state.powerups, state.explosions)
     enemyFlow.updateExplosions(state, dt, deps)

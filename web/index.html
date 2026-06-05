@@ -16,6 +16,14 @@
   <body>
     <canvas id="canvas"></canvas>
     <div id="spinner" class="pending"></div>
-    <script src='player.js?g=rgb.love&v=11.5&n=1&arg=["--web"]'></script>
+    <script src='player.js?g=chromatic.love&v=11.5&n=1&arg=["--web"]'></script>
+    <script>
+      const setChromaticTitle = () => { document.title = "CHROMATIC"; };
+      setChromaticTitle();
+      window.addEventListener("load", () => {
+        setChromaticTitle();
+        setTimeout(setChromaticTitle, 1000);
+      });
+    </script>
   </body>
 </html>

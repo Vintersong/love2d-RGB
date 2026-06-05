@@ -1,6 +1,6 @@
 param(
     [string]$OutputDir = "dist",
-    [string]$GameName = "rgb",
+    [string]$GameName = "chromatic",
     [string]$LoveJsRef = "main",
     [switch]$SkipLoveJs,
     [switch]$GenerateWebAudio

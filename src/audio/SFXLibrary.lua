@@ -14,6 +14,17 @@ SFXLibrary.sources = {
     menuMove = loadSource("assets/sfx/MenuSelectorMove.wav")
 }
 
+local artifactCueNames = {
+    PRISM = "artifactPrism",
+    LENS = "artifactLens",
+    MIRROR = "artifactMirror",
+    DIFFRACTION = "artifactDiffraction",
+    REFRACTION = "artifactRefraction",
+    HALO = "artifactHalo",
+    AURORA = "artifactAurora",
+    SUPERNOVA = "artifactSupernova",
+}
+
 -- Individual volume audjustments for specific sounds
 
 if SFXLibrary.sources.menuMove then
@@ -29,6 +40,14 @@ function SFXLibrary.play(name)
     source:stop()
     source:play()
     return true
+end
+
+function SFXLibrary.playArtifactCue(artifactType)
+    local cueName = artifactCueNames[artifactType]
+    if not cueName then
+        return false
+    end
+    return SFXLibrary.play(cueName)
 end
 
 return SFXLibrary

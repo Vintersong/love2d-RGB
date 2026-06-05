@@ -69,6 +69,11 @@ function ProjectileCollisionSystem.update(player, enemies, xpOrbs, powerups, exp
                     enemy.frozenTimer = math.max(enemy.frozenTimer or 0, 0.75)
                     enemy.originalSpeed = enemy.originalSpeed or enemy.speed
                     enemy.speed = 0
+                    VFXLibrary.spawnGroundEffect("frost", enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, {
+                        radius = proj.frostPatchRadius or 44,
+                        duration = proj.frostPatchDuration or 1.5,
+                        slow = proj.frostPatchSlow or 0.35,
+                    })
                 end
 
                 -- GREEN: Bounce to nearest enemy
@@ -99,7 +104,7 @@ end
 function ProjectileCollisionSystem.handleBounce(proj, enemies, player)
     proj.currentBounces = (proj.currentBounces or 0) + 1
 
-    if proj.currentBounces >= (proj.maxBounces or 1) then
+    if proj.currentBounces > (proj.maxBounces or 0) then
         return true -- Remove projectile
     end
 
@@ -150,7 +155,7 @@ end
 function ProjectileCollisionSystem.handlePierce(proj)
     proj.pierceCount = (proj.pierceCount or 0) + 1
 
-    if proj.pierceCount >= (proj.maxPierces or 1) then
+    if proj.pierceCount > (proj.maxPierces or 0) then
         return true -- Max pierces reached, remove
     end
 

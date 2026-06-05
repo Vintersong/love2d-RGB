@@ -36,22 +36,25 @@ local function resolveAudioPath(song)
     return song.audioPath
 end
 
--- Get a random song from the library
-function SongLibrary.getRandomSong()
-    local index = math.random(1, #SongLibrary.songs)
-    local song = SongLibrary.songs[index]
-
-    -- Load structure file
+local function buildSongData(song, index)
     local structure = require(song.structurePath)
 
-    print(string.format("[SongLibrary] Selected: %s (%d/%d)", song.name, index, #SongLibrary.songs))
-
     return {
+        index = index,
         name = song.name,
         audioPath = resolveAudioPath(song),
         structure = structure.structure,
         bpm = structure.bpm
     }
+end
+
+-- Get a random song from the library
+function SongLibrary.getRandomSong()
+    local index = math.random(1, #SongLibrary.songs)
+    local song = SongLibrary.songs[index]
+
+    print(string.format("[SongLibrary] Selected: %s (%d/%d)", song.name, index, #SongLibrary.songs))
+    return buildSongData(song, index)
 end
 
 -- Get all available songs
@@ -72,14 +75,15 @@ function SongLibrary.getSongByIndex(index)
     end
 
     local song = SongLibrary.songs[index]
-    local structure = require(song.structurePath)
+    return buildSongData(song, index)
+end
 
-    return {
-        name = song.name,
-        audioPath = resolveAudioPath(song),
-        structure = structure.structure,
-        bpm = structure.bpm
-    }
+function SongLibrary.getGameplayPlaylist()
+    local playlist = {}
+    for i, song in ipairs(SongLibrary.songs) do
+        playlist[#playlist + 1] = buildSongData(song, i)
+    end
+    return playlist
 end
 
 return SongLibrary

@@ -9,6 +9,7 @@ local BossSystem = require("src.boss.BossSystem")
 local Powerup = require("src.entities.Powerup")
 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
 local PickupSystem = require("src.gameplay.PickupSystem")
+local VFXLibrary = require("src.effects.VFXLibrary")
 
 -- Initialize controller
 function SpawnController.init(screenWidth, screenHeight)
@@ -46,6 +47,8 @@ function SpawnController.handleEnemyDeath(target, player, xpOrbs, powerups, onKi
         return
     end
     target._deathRewarded = true
+
+    VFXLibrary.spawnEnemyDeathBurst(target)
 
     SpawnController.enemyKillCount = SpawnController.enemyKillCount + 1
 

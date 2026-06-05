@@ -55,6 +55,8 @@ function PlayingState.startNewRun()
     local Player = require("src.entities.Player")
     local Weapon = require("src.Weapon")
     local GameConfig = require("src.core.GameConfig")
+    local Runtime = require("src.core.Runtime")
+    local SongLibrary = require("src.audio.SongLibrary")
     local ColorSystemLocal = require("src.gameplay.ColorSystem")
     local SynergySystem = require("src.gameplay.SynergySystem")
     local ArtifactManager = require("src.gameplay.ArtifactManager")
@@ -92,6 +94,23 @@ function PlayingState.startNewRun()
     PlayingState.gameTime = 0
     PlayingState.enemyKillCount = 0
     PlayingState.musicReactor = GameConfig.getMusicReactor()
+    if PlayingState.musicReactor then
+        local playlist = SongLibrary.getGameplayPlaylist()
+        if #playlist > 0 then
+            local startIndex = math.random(1, #playlist)
+            local source = PlayingState.musicReactor:loadPlaylist(playlist, startIndex, {
+                skipAnalysis = Runtime.isWeb(),
+                sourceType = Runtime.isWeb() and "static" or "stream",
+            })
+            if source and (not Runtime.isWeb() or (Config.runtime and Config.runtime.musicStarted)) then
+                PlayingState.musicReactor:play()
+            end
+            local songInfo = PlayingState.musicReactor.currentSongInfo
+            if songInfo then
+                print(string.format("[Game] Gameplay music loaded: %s (%d songs in playlist)", songInfo.name, #playlist))
+            end
+        end
+    end
     GameConfig.setActiveRun(true)
 
     return PlayingState

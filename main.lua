@@ -56,6 +56,7 @@ local UISandboxState = require("src.states.UISandboxState")
 local OptionsState = require("src.states.OptionsState")
 local LoadingState = require("src.states.LoadingState")
 local TutorialState = require("src.states.TutorialState")
+local AtlasState = require("src.states.AtlasState")
 local ProgressionState = require("src.states.ProgressionState")
 local ConfirmState = require("src.states.ConfirmState")
 local RunSummaryState = require("src.states.RunSummaryState")
@@ -113,6 +114,7 @@ end
 
 function love.load(args)
     Runtime.init(args)
+    love.window.setTitle(Config.screen.title or "CHROMATIC")
 
     Viewport.init(screenWidth, screenHeight)
 
@@ -196,15 +198,16 @@ function love.load(args)
         end
     end
 
-    -- Initialize music with Song 1 selection (always play Song 1 on start)
+    -- Initialize menu music with Song 1 as the CHROMATIC OST identity.
     local musicReactor = MusicReactor:new()
     local startingSong = SongLibrary.getSongByIndex(1) or SongLibrary.getRandomSong()
 
     local success, song = pcall(function()
-        return musicReactor:loadSong(startingSong.audioPath, startingSong.structure, {
+        return musicReactor:loadSingleSongData(startingSong, {
             skipAnalysis = Runtime.isWeb(),
             bpm = startingSong.bpm,
-            sourceType = Runtime.isWeb() and "static" or "stream"
+            sourceType = Runtime.isWeb() and "static" or "stream",
+            looping = true,
         })
     end)
 
@@ -271,6 +274,10 @@ function love.load(args)
     StateManager.register("Tutorial", TutorialState, {
         description = "Onboarding and replayable tutorial deck",
         tags = {"menu", "tutorial"}
+    })
+    StateManager.register("Atlas", AtlasState, {
+        description = "Color and artifact reference atlas",
+        tags = {"menu", "reference"}
     })
     StateManager.register("Progression", ProgressionState, {
         description = "Persistent profile and unlock screen",

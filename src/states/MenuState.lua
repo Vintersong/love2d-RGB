@@ -7,6 +7,7 @@ local Runtime = require("src.core.Runtime")
 local GameConfig = require("src.core.GameConfig")
 local MetaProgression = require("src.core.MetaProgression")
 local SFXLibrary = require("src.audio.SFXLibrary")
+local SongLibrary = require("src.audio.SongLibrary")
 local ShipRenderer = require("src.render.ShipRenderer")
 local Theme = require("src.render.Theme")
 
@@ -59,6 +60,7 @@ local function buildMenuOptions()
     end
     table.insert(menuOptions, {label = "START GAME", action = "startGame", style = "bracket"})
     table.insert(menuOptions, {label = "TUTORIAL", action = "tutorial", style = "bracket"})
+    table.insert(menuOptions, {label = "ATLAS", action = "atlas", style = "bracket"})
     table.insert(menuOptions, {label = "PROGRESSION", action = "progression", style = "bracket"})
     table.insert(menuOptions, {label = "SETTINGS", action = "settings", style = "bracket"})
     table.insert(menuOptions, {label = "QUIT", action = "quit", style = "bracket"})
@@ -87,6 +89,37 @@ local function openConfirm(title, message, onConfirm, yesLabel, noLabel)
     })
 end
 
+local function ensureMenuOst()
+    if GameConfig.hasActiveRun() then
+        return
+    end
+
+    local musicReactor = GameConfig.getMusicReactor()
+    if not musicReactor then
+        return
+    end
+
+    local currentInfo = musicReactor.currentSongInfo
+    if currentInfo and currentInfo.index == 1 and not musicReactor.autoAdvance then
+        return
+    end
+
+    local song = SongLibrary.getSongByIndex(1)
+    if not song then
+        return
+    end
+
+    local source = musicReactor:loadSingleSongData(song, {
+        skipAnalysis = Runtime.isWeb(),
+        sourceType = Runtime.isWeb() and "static" or "stream",
+        looping = true,
+    })
+    if source and (not Runtime.isWeb() or (Config.runtime and Config.runtime.musicStarted)) then
+        musicReactor:play()
+    end
+    print("[MenuState] Restored menu OST: " .. song.name)
+end
+
 function MenuState:enter(previous, data)
     alpha = 0
     timer = 0
@@ -95,6 +128,7 @@ function MenuState:enter(previous, data)
     glowY = nil
 
     buildMenuOptions()
+    ensureMenuOst()
 
     -- Branded type system (CHROMATIC design tokens): Michroma wordmark,
     -- Chakra Petch UI, Share Tech Mono numerics.
@@ -447,6 +481,9 @@ function MenuState:activateOption(action)
             mode = "review",
             nextState = "Menu",
         })
+    elseif action == "atlas" then
+        local StateManager = require("src.core.StateManager")
+        StateManager.switch("Atlas")
     elseif action == "progression" then
         local StateManager = require("src.core.StateManager")
         StateManager.switch("Progression")

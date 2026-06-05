@@ -116,6 +116,9 @@ VFXLibrary.activeEffects = {}
 -- Impact burst particles (from VFXManager)
 VFXLibrary.impactParticles = {}
 
+-- Persistent battlefield effects created by artifact synergies.
+VFXLibrary.groundEffects = {}
+
 -- Formation spawn effects
 VFXLibrary.formationFlashes = {}  -- Flash effects when formations spawn
 VFXLibrary.formationWarnings = {}  -- Warning indicators before spawn
@@ -244,6 +247,46 @@ VFXLibrary.ArtifactEffects = {
     }
 }
 
+local ArtifactActivationCues = {
+    PRISM = {
+        color = {1, 0.25, 1},
+        rings = {24, 42},
+        spokes = 6,
+        shardCount = 9,
+        shape = "triangle",
+    },
+    LENS = {
+        color = {0.25, 0.82, 1},
+        rings = {18, 32},
+        spokes = 4,
+        shardCount = 6,
+        shape = "beam",
+        forwardBias = true,
+    },
+    MIRROR = {
+        color = {0.72, 0.95, 1},
+        rings = {22, 38},
+        spokes = 8,
+        shardCount = 8,
+        shape = "mirror",
+    },
+    DIFFRACTION = {
+        color = {1, 0.42, 0.18},
+        rings = {20, 35, 52},
+        spokes = 10,
+        shardCount = 12,
+        shape = "square",
+    },
+    REFRACTION = {
+        color = {0.55, 0.36, 1},
+        rings = {26, 46},
+        spokes = 7,
+        shardCount = 10,
+        shape = "spiral",
+        swirl = true,
+    },
+}
+
 -- ============================================================================
 -- SYNERGY EFFECT DEFINITIONS
 -- ============================================================================
@@ -342,6 +385,60 @@ function VFXLibrary.spawnArtifactEffect(artifactType, x, y, targetX, targetY)
         
         table.insert(VFXLibrary.activeEffects, particle)
     end
+end
+
+function VFXLibrary.spawnArtifactActivationBurst(artifactType, x, y)
+    local cue = ArtifactActivationCues[artifactType]
+    if not cue then
+        VFXLibrary.spawnArtifactEffect(artifactType, x, y)
+        return
+    end
+
+    local color = cue.color
+
+    for i, radius in ipairs(cue.rings) do
+        table.insert(VFXLibrary.impactParticles, {
+            type    = "artifactRing",
+            x       = x,
+            y       = y,
+            vx      = 0,
+            vy      = 0,
+            color   = {color[1], color[2], color[3]},
+            life    = 1,
+            maxLife = 0.28 + i * 0.08,
+            size    = radius * 0.35,
+            maxSize = radius,
+            spokes  = cue.spokes,
+            rotation = math.random() * math.pi * 2,
+            rotationSpeed = cue.swirl and 3.4 or 1.4,
+        })
+    end
+
+    local count = cue.shardCount or 8
+    for i = 1, count do
+        local angle = ((i - 1) / count) * math.pi * 2
+        if cue.forwardBias then
+            angle = angle * 0.42 - math.pi * 0.21
+        end
+        angle = angle + (math.random() - 0.5) * 0.16
+        local speed = 90 + math.random() * 75
+
+        table.insert(VFXLibrary.impactParticles, {
+            type  = "artifactShard",
+            x     = x + math.cos(angle) * 7,
+            y     = y + math.sin(angle) * 7,
+            vx    = math.cos(angle) * speed,
+            vy    = math.sin(angle) * speed,
+            color = {color[1], color[2], color[3]},
+            life  = 1,
+            maxLife = 0.22 + math.random() * 0.18,
+            size  = 5 + math.random() * 3,
+            rotation = angle,
+            shape = cue.shape,
+        })
+    end
+
+    VFXLibrary.spawnArtifactEffect(artifactType, x, y)
 end
 
 -- Spawn synergy effect
@@ -560,11 +657,188 @@ end
 function VFXLibrary.clear()
     VFXLibrary.activeEffects = {}
     VFXLibrary.impactParticles = {}
+    VFXLibrary.groundEffects = {}
 end
 
 -- Get active effect count
 function VFXLibrary.getCount()
     return #VFXLibrary.activeEffects
+end
+
+-- ============================================================================
+-- PERSISTENT GROUND / ENEMY FIELD EFFECTS
+-- ============================================================================
+
+local GroundEffectDefs = {
+    fire = {
+        color = {1, 0.32, 0.08},
+        radius = 48,
+        duration = 1.6,
+        dps = 0,
+        shape = "flame",
+    },
+    frost = {
+        color = {0.28, 0.92, 1},
+        radius = 56,
+        duration = 2.2,
+        slow = 0.4,
+        shape = "frost",
+    },
+    lightning = {
+        color = {1, 0.92, 0.18},
+        radius = 78,
+        duration = 1.6,
+        dps = 0,
+        shape = "lightning",
+    },
+    poison = {
+        color = {0.28, 1, 0.55},
+        radius = 64,
+        duration = 2.4,
+        dps = 0,
+        shape = "poison",
+    },
+    gravity = {
+        color = {0.92, 0.45, 1},
+        radius = 96,
+        duration = 1.5,
+        slow = 0.25,
+        shape = "gravity",
+    },
+    temporal = {
+        color = {1, 0.26, 1},
+        radius = 82,
+        duration = 1.2,
+        slow = 0.25,
+        shape = "temporal",
+    },
+    harvest = {
+        color = {0.26, 1, 0.42},
+        radius = 54,
+        duration = 0.9,
+        shape = "harvest",
+    },
+}
+
+function VFXLibrary.spawnGroundEffect(kind, x, y, options)
+    local def = GroundEffectDefs[kind] or GroundEffectDefs.temporal
+    options = options or {}
+
+    if #VFXLibrary.groundEffects > 120 then
+        table.remove(VFXLibrary.groundEffects, 1)
+    end
+
+    local color = options.color or def.color or {1, 1, 1}
+    local duration = options.duration or def.duration or 1.5
+    table.insert(VFXLibrary.groundEffects, {
+        kind = kind,
+        x = x,
+        y = y,
+        radius = options.radius or def.radius or 60,
+        duration = duration,
+        maxDuration = duration,
+        color = {color[1], color[2], color[3]},
+        dps = options.dps or options.damagePerSecond or def.dps or 0,
+        slow = options.slow or def.slow or 0,
+        pull = options.pull or def.pull or 0,
+        pulse = math.random() * math.pi * 2,
+        shape = options.shape or def.shape or kind,
+    })
+end
+
+function VFXLibrary.updateGroundEffects(dt, enemies, player, onKillCallback)
+    local HealthSystem = nil
+
+    for i = #VFXLibrary.groundEffects, 1, -1 do
+        local effect = VFXLibrary.groundEffects[i]
+        effect.duration = effect.duration - dt
+        effect.pulse = (effect.pulse or 0) + dt * 5.5
+
+        if effect.duration <= 0 then
+            table.remove(VFXLibrary.groundEffects, i)
+        else
+            local radiusSq = effect.radius * effect.radius
+            for _, enemy in ipairs(enemies or {}) do
+                if not enemy.dead and not enemy.inactive then
+                    local ex = enemy.x + enemy.width / 2
+                    local ey = enemy.y + enemy.height / 2
+                    local dx = ex - effect.x
+                    local dy = ey - effect.y
+                    local distSq = dx * dx + dy * dy
+
+                    if distSq <= radiusSq then
+                        if effect.slow and effect.slow > 0 then
+                            enemy.speedMultiplier = math.min(enemy.speedMultiplier or 1, math.max(0.12, 1 - effect.slow))
+                            enemy.slowedUntil = math.max(enemy.slowedUntil or 0, love.timer.getTime() + 0.18)
+                        end
+
+                        if effect.pull and effect.pull > 0 and distSq > 16 then
+                            local dist = math.sqrt(distSq)
+                            enemy.x = enemy.x - (dx / dist) * effect.pull * dt
+                            enemy.y = enemy.y - (dy / dist) * effect.pull * dt
+                        end
+
+                        if effect.dps and effect.dps > 0 then
+                            HealthSystem = HealthSystem or require("src.combat.HealthSystem")
+                            local died = HealthSystem.takeDamage(enemy, effect.dps * dt)
+                            if died and onKillCallback then
+                                onKillCallback(enemy)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function VFXLibrary.drawGroundEffects()
+    for _, effect in ipairs(VFXLibrary.groundEffects) do
+        local c = effect.color
+        local life = math.max(0, effect.duration / effect.maxDuration)
+        local pulse = (math.sin(effect.pulse or 0) + 1) * 0.5
+        local radius = effect.radius * (0.92 + pulse * 0.08)
+
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(c[1], c[2], c[3], 0.08 + life * 0.08)
+        love.graphics.circle("fill", effect.x, effect.y, radius)
+        love.graphics.setColor(c[1], c[2], c[3], life * 0.62)
+        love.graphics.setLineWidth(1.4)
+        love.graphics.circle("line", effect.x, effect.y, radius)
+        love.graphics.setColor(c[1], c[2], c[3], life * 0.32)
+        love.graphics.circle("line", effect.x, effect.y, radius * 0.62)
+
+        if effect.shape == "frost" then
+            love.graphics.setColor(1, 1, 1, life * 0.45)
+            for s = 1, 6 do
+                local angle = (s / 6) * math.pi * 2 + pulse * 0.5
+                love.graphics.line(
+                    effect.x + math.cos(angle) * radius * 0.22,
+                    effect.y + math.sin(angle) * radius * 0.22,
+                    effect.x + math.cos(angle) * radius * 0.88,
+                    effect.y + math.sin(angle) * radius * 0.88
+                )
+            end
+        elseif effect.shape == "lightning" then
+            love.graphics.setColor(c[1], c[2], c[3], life * 0.72)
+            for s = 1, 4 do
+                local angle = (s / 4) * math.pi * 2 + pulse
+                love.graphics.line(effect.x, effect.y, effect.x + math.cos(angle) * radius * 0.82, effect.y + math.sin(angle) * radius * 0.82)
+            end
+        elseif effect.shape == "gravity" or effect.shape == "temporal" then
+            love.graphics.setColor(c[1], c[2], c[3], life * 0.55)
+            love.graphics.arc("line", "open", effect.x, effect.y, radius * 0.72, effect.pulse, effect.pulse + math.pi * 1.35)
+            love.graphics.arc("line", "open", effect.x, effect.y, radius * 0.38, -effect.pulse, -effect.pulse + math.pi * 1.2)
+        else
+            love.graphics.setColor(c[1], c[2], c[3], life * 0.45)
+            love.graphics.rectangle("line", effect.x - radius * 0.45, effect.y - radius * 0.45, radius * 0.9, radius * 0.9)
+        end
+
+        love.graphics.setBlendMode("alpha")
+    end
+
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 -- ============================================================================
@@ -610,6 +884,89 @@ function VFXLibrary.spawnImpactBurst(x, y, color, count)
     })
 end
 
+function VFXLibrary.spawnEnemyDeathBurst(enemy)
+    if not enemy then return end
+
+    local x = enemy.x + (enemy.width or 0) / 2
+    local y = enemy.y + (enemy.height or 0) / 2
+    local color = enemy.overlayColor or enemy.projectileColor or enemy.baseColor or {1, 1, 1}
+    local size = math.max(enemy.width or 18, enemy.height or 18)
+    local count = math.random(8, 14)
+
+    VFXLibrary.spawnImpactBurst(x, y, color, count)
+
+    table.insert(VFXLibrary.impactParticles, {
+        type    = "ring",
+        x       = x,
+        y       = y,
+        vx      = 0,
+        vy      = 0,
+        color   = {color[1], color[2], color[3]},
+        life    = 1,
+        maxLife = 0.26,
+        size    = 0,
+        maxSize = size * 1.7,
+    })
+end
+
+function VFXLibrary.spawnBossDeathBurst(boss, intensity)
+    if not boss then return end
+
+    intensity = intensity or 1
+    local x = boss.x
+    local y = boss.y
+    local color = boss.bossColor or {1, 0.2, 0.8}
+    local radius = (boss.size or 80) * intensity
+    local sparkCount = math.floor(22 + intensity * 14)
+
+    for i = 1, sparkCount do
+        local angle = ((i - 1) / sparkCount) * math.pi * 2 + (math.random() - 0.5) * 0.16
+        local speed = 120 + math.random() * 220 * intensity
+        local shardSize = 3 + math.random() * 5 * intensity
+
+        table.insert(VFXLibrary.impactParticles, {
+            type  = "spark",
+            x     = x + math.cos(angle) * radius * 0.12,
+            y     = y + math.sin(angle) * radius * 0.12,
+            vx    = math.cos(angle) * speed,
+            vy    = math.sin(angle) * speed,
+            color = {color[1], color[2], color[3]},
+            life  = 1,
+            maxLife = 0.42 + math.random() * 0.32,
+            size  = shardSize,
+            rotation = angle,
+        })
+    end
+
+    for i = 1, 3 do
+        table.insert(VFXLibrary.impactParticles, {
+            type    = "ring",
+            x       = x,
+            y       = y,
+            vx      = 0,
+            vy      = 0,
+            color   = {color[1], color[2], color[3]},
+            life    = 1,
+            maxLife = 0.36 + i * 0.08,
+            size    = radius * 0.15 * i,
+            maxSize = radius * (0.8 + i * 0.42),
+        })
+    end
+
+    table.insert(VFXLibrary.impactParticles, {
+        type    = "core",
+        x       = x,
+        y       = y,
+        vx      = 0,
+        vy      = 0,
+        color   = {color[1], color[2], color[3]},
+        life    = 1,
+        maxLife = 0.28,
+        size    = radius * 0.5,
+        maxSize = radius * 1.3,
+    })
+end
+
 -- Update impact burst particles
 function VFXLibrary.updateImpactBursts(dt)
     for i = #VFXLibrary.impactParticles, 1, -1 do
@@ -626,6 +983,15 @@ function VFXLibrary.updateImpactBursts(dt)
             p.vy = p.vy * 0.86
         elseif p.type == "ring" then
             p.size = p.maxSize * (1 - p.life)
+        elseif p.type == "core" then
+            p.size = p.maxSize * (1 - p.life)
+        elseif p.type == "artifactRing" then
+            p.size = p.maxSize * (1 - p.life)
+            p.rotation = (p.rotation or 0) + (p.rotationSpeed or 0) * dt
+        elseif p.type == "artifactShard" then
+            p.vx = p.vx * 0.84
+            p.vy = p.vy * 0.84
+            p.rotation = (p.rotation or 0) + 7 * dt
         end
     end
 end
@@ -655,6 +1021,65 @@ function VFXLibrary.drawImpactBursts()
             love.graphics.setLineWidth(1.8 * p.life)
             love.graphics.circle("line", p.x, p.y, math.max(0.1, p.size))
             love.graphics.setBlendMode("alpha")
+        elseif p.type == "core" then
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(c[1], c[2], c[3], p.life * 0.28)
+            love.graphics.circle("fill", p.x, p.y, math.max(0.1, p.size))
+            love.graphics.setColor(1, 1, 1, p.life * 0.72)
+            love.graphics.circle("fill", p.x, p.y, math.max(0.1, p.size * 0.24))
+            love.graphics.setBlendMode("alpha")
+        elseif p.type == "artifactRing" then
+            local spokes = p.spokes or 6
+            love.graphics.push()
+            love.graphics.translate(p.x, p.y)
+            love.graphics.rotate(p.rotation or 0)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(c[1], c[2], c[3], p.life * 0.48)
+            love.graphics.setLineWidth(1.4 * p.life)
+            love.graphics.circle("line", 0, 0, math.max(0.1, p.size))
+            for i = 1, spokes do
+                local angle = (i / spokes) * math.pi * 2
+                local inner = p.size * 0.48
+                local outer = p.size * 0.94
+                love.graphics.line(
+                    math.cos(angle) * inner,
+                    math.sin(angle) * inner,
+                    math.cos(angle) * outer,
+                    math.sin(angle) * outer
+                )
+            end
+            love.graphics.setBlendMode("alpha")
+            love.graphics.pop()
+        elseif p.type == "artifactShard" then
+            local sz = p.size * p.life
+            love.graphics.push()
+            love.graphics.translate(p.x, p.y)
+            love.graphics.rotate(p.rotation or 0)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(c[1], c[2], c[3], p.life * 0.18)
+            if p.shape == "beam" then
+                love.graphics.rectangle("fill", -sz * 0.28, -sz * 1.9, sz * 0.56, sz * 3.8)
+            elseif p.shape == "triangle" then
+                love.graphics.polygon("fill", 0, -sz * 1.7, sz * 1.1, sz * 0.8, -sz * 1.1, sz * 0.8)
+            elseif p.shape == "mirror" then
+                love.graphics.rectangle("fill", -sz * 0.9, -sz * 1.2, sz * 1.8, sz * 2.4)
+            else
+                love.graphics.polygon("fill", buildPolygonVerts(4, sz * 1.4, math.pi / 4))
+            end
+            love.graphics.setBlendMode("alpha")
+            love.graphics.setColor(c[1], c[2], c[3], p.life)
+            love.graphics.setLineWidth(1.2)
+            if p.shape == "beam" then
+                love.graphics.rectangle("line", -sz * 0.22, -sz * 1.55, sz * 0.44, sz * 3.1)
+            elseif p.shape == "triangle" then
+                love.graphics.polygon("line", 0, -sz * 1.4, sz * 0.9, sz * 0.65, -sz * 0.9, sz * 0.65)
+            elseif p.shape == "mirror" then
+                love.graphics.rectangle("line", -sz * 0.75, -sz, sz * 1.5, sz * 2)
+                love.graphics.line(-sz * 0.55, sz * 0.75, sz * 0.55, -sz * 0.75)
+            else
+                love.graphics.polygon("line", buildPolygonVerts(4, sz, math.pi / 4))
+            end
+            love.graphics.pop()
         end
     end
     love.graphics.setLineWidth(1)

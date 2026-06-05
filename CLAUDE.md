@@ -13,7 +13,7 @@ Prefer these over re-deriving behavior from code.
 - **Desktop:** `love .` from the repo root. There is no build step for desktop.
   `love` may not be on PATH — invoke the installed `love.exe` directly if `love .` fails.
 - **Console output:** gated by `Config.debug.enabled` (currently `true`). F-key debug hotkeys are listed in `README.md`.
-- **Web build:** `powershell -ExecutionPolicy Bypass -File .\scripts\package-web.ps1 -GenerateWebAudio` → outputs `dist/rgb.love` and `dist/web/`.
+- **Web build:** `powershell -ExecutionPolicy Bypass -File .\scripts\package-web.ps1 -GenerateWebAudio` → outputs `dist/chromatic.love` and `dist/web/`.
 - After editing Lua, sanity-check it loads (run `love .`); there is no automated test suite for game code.
 
 ## Architecture rules

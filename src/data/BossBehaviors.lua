@@ -161,10 +161,10 @@ BossBehaviors.catalog = {
         end,
         execute = function(boss, context)
             local angle = angleToPlayer(boss, context)
-            local proj = Projectile(boss.x, boss.y, math.cos(angle) * 350, math.sin(angle) * 350, bossDamage(boss, 0.7, 15), "boss_diamond", "boss")
+            local proj = Projectile(boss.x, boss.y, math.cos(angle) * 390, math.sin(angle) * 390, bossDamage(boss, 0.78, 15), "boss_diamond", "boss")
             proj.color = {1.0, 0.4, 0.8}
             table.insert(context.bossProjectiles, proj)
-            return 0.7
+            return 0.56
         end,
     },
     {
@@ -179,10 +179,10 @@ BossBehaviors.catalog = {
         execute = function(boss, context)
             local angle = angleToPlayer(boss, context)
             local projs = BulletPatterns.radialBurst(bossOrigin(boss), angle, {
-                count = 5, speed = 300, arc = 0.8, startAngle = angle - 0.4,
+                count = 7, speed = 330, arc = 0.95, startAngle = angle - 0.475,
             })
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.55, 10), {1.0, 0.6, 0.2}, "boss_bolt")
-            return 1.0
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.62, 10), {1.0, 0.6, 0.2}, "boss_bolt")
+            return 0.82
         end,
     },
     {
@@ -196,10 +196,10 @@ BossBehaviors.catalog = {
         end,
         execute = function(boss, context)
             local projs = BulletPatterns.spiral(bossOrigin(boss), angleToPlayer(boss, context), {
-                count = 16, speed = 280, turnStep = 0.22, delay = 0.03,
+                count = 22, speed = 305, turnStep = 0.22, delay = 0.026,
             }, typedScheduler(context.scheduler, "boss_orb"))
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.45, 8), {1.0, 0.6, 0.2}, "boss_orb")
-            return 1.2
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.5, 8), {1.0, 0.6, 0.2}, "boss_orb")
+            return 1.0
         end,
     },
     {
@@ -210,9 +210,9 @@ BossBehaviors.catalog = {
         cooldown = 5.0,
         weight = 1.2,
         execute = function(boss, context)
-            local projs = BulletPatterns.radialBurst(bossOrigin(boss), 0, {count = 12, speed = 250})
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.58, 12), {0.8, 0.2, 1.0}, "boss_shard")
-            return 1.5
+            local projs = BulletPatterns.radialBurst(bossOrigin(boss), 0, {count = 16, speed = 280})
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.64, 12), {0.8, 0.2, 1.0}, "boss_shard")
+            return 1.15
         end,
     },
     {
@@ -226,10 +226,10 @@ BossBehaviors.catalog = {
         end,
         execute = function(boss, context)
             local projs = BulletPatterns.wave(bossOrigin(boss), angleToPlayer(boss, context), {
-                count = 7, speed = 260, spacing = 20,
+                count = 9, speed = 290, spacing = 18,
             })
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.52, 10), {0.2, 0.8, 1.0}, "boss_crescent")
-            return 1.0
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.58, 10), {0.2, 0.8, 1.0}, "boss_crescent")
+            return 0.86
         end,
     },
     {
@@ -243,10 +243,10 @@ BossBehaviors.catalog = {
         end,
         execute = function(boss, context)
             local projs = BulletPatterns.cross(bossOrigin(boss), 0, {
-                axes = 4, bulletsPerAxis = 3, speed = 300,
+                axes = 4, bulletsPerAxis = 4, speed = 330,
             }, typedScheduler(context.scheduler, "boss_cross"))
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.58, 12), {0.8, 1.0, 0.3}, "boss_cross")
-            return 1.0
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.64, 12), {0.8, 1.0, 0.3}, "boss_cross")
+            return 0.9
         end,
     },
     {
@@ -259,9 +259,9 @@ BossBehaviors.catalog = {
             return context.distanceToPlayer < 360 and 2.5 or 0.8 + context.bass
         end,
         execute = function(boss, context)
-            local projs = BulletPatterns.radialBurst(bossOrigin(boss), 0, {count = 24, speed = 280})
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.9, 20), {1.0, 0.2, 0.2}, "boss_chevron")
-            return 1.2
+            local projs = BulletPatterns.radialBurst(bossOrigin(boss), 0, {count = 28, speed = 310})
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.95, 20), {1.0, 0.2, 0.2}, "boss_chevron")
+            return 1.0
         end,
     },
     {
@@ -275,10 +275,10 @@ BossBehaviors.catalog = {
         end,
         execute = function(boss, context)
             local projs = BulletPatterns.doubleSpiral(bossOrigin(boss), 0, {
-                count = 16, speed = 260, turnStep = 0.2, delay = 0.03,
+                count = 22, speed = 290, turnStep = 0.2, delay = 0.026,
             }, typedScheduler(context.scheduler, "boss_twinorb"))
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.68, 15), {0.3, 0.9, 1.0}, "boss_twinorb")
-            return 1.5
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.74, 15), {0.3, 0.9, 1.0}, "boss_twinorb")
+            return 1.2
         end,
     },
     {
@@ -291,9 +291,9 @@ BossBehaviors.catalog = {
             return 0.8 + context.treble * 2
         end,
         execute = function(boss, context)
-            local projs = BulletPatterns.flower(bossOrigin(boss), 0, {petals = 6, rotations = 2, speed = 220})
-            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.56, 12), {1.0, 0.45, 0.8}, "boss_petal")
-            return 1.5
+            local projs = BulletPatterns.flower(bossOrigin(boss), 0, {petals = 7, rotations = 2, speed = 250})
+            patternToProjectiles(projs, context.bossProjectiles, bossDamage(boss, 0.62, 12), {1.0, 0.45, 0.8}, "boss_petal")
+            return 1.25
         end,
     },
 }

@@ -134,10 +134,36 @@ function FloatingTextSystem.addArtifact(artifactName, level, x, y, isMaxLevel, a
     })
 end
 
+function FloatingTextSystem.addAchievement(title, subtitle, accent)
+    local screenWidth = select(1, GameConfig.getScreenSize()) or Config.screen.width
+    accent = accent or Theme.color.accent
+    local stackIndex = 0
+    for _, text in ipairs(FloatingTextSystem.texts) do
+        if text.style == "achievementToast" then
+            stackIndex = stackIndex + 1
+        end
+    end
+    local y = 164 + stackIndex * 74
+
+    table.insert(FloatingTextSystem.texts, {
+        style = "achievementToast",
+        text = string.upper(title or "DISCOVERY"),
+        subText = subtitle or "",
+        x = screenWidth - 330,
+        y = y,
+        startY = y,
+        color = accent,
+        duration = 3.2,
+        fadeStart = 2.35,
+        riseSpeed = 0,
+        timer = 0,
+        alpha = 1.0
+    })
+end
+
 -- Add synergy unlock text
 function FloatingTextSystem.addSynergy(synergyName, x, y)
-    FloatingTextSystem.add("SYNERGY", x, y - 20, "SYNERGY")
-    FloatingTextSystem.add(synergyName, x, y + 20, "SYNERGY")
+    FloatingTextSystem.addAchievement("Synergy Discovered", synergyName, Theme.color.magenta)
 end
 
 function FloatingTextSystem.update(dt)
@@ -228,6 +254,50 @@ local function drawArtifactToast(text)
     love.graphics.setLineWidth(previousLineWidth)
 end
 
+local function drawAchievementToast(text)
+    local previousLineWidth = love.graphics.getLineWidth()
+    local accent = text.color or Theme.color.accent
+    local progress = math.min(1, text.timer / 0.2)
+    local ease = 1 - math.pow(1 - progress, 3)
+    local alpha = (text.alpha or 1) * ease
+    local w = 300
+    local h = 64
+    local x = text.x + (1 - ease) * 28
+    local y = text.y
+
+    love.graphics.setColor(0, 0, 0, 0.42 * alpha)
+    love.graphics.rectangle("fill", x + 5, y + 6, w, h)
+    love.graphics.setColor(Theme.color.bgRaised[1], Theme.color.bgRaised[2], Theme.color.bgRaised[3], 0.82 * alpha)
+    love.graphics.rectangle("fill", x, y, w, h)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.12 * alpha)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.9 * alpha)
+    love.graphics.rectangle("fill", x, y, 4, h)
+    love.graphics.rectangle("fill", x + 14, y + 11, w - 28, 1)
+    drawCornerBrackets(x, y, w, h, accent, 0.6 * alpha)
+
+    love.graphics.setFont(fonts.toastLabel)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.95 * alpha)
+    love.graphics.print("DISCOVERY", x + 16, y + 10)
+
+    love.graphics.setFont(fonts.toastTitle)
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], alpha)
+    love.graphics.print(text.text or "SYNERGY DISCOVERED", x + 16, y + 26)
+
+    love.graphics.setFont(fonts.toastMeta)
+    love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], 0.9 * alpha)
+    local subtitle = tostring(text.subText or "")
+    local maxW = w - 32
+    if fonts.toastMeta:getWidth(subtitle) > maxW then
+        while #subtitle > 0 and fonts.toastMeta:getWidth(subtitle .. "...") > maxW do
+            subtitle = subtitle:sub(1, -2)
+        end
+        subtitle = subtitle .. "..."
+    end
+    love.graphics.print(subtitle, x + 16, y + 49)
+    love.graphics.setLineWidth(previousLineWidth)
+end
+
 function FloatingTextSystem.draw()
     local _, screenHeight = GameConfig.getScreenSize()
     screenHeight = screenHeight or Config.screen.height
@@ -240,6 +310,8 @@ function FloatingTextSystem.draw()
         if text.y > -50 and text.y < screenHeight + 50 then
             if text.style == "artifactToast" then
                 drawArtifactToast(text)
+            elseif text.style == "achievementToast" then
+                drawAchievementToast(text)
             else
                 -- Set font (using cached fonts)
                 local font = fonts[text.font] or fonts.medium

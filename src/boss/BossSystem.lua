@@ -103,11 +103,36 @@ function BossSystem.spawnBoss(options)
     -- Appearance
     boss.scale = 0.4 -- Scale of ship sprite
     boss.glowIntensity = 0
+    boss.defeatAlpha = 1
+    boss.defeatRotation = 0
+    boss.defeatScale = 1
     
     BossSystem.activeBoss = boss
     
     -- Announcement (FloatingTextSystem will be called from main.lua)
     return boss
+end
+
+local function startDefeatSequence(boss)
+    boss._defeatStarted = true
+    boss.defeatTimer = 0
+    boss.defeatDuration = 1.4
+    boss.defeatPulseIndex = 1
+    boss.defeatAlpha = 1
+    boss.defeatRotation = 0
+    boss.defeatScale = 1
+    boss.defeatBaseX = boss.x
+    boss.defeatBaseY = boss.y
+    boss.invulnerable = true
+    boss.behaviorState = "defeated"
+    boss.behaviorTimer = math.huge
+    boss.dashVx = 0
+    boss.dashVy = 0
+    boss.dashTimer = 0
+    boss._scheduledProjectiles = {}
+
+    local VFXLibrary = require("src.effects.VFXLibrary")
+    VFXLibrary.spawnBossDeathBurst(boss, 1)
 end
 
 function BossSystem:update(dt, playerX, playerY)
@@ -210,15 +235,36 @@ function BossSystem:update(dt, playerX, playerY)
         end
         
     elseif self.phase == "defeated" then
-        local _, screenHeight = GameConfig.getScreenSize()
-        -- Death animation: fall off screen
-        self.y = self.y + 200 * dt
-        
-        if self.y > screenHeight + 200 then
+        if not self._defeatStarted then
+            startDefeatSequence(self)
+        end
+
+        self.defeatTimer = self.defeatTimer + dt
+        local progress = math.min(1, self.defeatTimer / self.defeatDuration)
+        local shake = (1 - progress) * 7
+        local shakePhase = self.defeatTimer * 60
+
+        self.x = self.defeatBaseX + math.sin(shakePhase) * shake
+        self.y = self.defeatBaseY + math.cos(shakePhase * 0.83) * shake
+        self.defeatAlpha = 1 - progress
+        self.defeatRotation = progress * math.pi * 2.2 + math.sin(self.defeatTimer * 18) * 0.15
+        self.defeatScale = 1 + progress * 0.55 + math.sin(progress * math.pi * 5) * 0.08
+        self.glowIntensity = 1 - progress
+
+        local pulseTimes = {0.34, 0.74, 1.12}
+        if self.defeatPulseIndex <= #pulseTimes and self.defeatTimer >= pulseTimes[self.defeatPulseIndex] then
+            local VFXLibrary = require("src.effects.VFXLibrary")
+            VFXLibrary.spawnBossDeathBurst(self, 0.65 + self.defeatPulseIndex * 0.25)
+            self.defeatPulseIndex = self.defeatPulseIndex + 1
+        end
+
+        if self.defeatTimer >= self.defeatDuration and not self._defeatCompleted then
+            self._defeatCompleted = true
+            local VFXLibrary = require("src.effects.VFXLibrary")
+            VFXLibrary.spawnBossDeathBurst(self, 1.35)
             self:onDefeat()
             self.alive = false
             BossSystem.clearBossReferences(self)
-            BossSystem.activeBoss = nil
         end
     end
 end
@@ -260,6 +306,10 @@ function BossSystem:takeDamage(amount, colorName)
     end
 
     self.health = self.health - amount
+    if self.health <= 0 then
+        self.health = 0
+        self.phase = "defeated"
+    end
     
     -- Visual feedback - simplified (no VFX system integration yet)
     -- VFX:spawnHitEffect(self.x, self.y, WHITE_COLOR)
@@ -300,19 +350,23 @@ end
 
 function BossSystem:draw()
     local bossColor = self.bossColor or BOSS_COLOR
+    local alpha = self.defeatAlpha or 1
+    local renderScale = self.scale * (self.defeatScale or 1)
+    local rotation = self.defeatRotation or 0
 
     -- Draw boss ship
     love.graphics.push()
     love.graphics.translate(self.x, self.y)
-    love.graphics.scale(self.scale, self.scale)
+    love.graphics.rotate(rotation)
+    love.graphics.scale(renderScale, renderScale)
     
     -- Glow effect when damaged
     if self.hitFlash and self.hitFlash > 0 then
-        love.graphics.setColor(1, 1, 1, self.hitFlash * 2)
+        love.graphics.setColor(1, 1, 1, self.hitFlash * 2 * alpha)
     end
     
     -- Draw boss as large diamond/star shape
-    love.graphics.setColor(bossColor)
+    love.graphics.setColor(bossColor[1], bossColor[2], bossColor[3], alpha)
     
     -- Draw diamond body
     local points = {
@@ -324,18 +378,20 @@ function BossSystem:draw()
     love.graphics.polygon("fill", points)
     
     -- Draw outline
-    love.graphics.setColor(1, 1, 1, 0.8)
+    love.graphics.setColor(1, 1, 1, 0.8 * alpha)
     love.graphics.setLineWidth(3)
     love.graphics.polygon("line", points)
     
     -- Draw core glow
-    love.graphics.setColor(1, 1, 1, 0.6)
+    love.graphics.setColor(1, 1, 1, 0.6 * alpha)
     love.graphics.circle("fill", 0, 0, self.size * 0.3)
     
     love.graphics.pop()
     
     -- Health bar
-    self:drawHealthBar()
+    if self.phase ~= "defeated" then
+        self:drawHealthBar()
+    end
     
     -- Debug: Collision circle
     local DEBUG_MODE = false  -- Set to true for debug visualization

@@ -62,6 +62,7 @@ function PlayingState.startNewRun()
     local ArtifactManager = require("src.gameplay.ArtifactManager")
     local SpawnControllerLocal = require("src.spawning.SpawnController")
     local BossSystem = require("src.boss.BossSystem")
+    local EconomySystem = require("src.economy.EconomySystem")
     local CollisionSystemLocal = require("src.combat.CollisionSystem")
     local VFXLibraryLocal = require("src.effects.VFXLibrary")
 
@@ -79,6 +80,7 @@ function PlayingState.startNewRun()
     PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
     SpawnControllerLocal.init(PlayingState.screenWidth, PlayingState.screenHeight)
     BossSystem.reset()
+    EconomySystem.reset()
 
     local playerWidth = 32
     local playerHeight = 32
@@ -95,10 +97,11 @@ function PlayingState.startNewRun()
     PlayingState.enemyKillCount = 0
     PlayingState.musicReactor = GameConfig.getMusicReactor()
     if PlayingState.musicReactor then
-        local playlist = SongLibrary.getGameplayPlaylist()
-        if #playlist > 0 then
-            local startIndex = math.random(1, #playlist)
-            local source = PlayingState.musicReactor:loadPlaylist(playlist, startIndex, {
+        local fullPlaylist = SongLibrary.getGameplayPlaylist()
+        if #fullPlaylist > 0 then
+            local pick = math.random(1, #fullPlaylist)
+            local runSong = { fullPlaylist[pick] }  -- one song defines the run length
+            local source = PlayingState.musicReactor:loadPlaylist(runSong, 1, {
                 skipAnalysis = Runtime.isWeb(),
                 sourceType = Runtime.isWeb() and "static" or "stream",
             })
@@ -107,7 +110,7 @@ function PlayingState.startNewRun()
             end
             local songInfo = PlayingState.musicReactor.currentSongInfo
             if songInfo then
-                print(string.format("[Game] Gameplay music loaded: %s (%d songs in playlist)", songInfo.name, #playlist))
+                print(string.format("[Game] Run song: %s", songInfo.name))
             end
         end
     end

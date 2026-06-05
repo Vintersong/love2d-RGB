@@ -1,4 +1,5 @@
 local flux = require("libs.flux-master.flux")
+local RunSummary = require("src.core.RunSummary")
 local PlayingUpdateLoop = {}
 
 function PlayingUpdateLoop.update(state, dt, deps)
@@ -13,6 +14,22 @@ function PlayingUpdateLoop.update(state, dt, deps)
     local PickupSystem = deps.PickupSystem
     local BossCoordinator = deps.BossCoordinator
     local enemyFlow = deps.enemyFlow
+
+    -- Song-end check must happen BEFORE musicReactor:update, which would
+    -- call advancePlaylist internally and reset isPlaying = true.
+    if state.musicReactor and state.musicReactor.isPlaying
+       and state.musicReactor.currentSong
+       and not state.musicReactor.currentSong:isPlaying() then
+        local StateManager = require("src.core.StateManager")
+        StateManager.switch("Victory", {
+            player = state.player,
+            enemies = state.enemies,
+            xpOrbs = state.xpOrbs or {},
+            musicReactor = state.musicReactor,
+            summary = RunSummary.build("victory", state)
+        })
+        return
+    end
 
     if state.musicReactor then
         state.musicReactor:update(dt)

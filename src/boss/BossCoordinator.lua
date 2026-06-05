@@ -7,7 +7,7 @@ local BossSystem = require("src.boss.BossSystem")
 local CollisionSystem = require("src.combat.CollisionSystem")
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
-local RunSummary = require("src.core.RunSummary")
+local EconomySystem = require("src.economy.EconomySystem")
 
 BossCoordinator.bossProjectiles = {}
 
@@ -62,17 +62,15 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
         if activeBoss and not activeBoss.alive then
             cleanupBossRefs(activeBoss)
             BossSystem.activeBoss = nil
-            if state then
-                local StateManager = require("src.core.StateManager")
-                StateManager.switch("Victory", {
-                    player = player,
-                    enemies = enemies,
-                    xpOrbs = state.xpOrbs or {},
-                    musicReactor = musicReactor,
-                    summary = RunSummary.build("victory", state)
-                })
-                return
-            end
+            local earned = EconomySystem.onBossClear()
+            local FloatingTextSystem = require("src.effects.FloatingTextSystem")
+            local screenWidth = GameConfig.getScreenSize()
+            FloatingTextSystem.add(
+                string.format("+%d CHROMA", earned),
+                activeBoss.x or (screenWidth / 2),
+                activeBoss.y or 300,
+                "SYNERGY"
+            )
         end
     else
         cleanupBossRefs(activeBoss)

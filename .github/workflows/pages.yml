@@ -2,7 +2,7 @@ name: Deploy LOVE web build to GitHub Pages
 
 on:
   push:
-    branches: [main, devBranch]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

@@ -278,162 +278,152 @@ function AtlasState:draw()
 
     ShellStyle.drawBackground(alpha, bgShader)
 
-    local margin = 120
-    ShellStyle.drawRgbTitle("ATLAS", margin, 86, fontDisplay, alpha)
+    local margin = sh * 0.1
+    ShellStyle.drawRgbTitle("ATLAS", margin, margin, fontDisplay, alpha)
 
     love.graphics.setFont(fontUI)
     Theme.setColor("fg3", alpha)
-    love.graphics.print("Colors, optics, artifacts, and additive light rules", margin, 170)
+    love.graphics.print("Colors, optics, artifacts, and additive light rules", margin, margin + 88)
 
+    -- Nav rail: tab buttons + BACK (same column calculation as OptionsState)
     local railButtons = {}
     for i, tab in ipairs(tabs) do
         railButtons[#railButtons + 1] = {label = tab.label, action = "tab", tabIndex = i}
     end
     railButtons[#railButtons + 1] = {label = "BACK", action = "back"}
 
-    local railW = 296
-    local menuBottomLimit = sh - (sh * 0.1)
     local bracketHeight = 44
     local gap = 16
-    local menuCount = GameConfig.hasActiveRun() and 7 or 6
-    local menuStackHeight = menuCount * bracketHeight + (menuCount - 1) * gap
-    local menuStackStartY = menuBottomLimit - menuStackHeight
-    local quitY = menuStackStartY + (menuCount - 1) * (bracketHeight + gap)
-    local railY = quitY - (#railButtons - 1) * (bracketHeight + gap)
+    local menuBottomLimit = sh - margin
+    local totalRailH = #railButtons * bracketHeight + (#railButtons - 1) * gap
+    local railY = menuBottomLimit - totalRailH
 
-    local titleText = "ATLAS"
-    local menuTitleText = "CHROMATIC"
-    local titleWidth = 0
-    local charGap = 10
-    for i = 1, #titleText do
-        local char = titleText:sub(i, i)
-        titleWidth = titleWidth + fontDisplay:getWidth(char)
-    end
-    titleWidth = titleWidth + (#titleText - 1) * charGap
-
-    local menuTitleWidth = 0
-    for i = 1, #menuTitleText do
-        local char = menuTitleText:sub(i, i)
-        menuTitleWidth = menuTitleWidth + fontDisplay:getWidth(char)
-    end
-    menuTitleWidth = menuTitleWidth + (#menuTitleText - 1) * charGap
-
-    local logoCenterX = margin + menuTitleWidth / 2
-    local menuCenter = logoCenterX
     local barWidth = 56
     local barGap = 4
     local startX = 2
     local barStep = barWidth + barGap
-    local centerCol = math.floor((menuCenter - startX) / barStep) + 1
+    local menuTitleWidth = ShellStyle.measureSpacedText("CHROMATIC", fontDisplay, 10)
+    local logoCenterX = margin + menuTitleWidth / 2
+    local centerCol = math.floor((logoCenterX - startX) / barStep) + 1
     local colStart = centerCol - 2
     if colStart < 1 then colStart = 1 end
-    local colEnd = colStart + 4
-    if colEnd > 32 then
-        colEnd = 32
-        colStart = 32 - 4
-    end
+    if colStart + 4 > 32 then colStart = 28 end
 
     local railX = startX + (colStart - 1) * barStep
-    navRects = ShellStyle.layoutVerticalRail(railButtons, railX, railY, {buttonW = railW, buttonH = 44, gap = 16})
+    local railW = 5 * barWidth + 4 * barGap
+
+    navRects = ShellStyle.layoutVerticalRail(railButtons, railX, railY, {buttonW = railW, buttonH = bracketHeight, gap = gap})
     tabRects = {}
-    for i = 1, #tabs do
-        tabRects[i] = navRects[i]
-    end
+    for i = 1, #tabs do tabRects[i] = navRects[i] end
     backRect = navRects[#railButtons]
     ShellStyle.drawVerticalRail(railButtons, navRects, backHovered and #railButtons or selectedTab, alpha, fontUI)
 
-    local listX = margin
-    local listW = 360
-    local rowH = 52
-    local listGap = 10
-    local listHeight = #entries * rowH + math.max(0, #entries - 1) * listGap
-    local listY = railY - listHeight - 8
-    entryRects = {}
+    -- Right panel (same placement formula as OptionsState)
+    local panelX = railX + railW + 120
+    local panelY = 320
+    local panelW = sw - panelX - margin
+    local panelH = sh - panelY - margin
 
+    ShellStyle.drawPanel(panelX, panelY, panelW, panelH, alpha, Theme.color.accent)
+
+    -- Panel header
+    love.graphics.setFont(fontTitle)
+    love.graphics.setColor(0.85, 0.85, 0.9, alpha)
+    love.graphics.print(tabs[selectedTab].label .. " REFERENCE", panelX + 40, panelY + 40)
+
+    local ac = Theme.color.accent
+    love.graphics.setColor(ac[1], ac[2], ac[3], alpha * 0.15)
+    love.graphics.setLineWidth(2)
+    love.graphics.line(panelX + 40, panelY + 90, panelX + panelW - 40, panelY + 90)
+
+    -- Two-column interior: entry list (left) | detail (right)
+    local contentY = panelY + 110
+    local listPaneW = 260
+    local listX = panelX + 20
+    local detailX = listX + listPaneW + 32
+    local detailW = panelX + panelW - detailX - 40
+
+    -- Vertical separator
+    local sepX = listX + listPaneW + 16
+    love.graphics.setColor(ac[1], ac[2], ac[3], alpha * 0.12)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(sepX, panelY + 100, sepX, panelY + panelH - 20)
+
+    -- Entry list rows
+    local rowH = 52
+    local listGap = 8
+    entryRects = {}
     for i, item in ipairs(entries) do
-        local y = listY + (i - 1) * (rowH + listGap)
+        local y = contentY + (i - 1) * (rowH + listGap)
         local selected = i == selectedEntry
-        entryRects[i] = {x = listX, y = y, w = listW, h = rowH}
+        local c = item.color
+        entryRects[i] = {x = listX, y = y, w = listPaneW, h = rowH}
 
         love.graphics.setColor(0, 0, 0, alpha * 0.42)
-        love.graphics.rectangle("fill", listX, y, listW, rowH)
-        local c = item.color
+        love.graphics.rectangle("fill", listX, y, listPaneW, rowH)
         love.graphics.setColor(c[1], c[2], c[3], selected and alpha * 0.28 or alpha * 0.1)
-        love.graphics.rectangle("fill", listX + 1, y + 1, listW - 2, rowH - 2)
+        love.graphics.rectangle("fill", listX + 1, y + 1, listPaneW - 2, rowH - 2)
         love.graphics.setColor(c[1], c[2], c[3], selected and alpha or alpha * 0.42)
         love.graphics.setLineWidth(selected and 2 or 1)
-        love.graphics.rectangle("line", listX, y, listW, rowH)
+        love.graphics.rectangle("line", listX, y, listPaneW, rowH)
 
         love.graphics.setFont(fontTitle)
         love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], alpha)
-        love.graphics.print(item.name, listX + 18, y + 12)
+        love.graphics.print(item.name, listX + 18, y + 14)
     end
 
-    local panelX = listX + listW + 56
-    local panelY = 305
-    local panelW = sw - panelX - margin
-    local panelH = 570
-
-    ShellStyle.drawPanel(panelX, panelY, panelW, panelH, alpha, entry.color)
-    love.graphics.setColor(entry.color[1], entry.color[2], entry.color[3], alpha * 0.18)
-    love.graphics.rectangle("fill", panelX + 1, panelY + 1, panelW - 2, panelH - 2)
-
+    -- Detail section (right column)
     love.graphics.setFont(fontDisplay)
     love.graphics.setColor(entry.color[1], entry.color[2], entry.color[3], alpha)
-    love.graphics.print(entry.name, panelX + 34, panelY + 34)
+    love.graphics.print(entry.name, detailX, contentY)
 
     love.graphics.setFont(fontTitle)
     Theme.setColor("fg1", alpha)
-    love.graphics.print(entry.principle, panelX + 36, panelY + 128)
+    love.graphics.print(entry.principle, detailX, contentY + 94)
 
-    local y = panelY + 184
+    local y = contentY + 150
     if tabs[selectedTab].key == "synergies" then
         love.graphics.setFont(fontMono)
         Theme.setColor("fg3", alpha)
-        love.graphics.print("HOW TO TARGET", panelX + 36, y)
-        y = drawWrapped(entry.effect, panelX + 36, y + 30, panelW - 72, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 18
-
-        love.graphics.setFont(fontMono)
-        Theme.setColor("fg3", alpha)
-        love.graphics.print("COLOR RECIPES", panelX + 36, y)
+        love.graphics.print("COLOR RECIPES", detailX, y)
         y = y + 30
 
         local recipes = entry.recipes or {}
-        local gap = 12
-        local columns = panelW >= 760 and 2 or 1
-        local recipeW = math.floor((panelW - 72 - gap * (columns - 1)) / columns)
-        local recipeH = columns == 2 and 82 or 68
+        local recipeGap = 12
+        local columns = detailW >= 500 and 2 or 1
+        local recipeW = math.floor((detailW - recipeGap * (columns - 1)) / columns)
+        local recipeH = columns == 2 and 100 or 80
 
         for i, recipe in ipairs(recipes) do
             local col = (i - 1) % columns
             local row = math.floor((i - 1) / columns)
-            local recipeX = panelX + 36 + col * (recipeW + gap)
-            local recipeY = y + row * (recipeH + gap)
+            local recipeX = detailX + col * (recipeW + recipeGap)
+            local recipeY = y + row * (recipeH + recipeGap)
             drawSynergyRecipe(recipe, recipeX, recipeY, recipeW, recipeH)
         end
     else
         love.graphics.setFont(fontMono)
         Theme.setColor("fg3", alpha)
-        love.graphics.print("COMBAT FUNCTION", panelX + 36, y)
-        y = drawWrapped(entry.effect, panelX + 36, y + 30, panelW - 72, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
+        love.graphics.print("COMBAT FUNCTION", detailX, y)
+        y = drawWrapped(entry.effect, detailX, y + 30, detailW, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
 
         if entry.tell then
             love.graphics.setFont(fontMono)
             Theme.setColor("fg3", alpha)
-            love.graphics.print("VISIBLE SIGNAL", panelX + 36, y)
-            y = drawWrapped(entry.tell, panelX + 36, y + 30, panelW - 72, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
+            love.graphics.print("VISIBLE SIGNAL", detailX, y)
+            y = drawWrapped(entry.tell, detailX, y + 30, detailW, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
         end
 
         love.graphics.setFont(fontMono)
         Theme.setColor("fg3", alpha)
-        love.graphics.print("LIGHT INTERACTION", panelX + 36, y)
-        y = drawWrapped(entry.light, panelX + 36, y + 30, panelW - 72, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
+        love.graphics.print("LIGHT INTERACTION", detailX, y)
+        y = drawWrapped(entry.light, detailX, y + 30, detailW, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI) + 22
 
         if entry.mixes then
             love.graphics.setFont(fontMono)
             Theme.setColor("fg3", alpha)
-            love.graphics.print("ADDITIVE MIXING", panelX + 36, y)
-            drawWrapped(entry.mixes, panelX + 36, y + 30, panelW - 72, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI)
+            love.graphics.print("ADDITIVE MIXING", detailX, y)
+            drawWrapped(entry.mixes, detailX, y + 30, detailW, 26, {Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], alpha}, fontUI)
         end
     end
 

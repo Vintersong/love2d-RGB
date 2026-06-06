@@ -51,9 +51,9 @@ local defaultPages = {
 }
 
 local buttons = {
+    {label = "NEXT", action = "next"},
     {label = "PREV", action = "prev"},
     {label = "BACK", action = "back"},
-    {label = "NEXT", action = "next"},
 }
 
 local buttonRects = {}
@@ -121,7 +121,7 @@ function TutorialState:enter(previous, data)
     self.page = 1
     self.alpha = 0
     self.autoMarked = false
-    selectedButton = 3
+    selectedButton = 1
     buttonRects = {}
     bgShader = bgShader or ShellStyle.loadShader("TutorialState")
 end
@@ -159,7 +159,7 @@ function TutorialState:draw()
     local titleFont = Theme.font("display", 72)
     ShellStyle.drawRgbTitle(self.title or "TUTORIAL", margin, margin, titleFont, self.alpha)
 
-    local panelW, panelH = 1180, 590
+    local panelW, panelH = 1180, 572
     local panelX, panelY = cx - panelW / 2, 218
     ShellStyle.drawPanel(panelX, panelY, panelW, panelH, self.alpha)
 
@@ -187,8 +187,23 @@ function TutorialState:draw()
     love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], self.alpha)
     love.graphics.printf(indicator, panelX, panelY + panelH - 54, panelW, "center")
 
-    local buttonY = sh - 150
-    buttonRects = ShellStyle.layoutActionRow(buttons, cx, buttonY)
+    local bracketHeight = 44
+    local gap = 16
+    local menuBottomLimit = sh - (sh * 0.1)
+    local totalBtnH = #buttons * bracketHeight + (#buttons - 1) * gap
+    local btnStackY = menuBottomLimit - totalBtnH
+
+    local barWidth, barGap, startXBar = 56, 4, 2
+    local barStep = barWidth + barGap
+    local titleW = ShellStyle.measureSpacedText("CHROMATIC", Theme.font("display", 75), 10)
+    local logoCenterX = sh * 0.1 + titleW / 2
+    local centerCol = math.floor((logoCenterX - startXBar) / barStep) + 1
+    local colStart = math.max(1, centerCol - 2)
+    if colStart + 4 > 32 then colStart = 28 end
+    local btnX = startXBar + (colStart - 1) * barStep
+    local btnW = 5 * barWidth + 4 * barGap
+
+    buttonRects = ShellStyle.layoutVerticalRail(buttons, btnX, btnStackY, {buttonW = btnW, buttonH = bracketHeight, gap = gap})
 
     for i, button in ipairs(buttons) do
         local rect = buttonRects[i]
@@ -211,23 +226,23 @@ function TutorialState:keypressed(key)
         else
             self.page = #self.pages
         end
-        selectedButton = 1
+        selectedButton = 2
     elseif key == "right" then
         if self.page < #self.pages then
             self.page = self.page + 1
         else
             self.page = 1
         end
-        selectedButton = 3
+        selectedButton = 1
     elseif key == "escape" then
         self:exitTutorial()
     elseif key == "return" or key == "space" then
         if selectedButton == 1 then
-            self:keypressed("left")
-        elseif selectedButton == 2 then
-            self:exitTutorial()
-        elseif selectedButton == 3 then
             self:keypressed("right")
+        elseif selectedButton == 2 then
+            self:keypressed("left")
+        elseif selectedButton == 3 then
+            self:exitTutorial()
         end
     end
 end
@@ -251,11 +266,11 @@ function TutorialState:mousepressed(x, y, button)
     if button ~= 1 then return end
     local index = buttonAt(x, y)
     if index == 1 then
-        self:keypressed("left")
-    elseif index == 2 then
-        self:exitTutorial()
-    elseif index == 3 then
         self:keypressed("right")
+    elseif index == 2 then
+        self:keypressed("left")
+    elseif index == 3 then
+        self:exitTutorial()
     end
 end
 

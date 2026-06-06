@@ -156,7 +156,7 @@ local function drawArtifactCard(item, x, y, w, h, isSelected, canAfford)
 
     love.graphics.setFont(Theme.font("mono", 13))
     love.graphics.setColor(statusColor[1], statusColor[2], statusColor[3], 1)
-    love.graphics.print(statusText, x + 18, y + h - 28)
+    love.graphics.print(statusText, x + 18, y + h - 16)
 end
 
 function ProgressionState:enter(previous, data)
@@ -183,25 +183,49 @@ end
 
 function ProgressionState:draw()
     local sw, sh = Config.screen.width, Config.screen.height
-    local cx = sw / 2
     local margin = sh * 0.1
 
     ShellStyle.drawBackground(self.alpha, bgShader)
-
-    local mainX, mainY, mainW, mainH = 240, 190, 1440, 760
-    ShellStyle.drawPanel(mainX, mainY, mainW, mainH, self.alpha)
-
     ShellStyle.drawRgbTitle("PROGRESSION", margin, margin, Theme.font("display", 72), self.alpha)
 
+    -- Nav rail (same bar-column calculation as other states)
+    local bracketHeight = 44
+    local gap = 16
+    local menuBottomLimit = sh - margin
+    local totalBtnH = #buttons * bracketHeight + (#buttons - 1) * gap
+    local btnStackY = menuBottomLimit - totalBtnH
+
+    local barWidth, barGap, startX = 56, 4, 2
+    local barStep = barWidth + barGap
+    local titleW = ShellStyle.measureSpacedText("CHROMATIC", Theme.font("display", 72), 10)
+    local logoCenterX = margin + titleW / 2
+    local centerCol = math.floor((logoCenterX - startX) / barStep) + 1
+    local colStart = math.max(1, centerCol - 2)
+    if colStart + 4 > 32 then colStart = 28 end
+    local btnX = startX + (colStart - 1) * barStep
+    local btnW = 5 * barWidth + 4 * barGap
+
+    buttonRects = ShellStyle.layoutVerticalRail(buttons, btnX, btnStackY, {buttonW = btnW, buttonH = bracketHeight, gap = gap})
+    ShellStyle.drawVerticalRail(buttons, buttonRects, focusArea == "buttons" and selectedButton or nil, self.alpha, Theme.font("uiSemiBold", 18))
+
+    -- Right panel (same placement formula as OptionsState / AtlasState)
+    local panelX = btnX + btnW + 120
+    local panelY = 320
+    local panelW = sw - panelX - margin
+    local panelH = sh - panelY - margin
+
+    ShellStyle.drawPanel(panelX, panelY, panelW, panelH, self.alpha, Theme.color.accent)
+
+    -- Panel header: title + chroma counter
     love.graphics.setFont(Theme.font("uiBold", 24))
-    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
-    love.graphics.print("UPGRADES", mainX + 70, mainY + 46)
+    love.graphics.setColor(0.85, 0.85, 0.9, self.alpha)
+    love.graphics.print("UPGRADES", panelX + 40, panelY + 40)
 
     local chromaText = string.format("Chroma: %d", MetaProgression.getChroma())
     local chromaFont = Theme.font("uiSemiBold", 20)
     local chromaW = chromaFont:getWidth(chromaText) + 32
-    local chromaX = mainX + mainW - 70 - chromaW
-    local chromaY = mainY + 38
+    local chromaX = panelX + panelW - 40 - chromaW
+    local chromaY = panelY + 38
     love.graphics.setFont(chromaFont)
     love.graphics.setColor(0, 0, 0, 0.55 * self.alpha)
     love.graphics.rectangle("fill", chromaX, chromaY, chromaW, 36, 6, 6)
@@ -210,15 +234,21 @@ function ProgressionState:draw()
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
     love.graphics.print(chromaText, chromaX + 16, chromaY + 7)
 
-    love.graphics.setFont(Theme.font("ui", 18))
-    love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], self.alpha)
-    love.graphics.print("Spend Chroma to unlock and upgrade future run artifacts.", mainX + 70, mainY + 92)
-    drawColorTheoryStrip(mainX + 70, mainY + 122, mainW - 140, 54, self.alpha)
+    -- Dividing line
+    local ac = Theme.color.accent
+    love.graphics.setColor(ac[1], ac[2], ac[3], 0.15 * self.alpha)
+    love.graphics.setLineWidth(2)
+    love.graphics.line(panelX + 40, panelY + 90, panelX + panelW - 40, panelY + 90)
 
+    -- Color theory strip
+    drawColorTheoryStrip(panelX + 40, panelY + 100, panelW - 80, 54, self.alpha)
+
+    -- Artifact grid
     artifactRects = {}
-    local cardW, cardH = 420, 108
-    local cardGapX, cardGapY = 28, 18
-    local cardStartX, cardStartY = cx - (cardW * 2 + cardGapX) / 2, mainY + 192
+    local cardW, cardH = 420, 95
+    local cardGapX, cardGapY = 28, 10
+    local cardStartX = panelX + 40 + math.floor((panelW - 80 - (cardW * 2 + cardGapX)) / 2)
+    local cardStartY = panelY + 168
 
     for index, shopItem in ipairs(SHOP_ARTIFACTS) do
         local definition = ArtifactManager.levelDefinitions[shopItem.type] or {}
@@ -247,15 +277,10 @@ function ProgressionState:draw()
     if self.notice and self.noticeTimer > 0 then
         love.graphics.setFont(Theme.font("mono", 15))
         love.graphics.setColor(self.noticeColor[1], self.noticeColor[2], self.noticeColor[3], self.alpha)
-        love.graphics.printf(self.notice, mainX + 180, mainY + 640, mainW - 360, "center")
+        love.graphics.printf(self.notice, panelX + 40, panelY + panelH - 50, panelW - 80, "center")
     end
 
-    local buttonY = sh - 150
-    buttonRects = ShellStyle.layoutActionRow(buttons, cx, buttonY)
-    ShellStyle.drawActionRow(buttons, buttonRects, focusArea == "buttons" and selectedButton or nil, self.alpha, Theme.font("uiSemiBold", 18))
-
     love.graphics.setLineWidth(1)
-
     ShellStyle.drawFooter("ENTER / SPACE to buy or activate   |   TAB / UP / DOWN to switch sections   |   ESC to return", sh - 76, self.alpha)
 end
 

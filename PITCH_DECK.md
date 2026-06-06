@@ -93,7 +93,7 @@ Once you pick your second primary, the third is **locked out**. Permanently.
 | Halo | Passive aura damage |
 | Mirror | Reflects damage back |
 | Lens | Focuses and amplifies |
-| Diffusion | Spreads projectiles wide |
+| Aurora | Regenerates health |
 | Diffraction | Deflects, pulls enemies and XP |
 | Refraction | Bends projectile paths |
 | Supernova | Explosive orbital bombs |

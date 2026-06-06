@@ -8,7 +8,7 @@ local GameConfig = require("src.core.GameConfig")
 local MetaProgression = require("src.core.MetaProgression")
 local SFXLibrary = require("src.audio.SFXLibrary")
 local SongLibrary = require("src.audio.SongLibrary")
-local ShipRenderer = require("src.render.ShipRenderer")
+local PlayerRender = require("src.entities.PlayerRender")
 local Theme = require("src.render.Theme")
 
 -- State variables
@@ -29,19 +29,25 @@ local animProgress = {}
 -- Text settings
 local titleText = "CHROMATIC"
 local titleSize = 75
-local subtitleSize = 24
 
 -- Fonts
 local titleFont = nil
-local subtitleFont = nil
 local smallFont = nil
 local defaultFont = nil
 
 -- Background Shader
 local bgShader = nil
 
--- Ship display
-local shipRenderer = nil
+-- Menu preview uses the same renderer as the in-game player ship.
+local menuShip = {
+    x = 0,
+    y = 0,
+    width = 150,
+    height = 150,
+    invulnerable = false,
+    invulnerableTime = 0,
+    damageFlashTime = 0,
+}
 
 -- Glowing visualizer Y-tracker for selection highlighting
 local glowY = nil
@@ -133,17 +139,12 @@ function MenuState:enter(previous, data)
     -- Branded type system (CHROMATIC design tokens): Michroma wordmark,
     -- Chakra Petch UI, Share Tech Mono numerics.
     titleFont = titleFont or Theme.font("display", titleSize)
-    subtitleFont = subtitleFont or Theme.font("uiMedium", subtitleSize)
     smallFont = smallFont or Theme.font("ui", Theme.scale.ui)
     defaultFont = defaultFont or Theme.font("mono", Theme.scale.micro)
 
     -- Reset animation track table
     for i = 1, #menuOptions do
         animProgress[i] = 0
-    end
-
-    if not shipRenderer then
-        shipRenderer = ShipRenderer:new({color = {1.0, 0.35, 0.75, 1.0}})
     end
 
     -- Load shader safely
@@ -281,10 +282,14 @@ function MenuState:draw()
         love.graphics.setShader(previousShader)
     end
 
-    -- 3.5 Draw Ship (centered on screen, facing up)
-    if shipRenderer then
-        shipRenderer:draw(screenWidth / 2, screenHeight / 2, 1.0, alpha, -math.pi / 2)
-    end
+    -- 3.5 Draw Ship preview using the active in-game player renderer.
+    local shipSize = math.min(170, math.max(132, screenHeight * 0.15))
+    menuShip.width = shipSize
+    menuShip.height = shipSize
+    menuShip.x = screenWidth / 2 - shipSize / 2
+    menuShip.y = screenHeight / 2 - shipSize / 2
+    love.graphics.setColor(1, 1, 1, alpha)
+    PlayerRender.drawPlayer(menuShip)
 
     -- 4. Draw Equalizer Bars Grid (LED columns - static unlit matrix at 4% opacity - Full Screen Width)
     local numBars = 32
@@ -409,38 +414,6 @@ function MenuState:draw()
         
         currentY = currentY + bracketHeight + gap
     end
-
-    -- 5.5 Draw controls map panel on main menu
-    local mapW = 520
-    local mapH = 250
-    local mapX = screenWidth - mapW - margin
-    local mapY = screenHeight - mapH - margin
-
-    love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.85)
-    love.graphics.rectangle("fill", mapX, mapY, mapW, mapH, 10, 10)
-
-    love.graphics.setLineWidth(2)
-    local mapEdge = Theme.color.accent
-    love.graphics.setColor(mapEdge[1], mapEdge[2], mapEdge[3], alpha * 0.28)
-    love.graphics.rectangle("line", mapX, mapY, mapW, mapH, 10, 10)
-
-    love.graphics.setFont(subtitleFont)
-    love.graphics.setColor(0.85, 0.9, 0.95, alpha)
-    love.graphics.print("CONTROL MAP", mapX + 24, mapY + 18)
-
-    love.graphics.setFont(smallFont)
-    love.graphics.setColor(0.6, 0.8, 1, alpha * 0.85)
-    love.graphics.print("Gameplay", mapX + 24, mapY + 56)
-    love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
-    love.graphics.print("MOVE  W A S D", mapX + 24, mapY + 80)
-    love.graphics.print("DASH  SPACE   |  BLINK  E   |  SHIELD  Q", mapX + 24, mapY + 102)
-    love.graphics.print("PAUSE  P / ESC   |   SUPERNOVA  reactive artifact", mapX + 24, mapY + 124)
-    love.graphics.print("AIM  MOUSE CURSOR   (AUTO-FIRE)", mapX + 24, mapY + 146)
-
-    love.graphics.setColor(0.6, 0.8, 1, alpha * 0.85)
-    love.graphics.print("Menu", mapX + 24, mapY + 176)
-    love.graphics.setColor(0.75, 0.8, 0.9, alpha * 0.85)
-    love.graphics.print("NAVIGATE  UP / DOWN   |   SELECT  ENTER / SPACE", mapX + 24, mapY + 200)
 
     -- Reset default color
     love.graphics.setColor(1, 1, 1, 1)

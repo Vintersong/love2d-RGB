@@ -121,7 +121,7 @@ Artifacts are passive collectibles dropped during play. There are 8 distinct art
 | Halo | Aura | Color-tinted passive aura that damages nearby enemies |
 | Mirror | Reflection | Reflects incoming damage back at attackers |
 | Lens | Focus | Optical focus increases projectile damage output |
-| Diffusion | Spreading | Projectiles scatter in AoE patterns |
+| Aurora | Ionized glow | Regenerates health and empowers sustain effects |
 | Diffraction | Deflection | Angular deflection; pulls XP and enemies |
 | Refraction | Bending | Projectiles bend and curve mid-flight |
 | Supernova | Explosion | Explosive orbital bombs / screen-clearing bursts |
@@ -130,7 +130,7 @@ Artifacts are passive collectibles dropped during play. There are 8 distinct art
 
 When the player holds an artifact and has matching active colors, the **SynergySystem** triggers a unique named synergy — a bonus effect that stacks on top of the artifact's base behavior.
 
-Each synergy activates exactly once per run (no double-triggers). **Eighteen named synergies** are defined in [`SynergySystem.lua`](src/gameplay/SynergySystem.lua). Artifact **type strings** passed into `SynergySystem.checkAndActivate` may use internal keys (`AURORA` vs `HALO`) that do not rename the player-facing Halo / Diffusion artifacts in the roster — confirm against pickup types in [`Powerup.lua`](src/entities/Powerup.lua) when auditing balance.
+Each synergy activates exactly once per run (no double-triggers). **Eighteen named synergies** are defined in [`SynergySystem.lua`](src/gameplay/SynergySystem.lua). Artifact **type strings** passed into `SynergySystem.checkAndActivate` use the same active roster keys exposed by [`Powerup.lua`](src/entities/Powerup.lua); confirm both places when auditing balance.
 
 **Full synergy roster (artifact type × color)**
 
@@ -154,8 +154,6 @@ Each synergy activates exactly once per run (no double-triggers). **Eighteen nam
 | REFRACTION | MAGENTA | Shockwave | Radial explosion rings |
 | SUPERNOVA | RED | Solar Flare | Screen clear spawns fire projectiles |
 | SUPERNOVA | MAGENTA | Chain Reaction | Chaining explosions (~50%) |
-
-*(No synergy entries currently exist under `DIFFUSION`.)*
 
 ---
 
@@ -296,7 +294,7 @@ src/
     ArtifactManager.lua / SynergySystem.lua
     SpawnController.lua       — Kill counts, orb drops — wraps EnemySpawner.update
     EnemySpawner.lua          — Music formations + procedural waves (called by SpawnController)
-    GridAttackSystem.lua      — Alternate grid wave attackers (currently disabled in PlayingState)
+    GridAttackSystem.lua      — Archived alternate grid wave attackers (detached from boot)
     SimpleGrid.lua            — Quadrant visuals & dev wave pulses synced to MusicReactor
     MusicReactor.lua          — BPM estimation + synthesized band envelopes
     BossSystem.lua            — Active arena boss singleton + projectile cone
@@ -342,7 +340,7 @@ src/
 
 ### Known Gaps / In Progress
 
-- **`GridAttackSystem.update/draw`** remain commented (**disabled**) inside [`PlayingState`](src/states/PlayingState.lua) “for testing”.
+- **`GridAttackSystem`** is archived legacy code and is detached from boot/active gameplay.
 - UX polish backlog: **post-upgrade input delay**, **dash cooldown clarity** (`Feedback.md`).
 - **Contributor trap:** Legacy [`Boss.lua`](src/entities/Boss.lua) (9999 HP) vs production **BossSystem** boss — differentiate when editing AI.
 - **Level-up layering:** Missing shader/grid backdrop parity while overlay is modal.

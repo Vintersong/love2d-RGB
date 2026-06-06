@@ -57,7 +57,7 @@ Dash bonuses change with dominant color combinations (speed buff, heals, piercin
 
 ## Artifacts & synergies
 
-Nine artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens, Diffusion, Diffraction, Refraction, Supernova, Aurora). Duplicate pickups raise each up to **Lv5**.
+Eight artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens, Aurora, Diffraction, Refraction, Supernova). Duplicate pickups raise each up to **Lv5**.
 
 [`SynergySystem.lua`](src/gameplay/SynergySystem.lua) houses **18** named triggers (pairs like `LENS + BLUE → Laser Focus`, `SUPERNOVA + MAGENTA → Chain Reaction`). Pickup enums include **`AURORA`** as its own orb type alongside **`HALO`**; synergy keys follow those enums — skim design doc §5 before renaming types or orbs.
 
@@ -67,7 +67,7 @@ Nine artifacts mirror the **ArtifactManager** roster (Prism, Halo, Mirror, Lens,
 
 **Pipeline:** **`SpawnController.update` → `EnemySpawner.update`**. Formations (`square_corners`, `hex_star`, `tri_squares`, `diamond`, `cross`, `vee`, `box`) pulse off music weights for **BASS / MIDS / TREBLE** archetypes. Enemies are `Enemy` (`src/entities/Enemy.lua`) instances, created via `EnemySpawner`/`EnemyPool` and using melee-only AI. (The projectile-firing `ProceduralEnemy` prototype was retired — enemy projectiles cluttered the screen — and is now unused.)
 
-The legacy **`GridAttackSystem`** marching wave layer still exists (`src/combat/GridAttackSystem.lua`) but its **update/draw calls are intentionally commented out** inside `PlayingState` (“DISABLED FOR TESTING” markers).
+The legacy **`GridAttackSystem`** marching wave layer remains as archived source (`src/combat/GridAttackSystem.lua`) but is detached from boot and active gameplay.
 
 ---
 
@@ -104,7 +104,6 @@ The UI follows the **CHROMATIC Design System** (a handoff bundle authored in Cla
 | **`SongLibrary` + `MusicReactor`** | Random track ingest, BPM-ish estimate, synthesized band ramps feeding spawn weights; master volume initialized from `Config.sound.volume` |
 | **`SpawnController`** | Kill counters, orb & power-up drops after deaths, bosses every 100 kills |
 | **`EnemySpawner`** | Spatial formations reacting to spectral intensity |
-| **`GridAttackSystem`** | Alternate flank waves *(presently disabled hooks)* |
 | **`SimpleGrid` + shader bg** | `BackgroundShader` (GLSL + **moonshine glow**) draws the playable backdrop; **`SimpleGrid`** overlays beat ripples (**T** pulses); `splashscreen.glsl` is a separate shader used by the splash/menu/options screens |
 | **`World`** | Scroll metadata / frozen perspective grid scaffolding (mostly bypassed visually) |
 | **`ColorSystem`** | Locks primaries / applies projectile stats |

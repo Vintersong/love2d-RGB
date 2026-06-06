@@ -52,8 +52,10 @@ function DebugMenu.showHelp()
         print("  2 - Add MIRROR +1")
         print("  3 - Add PRISM +1")
         print("  4 - Add HALO +1")
-        print("  5 - Add DIFFUSION +1")
-        print("  6 - Add SUPERNOVA +1")
+        print("  5 - Add AURORA +1")
+        print("  6 - Add DIFFRACTION +1")
+        print("  7 - Add REFRACTION +1")
+        print("  8 - Add SUPERNOVA +1")
         print("  0 - Add +3 to last selected artifact")
         print("")
         print("ENEMY MENU (Press 3):")
@@ -85,7 +87,7 @@ function DebugMenu.showMenuState()
     if DebugMenu.currentMenu == "color" then
         print("[DEBUG MENU] COLOR - Pick: 1=RED 2=GREEN 3=BLUE 4=YELLOW 5=MAGENTA 6=CYAN 0=+10")
     elseif DebugMenu.currentMenu == "artifact" then
-        print("[DEBUG MENU] ARTIFACT - Pick: 1=LENS 2=MIRROR 3=PRISM 4=HALO 5=DIFFUSION 6=SUPERNOVA 0=+3")
+        print("[DEBUG MENU] ARTIFACT - Pick: 1=LENS 2=MIRROR 3=PRISM 4=HALO 5=AURORA 6=DIFFRACTION 7=REFRACTION 8=SUPERNOVA 0=+3")
     elseif DebugMenu.currentMenu == "enemy" then
         print("[DEBUG MENU] ENEMY - Pick: 1=Basic 2=Fast 3=Tank 4=Boss 9=Kill All")
     elseif DebugMenu.currentMenu == "player" then
@@ -215,10 +217,18 @@ function DebugMenu.keypressed(key, player, enemies, musicReactor)
             DebugMenu.lastArtifactChoice = "HALO"
             print("[ARTIFACT] HALO Level: " .. ArtifactManager.getLevel("HALO"))
         elseif key == "5" then
-            ArtifactManager.collect("DIFFUSION", player.weapon, player)
-            DebugMenu.lastArtifactChoice = "DIFFUSION"
-            print("[ARTIFACT] DIFFUSION Level: " .. ArtifactManager.getLevel("DIFFUSION"))
+            ArtifactManager.collect("AURORA", player.weapon, player)
+            DebugMenu.lastArtifactChoice = "AURORA"
+            print("[ARTIFACT] AURORA Level: " .. ArtifactManager.getLevel("AURORA"))
         elseif key == "6" then
+            ArtifactManager.collect("DIFFRACTION", player.weapon, player)
+            DebugMenu.lastArtifactChoice = "DIFFRACTION"
+            print("[ARTIFACT] DIFFRACTION Level: " .. ArtifactManager.getLevel("DIFFRACTION"))
+        elseif key == "7" then
+            ArtifactManager.collect("REFRACTION", player.weapon, player)
+            DebugMenu.lastArtifactChoice = "REFRACTION"
+            print("[ARTIFACT] REFRACTION Level: " .. ArtifactManager.getLevel("REFRACTION"))
+        elseif key == "8" then
             ArtifactManager.collect("SUPERNOVA", player.weapon, player)
             DebugMenu.lastArtifactChoice = "SUPERNOVA"
             print("[ARTIFACT] SUPERNOVA Level: " .. ArtifactManager.getLevel("SUPERNOVA"))
@@ -454,7 +464,12 @@ function DebugMenu.draw(player)
     love.graphics.print(" HALO:" .. ArtifactManager.getLevel("HALO"), textX + 80, textY)
     textY = textY + lineHeight
     
-    love.graphics.print("DIFF:" .. ArtifactManager.getLevel("DIFFUSION"), textX, textY)
+    love.graphics.print("AUR:" .. ArtifactManager.getLevel("AURORA"), textX, textY)
+    love.graphics.print(" DIFR:" .. ArtifactManager.getLevel("DIFFRACTION"), textX + 80, textY)
+    textY = textY + lineHeight + 3
+
+    love.graphics.print("REFR:" .. ArtifactManager.getLevel("REFRACTION"), textX, textY)
+    love.graphics.print(" SUP:" .. ArtifactManager.getLevel("SUPERNOVA"), textX + 80, textY)
     textY = textY + lineHeight + 3
     
     -- === MUSIC STATUS ===
@@ -524,7 +539,9 @@ function DebugMenu.draw(player)
         helpTextY = helpTextY + lineHeight
         love.graphics.print("  3: PRISM | 4: HALO", helpTextX, helpTextY)
         helpTextY = helpTextY + lineHeight
-        love.graphics.print("  5: DIFFUSION | 0: +3 last", helpTextX, helpTextY)
+        love.graphics.print("  5: AURORA | 6: DIFFRACTION", helpTextX, helpTextY)
+        helpTextY = helpTextY + lineHeight
+        love.graphics.print("  7: REFRACTION | 8: SUPERNOVA | 0: +3 last", helpTextX, helpTextY)
         helpTextY = helpTextY + lineHeight + 3
         
         love.graphics.setColor(1, 0.5, 0.5, 1)

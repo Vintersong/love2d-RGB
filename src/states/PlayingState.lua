@@ -12,7 +12,7 @@ local PlayingEnemyFlow = require("src.states.playing.PlayingEnemyFlow")
 -- Forward declarations for systems
 local MusicReactor, ColorSystem, SpawnController, World, HealthSystem
 local AttackSystem, UISystem, FloatingTextSystem, VFXLibrary
-local XPParticleSystem, CollisionSystem, GridAttackSystem, BackgroundShader, SimpleGrid
+local XPParticleSystem, CollisionSystem, BackgroundShader, SimpleGrid
 local ShieldEffect, ProjectileCollisionSystem, PickupSystem, BossCoordinator
 
 PlayingState.player = nil
@@ -40,7 +40,6 @@ local function getDeps()
         VFXLibrary = VFXLibrary,
         XPParticleSystem = XPParticleSystem,
         CollisionSystem = CollisionSystem,
-        GridAttackSystem = GridAttackSystem,
         BackgroundShader = BackgroundShader,
         SimpleGrid = SimpleGrid,
         ShieldEffect = ShieldEffect,
@@ -132,7 +131,6 @@ function PlayingState:enter(previous, data)
         VFXLibrary = require("src.effects.VFXLibrary")
         XPParticleSystem = require("src.effects.XPParticleSystem")
         CollisionSystem = require("src.combat.CollisionSystem")
-        GridAttackSystem = require("src.combat.GridAttackSystem")
         BackgroundShader = require("src.render.BackgroundShader")
         SimpleGrid = require("src.gameplay.SimpleGrid")
         ShieldEffect = require("src.effects.ShieldEffect")

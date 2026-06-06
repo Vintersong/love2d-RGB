@@ -4,9 +4,10 @@
 local AtlasState = {}
 
 local Config = require("src.Config")
+local GameConfig = require("src.core.GameConfig")
 local Theme = require("src.render.Theme")
-local SimpleGrid = require("src.gameplay.SimpleGrid")
 local SynergySystem = require("src.gameplay.SynergySystem")
+local ShellStyle = require("src.ui.ShellStyle")
 
 local tabs = {
     {label = "COLORS", key = "colors"},
@@ -19,11 +20,15 @@ local selectedEntry = 1
 local alpha = 0
 local entryRects = {}
 local tabRects = {}
+local backRect = nil
+local backHovered = false
+local navRects = {}
 
 local fontDisplay = nil
 local fontTitle = nil
 local fontUI = nil
 local fontMono = nil
+local bgShader = nil
 
 local colorEntries = {
     {
@@ -215,27 +220,6 @@ local function drawWrapped(text, x, y, w, lineH, color, font)
     return usedY
 end
 
-local function drawBracketButton(label, x, y, w, h, selected)
-    love.graphics.setColor(0, 0, 0, alpha * 0.48)
-    love.graphics.rectangle("fill", x, y, w, h)
-    love.graphics.setLineWidth(1.5)
-    if selected then
-        Theme.setColor("accent", alpha)
-    else
-        love.graphics.setColor(1, 1, 1, alpha * 0.14)
-    end
-    love.graphics.line(x + 12, y, x, y, x, y + 12)
-    love.graphics.line(x + 12, y + h, x, y + h, x, y + h - 12)
-    love.graphics.line(x + w - 12, y, x + w, y, x + w, y + 12)
-    love.graphics.line(x + w - 12, y + h, x + w, y + h, x + w, y + h - 12)
-
-    love.graphics.setFont(fontUI)
-    local tw = fontUI:getWidth(label)
-    local textColor = selected and Theme.color.fg1 or Theme.color.fg3
-    love.graphics.setColor(textColor[1], textColor[2], textColor[3], alpha)
-    love.graphics.print(label, x + w / 2 - tw / 2, y + h / 2 - fontUI:getHeight() / 2)
-end
-
 local function drawSynergyRecipe(recipe, x, y, w, h)
     local c = recipe.color
     h = h or 82
@@ -276,15 +260,15 @@ function AtlasState:enter()
     selectedEntry = 1
     entryRects = {}
     tabRects = {}
+    backRect = nil
+    backHovered = false
+    navRects = {}
+    bgShader = bgShader or ShellStyle.loadShader("AtlasState")
 end
 
 function AtlasState:update(dt)
     alpha = math.min(1, alpha + dt / 0.25)
-    local musicReactor = require("src.core.GameConfig").getMusicReactor()
-    if musicReactor then
-        musicReactor:update(dt)
-    end
-    SimpleGrid.update(dt, musicReactor)
+    ShellStyle.updateMusic(dt)
 end
 
 function AtlasState:draw()
@@ -292,35 +276,82 @@ function AtlasState:draw()
     local entries = activeEntries()
     local entry = entries[selectedEntry] or entries[1]
 
-    SimpleGrid.draw()
-    love.graphics.setColor(Theme.color.bgVoid[1], Theme.color.bgVoid[2], Theme.color.bgVoid[3], 0.9)
-    love.graphics.rectangle("fill", 0, 0, sw, sh)
+    ShellStyle.drawBackground(alpha, bgShader)
 
     local margin = 120
-    love.graphics.setFont(fontDisplay)
-    Theme.setColor("accent", alpha)
-    love.graphics.print("ATLAS", margin, 86)
+    ShellStyle.drawRgbTitle("ATLAS", margin, 86, fontDisplay, alpha)
 
     love.graphics.setFont(fontUI)
     Theme.setColor("fg3", alpha)
     love.graphics.print("Colors, optics, artifacts, and additive light rules", margin, 170)
 
-    tabRects = {}
+    local railButtons = {}
     for i, tab in ipairs(tabs) do
-        local x = margin + (i - 1) * 220
-        local y = 220
-        tabRects[i] = {x = x, y = y, w = 190, h = 44}
-        drawBracketButton(tab.label, x, y, 190, 44, i == selectedTab)
+        railButtons[#railButtons + 1] = {label = tab.label, action = "tab", tabIndex = i}
+    end
+    railButtons[#railButtons + 1] = {label = "BACK", action = "back"}
+
+    local railW = 296
+    local menuBottomLimit = sh - (sh * 0.1)
+    local bracketHeight = 44
+    local gap = 16
+    local menuCount = GameConfig.hasActiveRun() and 7 or 6
+    local menuStackHeight = menuCount * bracketHeight + (menuCount - 1) * gap
+    local menuStackStartY = menuBottomLimit - menuStackHeight
+    local quitY = menuStackStartY + (menuCount - 1) * (bracketHeight + gap)
+    local railY = quitY - (#railButtons - 1) * (bracketHeight + gap)
+
+    local titleText = "ATLAS"
+    local menuTitleText = "CHROMATIC"
+    local titleWidth = 0
+    local charGap = 10
+    for i = 1, #titleText do
+        local char = titleText:sub(i, i)
+        titleWidth = titleWidth + fontDisplay:getWidth(char)
+    end
+    titleWidth = titleWidth + (#titleText - 1) * charGap
+
+    local menuTitleWidth = 0
+    for i = 1, #menuTitleText do
+        local char = menuTitleText:sub(i, i)
+        menuTitleWidth = menuTitleWidth + fontDisplay:getWidth(char)
+    end
+    menuTitleWidth = menuTitleWidth + (#menuTitleText - 1) * charGap
+
+    local logoCenterX = margin + menuTitleWidth / 2
+    local menuCenter = logoCenterX
+    local barWidth = 56
+    local barGap = 4
+    local startX = 2
+    local barStep = barWidth + barGap
+    local centerCol = math.floor((menuCenter - startX) / barStep) + 1
+    local colStart = centerCol - 2
+    if colStart < 1 then colStart = 1 end
+    local colEnd = colStart + 4
+    if colEnd > 32 then
+        colEnd = 32
+        colStart = 32 - 4
     end
 
+    local railX = startX + (colStart - 1) * barStep
+    navRects = ShellStyle.layoutVerticalRail(railButtons, railX, railY, {buttonW = railW, buttonH = 44, gap = 16})
+    tabRects = {}
+    for i = 1, #tabs do
+        tabRects[i] = navRects[i]
+    end
+    backRect = navRects[#railButtons]
+    ShellStyle.drawVerticalRail(railButtons, navRects, backHovered and #railButtons or selectedTab, alpha, fontUI)
+
     local listX = margin
-    local listY = 305
     local listW = 360
     local rowH = 52
+    local listGap = 10
+    local listHeight = #entries * rowH + math.max(0, #entries - 1) * listGap
+    local listY = railY - listHeight - 8
     entryRects = {}
 
     for i, item in ipairs(entries) do
-        local y = listY + (i - 1) * (rowH + 10)
+        local y = listY + (i - 1) * (rowH + listGap)
         local selected = i == selectedEntry
         entryRects[i] = {x = listX, y = y, w = listW, h = rowH}
 
@@ -343,13 +374,9 @@ function AtlasState:draw()
     local panelW = sw - panelX - margin
     local panelH = 570
 
-    love.graphics.setColor(0, 0, 0, alpha * 0.5)
-    love.graphics.rectangle("fill", panelX, panelY, panelW, panelH)
+    ShellStyle.drawPanel(panelX, panelY, panelW, panelH, alpha, entry.color)
     love.graphics.setColor(entry.color[1], entry.color[2], entry.color[3], alpha * 0.18)
     love.graphics.rectangle("fill", panelX + 1, panelY + 1, panelW - 2, panelH - 2)
-    love.graphics.setColor(entry.color[1], entry.color[2], entry.color[3], alpha * 0.7)
-    love.graphics.setLineWidth(1.5)
-    love.graphics.rectangle("line", panelX, panelY, panelW, panelH)
 
     love.graphics.setFont(fontDisplay)
     love.graphics.setColor(entry.color[1], entry.color[2], entry.color[3], alpha)
@@ -410,9 +437,7 @@ function AtlasState:draw()
         end
     end
 
-    love.graphics.setFont(fontUI)
-    Theme.setColor("fg3", alpha * 0.9)
-    love.graphics.printf("LEFT / RIGHT tabs   UP / DOWN entries   ESC back", 0, sh - 82, sw, "center")
+    ShellStyle.drawFooter("LEFT / RIGHT tabs   UP / DOWN entries   ESC / BACK return", sh - 82, alpha)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setLineWidth(1)
 end
@@ -437,6 +462,19 @@ function AtlasState:keypressed(key)
 end
 
 function AtlasState:mousemoved(x, y)
+    backHovered = backRect and x >= backRect.x and x <= backRect.x + backRect.w and y >= backRect.y and y <= backRect.y + backRect.h
+    if backHovered then
+        return
+    end
+
+    for i, rect in ipairs(tabRects) do
+        if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then
+            selectedTab = i
+            selectedEntry = 1
+            return
+        end
+    end
+
     for i, rect in ipairs(entryRects) do
         if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then
             selectedEntry = i
@@ -447,6 +485,11 @@ end
 
 function AtlasState:mousepressed(x, y, button)
     if button ~= 1 then return end
+
+    if backRect and x >= backRect.x and x <= backRect.x + backRect.w and y >= backRect.y and y <= backRect.y + backRect.h then
+        require("src.core.StateManager").switch("Menu")
+        return
+    end
 
     for i, rect in ipairs(tabRects) do
         if x >= rect.x and x <= rect.x + rect.w and y >= rect.y and y <= rect.y + rect.h then

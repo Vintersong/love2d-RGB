@@ -7,6 +7,7 @@ local Theme = require("src.render.Theme")
 local MetaProgression = require("src.core.MetaProgression")
 local Icons = require("src.render.Icons")
 local ArtifactManager = require("src.gameplay.ArtifactManager")
+local ShellStyle = require("src.ui.ShellStyle")
 
 local buttons = {
     {label = "REPLAY TUTORIAL", action = "tutorial"},
@@ -19,6 +20,8 @@ local buttonRects = {}
 local artifactRects = {}
 local selectedArtifact = 1
 local focusArea = "artifacts"
+local bgShader = nil
+local RESET_PENALTY_RATE = 0.25
 
 local SHOP_ARTIFACTS = {
     {type = "PRISM", baseCost = 50},
@@ -42,31 +45,26 @@ local ARTIFACT_COLOR_KEYS = {
     SUPERNOVA = "warn",
 }
 
-local function drawPanel(x, y, w, h)
-    love.graphics.setColor(0, 0, 0, 0.55)
-    love.graphics.rectangle("fill", x, y, w, h, 14, 14)
-    love.graphics.setLineWidth(2)
-    local accent = Theme.color.accent
-    love.graphics.setColor(accent[1], accent[2], accent[3], 0.45)
-    love.graphics.rectangle("line", x, y, w, h, 14, 14)
+local function getArtifactCostMap()
+    local costs = {}
+    for _, item in ipairs(SHOP_ARTIFACTS) do
+        costs[item.type] = {baseCost = item.baseCost}
+    end
+    return costs
 end
 
 local function drawColorTheoryStrip(x, y, w, h, alpha)
     local accent = Theme.color.accent
 
     love.graphics.setColor(0, 0, 0, 0.34 * alpha)
-    love.graphics.rectangle("fill", x, y, w, h, 10, 10)
+    love.graphics.rectangle("fill", x, y, w, h, 6, 6)
     love.graphics.setColor(accent[1], accent[2], accent[3], 0.2 * alpha)
-    love.graphics.rectangle("line", x, y, w, h, 10, 10)
-
-    love.graphics.setFont(Theme.font("mono", 13))
-    love.graphics.setColor(accent[1], accent[2], accent[3], 0.9 * alpha)
-    love.graphics.print("COLOR THEORY", x + 18, y + 12)
+    love.graphics.rectangle("line", x, y, w, h, 6, 6)
 
     love.graphics.setFont(Theme.font("ui", 14))
     love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], 0.9 * alpha)
-    love.graphics.print("Pick two primaries. Their additive mix unlocks one secondary.", x + 190, y + 10)
-    love.graphics.print("Dominant color changes projectiles, dash, artifacts, and VFX.", x + 190, y + 30)
+    love.graphics.print("Pick two primaries. Their additive mix unlocks one secondary.", x + 18, y + 10)
+    love.graphics.print("Dominant color changes projectiles, dash, artifacts, and VFX.", x + 18, y + 30)
 
     local chipX = x + w - 372
     local chipY = y + 16
@@ -124,9 +122,9 @@ local function drawArtifactCard(item, x, y, w, h, isSelected, canAfford)
     end
 
     love.graphics.setColor(0, 0, 0, 0.45)
-    love.graphics.rectangle("fill", x, y, w, h, 10, 10)
+    love.graphics.rectangle("fill", x, y, w, h, 6, 6)
     love.graphics.setColor(color[1], color[2], color[3], item.level > 0 and 0.16 or 0.08)
-    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2, 10, 10)
+    love.graphics.rectangle("fill", x + 1, y + 1, w - 2, h - 2, 6, 6)
 
     love.graphics.setLineWidth(isSelected and 2 or 1)
     if isSelected then
@@ -134,7 +132,7 @@ local function drawArtifactCard(item, x, y, w, h, isSelected, canAfford)
     else
         love.graphics.setColor(color[1], color[2], color[3], 0.4)
     end
-    love.graphics.rectangle("line", x, y, w, h, 10, 10)
+    love.graphics.rectangle("line", x, y, w, h, 6, 6)
     love.graphics.setLineWidth(1)
 
     if Icons.has(iconName) then
@@ -172,9 +170,11 @@ function ProgressionState:enter(previous, data)
     self.notice = nil
     self.noticeColor = Theme.color.fg3
     self.noticeTimer = 0
+    bgShader = bgShader or ShellStyle.loadShader("ProgressionState")
 end
 
 function ProgressionState:update(dt)
+    ShellStyle.updateMusic(dt)
     self.alpha = math.min(1, self.alpha + dt * 3)
     if self.noticeTimer > 0 then
         self.noticeTimer = math.max(0, self.noticeTimer - dt)
@@ -184,32 +184,41 @@ end
 function ProgressionState:draw()
     local sw, sh = Config.screen.width, Config.screen.height
     local cx = sw / 2
+    local margin = sh * 0.1
 
-    love.graphics.clear(Theme.color.bgVoid[1], Theme.color.bgVoid[2], Theme.color.bgVoid[3], 1)
-    love.graphics.setColor(Theme.color.bgBase[1], Theme.color.bgBase[2], Theme.color.bgBase[3], 1)
-    love.graphics.rectangle("fill", 0, 0, sw, sh)
+    ShellStyle.drawBackground(self.alpha, bgShader)
 
-    local mainX, mainY, mainW, mainH = 240, 150, 1440, 800
-    drawPanel(mainX, mainY, mainW, mainH)
+    local mainX, mainY, mainW, mainH = 240, 190, 1440, 760
+    ShellStyle.drawPanel(mainX, mainY, mainW, mainH, self.alpha)
 
-    love.graphics.setFont(Theme.font("display", 72))
-    love.graphics.setColor(Theme.color.accent[1], Theme.color.accent[2], Theme.color.accent[3], self.alpha)
-    love.graphics.printf("PROGRESSION", 0, 58, sw, "center")
+    ShellStyle.drawRgbTitle("PROGRESSION", margin, margin, Theme.font("display", 72), self.alpha)
 
     love.graphics.setFont(Theme.font("uiBold", 24))
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
     love.graphics.print("UPGRADES", mainX + 70, mainY + 46)
 
+    local chromaText = string.format("Chroma: %d", MetaProgression.getChroma())
+    local chromaFont = Theme.font("uiSemiBold", 20)
+    local chromaW = chromaFont:getWidth(chromaText) + 32
+    local chromaX = mainX + mainW - 70 - chromaW
+    local chromaY = mainY + 38
+    love.graphics.setFont(chromaFont)
+    love.graphics.setColor(0, 0, 0, 0.55 * self.alpha)
+    love.graphics.rectangle("fill", chromaX, chromaY, chromaW, 36, 6, 6)
+    love.graphics.setColor(Theme.color.accent[1], Theme.color.accent[2], Theme.color.accent[3], 0.28 * self.alpha)
+    love.graphics.rectangle("line", chromaX, chromaY, chromaW, 36, 6, 6)
+    love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
+    love.graphics.print(chromaText, chromaX + 16, chromaY + 7)
+
     love.graphics.setFont(Theme.font("ui", 18))
     love.graphics.setColor(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], self.alpha)
-    love.graphics.print(string.format("Chroma: %d", MetaProgression.getChroma()), mainX + 70, mainY + 88)
-    love.graphics.print("Spend Chroma to unlock and upgrade future run artifacts.", mainX + 340, mainY + 88)
-    drawColorTheoryStrip(mainX + 70, mainY + 112, mainW - 140, 54, self.alpha)
+    love.graphics.print("Spend Chroma to unlock and upgrade future run artifacts.", mainX + 70, mainY + 92)
+    drawColorTheoryStrip(mainX + 70, mainY + 122, mainW - 140, 54, self.alpha)
 
     artifactRects = {}
-    local cardW, cardH = 420, 116
-    local cardGapX, cardGapY = 28, 20
-    local cardStartX, cardStartY = cx - (cardW * 2 + cardGapX) / 2, mainY + 176
+    local cardW, cardH = 420, 108
+    local cardGapX, cardGapY = 28, 18
+    local cardStartX, cardStartY = cx - (cardW * 2 + cardGapX) / 2, mainY + 192
 
     for index, shopItem in ipairs(SHOP_ARTIFACTS) do
         local definition = ArtifactManager.levelDefinitions[shopItem.type] or {}
@@ -241,42 +250,13 @@ function ProgressionState:draw()
         love.graphics.printf(self.notice, mainX + 180, mainY + 640, mainW - 360, "center")
     end
 
-    local buttonW, buttonH, gap = 260, 44, 18
-    local totalW = #buttons * buttonW + (#buttons - 1) * gap
-    local startX = cx - totalW / 2
-    local buttonY = mainY + mainH - 78
-    buttonRects = {}
-
-    for i, button in ipairs(buttons) do
-        local x = startX + (i - 1) * (buttonW + gap)
-        buttonRects[i] = {x = x, y = buttonY, w = buttonW, h = buttonH, action = button.action}
-
-        love.graphics.setColor(0, 0, 0, 0.45)
-        love.graphics.rectangle("fill", x, buttonY, buttonW, buttonH, 8, 8)
-        if focusArea == "buttons" and selectedButton == i then
-            local accent = Theme.color.accent
-            love.graphics.setColor(accent[1], accent[2], accent[3], 1)
-            love.graphics.setLineWidth(2)
-        else
-            love.graphics.setColor(1, 1, 1, 0.14)
-            love.graphics.setLineWidth(1)
-        end
-        love.graphics.rectangle("line", x, buttonY, buttonW, buttonH, 8, 8)
-
-        love.graphics.setFont(Theme.font("uiSemiBold", 18))
-        if focusArea == "buttons" and selectedButton == i then
-            love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
-        else
-            love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], 1)
-        end
-        love.graphics.printf(button.label, x, buttonY + 10, buttonW, "center")
-    end
+    local buttonY = sh - 150
+    buttonRects = ShellStyle.layoutActionRow(buttons, cx, buttonY)
+    ShellStyle.drawActionRow(buttons, buttonRects, focusArea == "buttons" and selectedButton or nil, self.alpha, Theme.font("uiSemiBold", 18))
 
     love.graphics.setLineWidth(1)
 
-    love.graphics.setFont(Theme.font("ui", 16))
-    love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], self.alpha)
-    love.graphics.printf("ENTER / SPACE to buy or activate   |   TAB / UP / DOWN to switch sections   |   ESC to return", 0, sh - 76, sw, "center")
+    ShellStyle.drawFooter("ENTER / SPACE to buy or activate   |   TAB / UP / DOWN to switch sections   |   ESC to return", sh - 76, self.alpha)
 end
 
 local function buttonAt(x, y)
@@ -337,17 +317,38 @@ end
 
 function ProgressionState:openConfirm()
     local StateManager = require("src.core.StateManager")
+    local refundPreview = MetaProgression.getArtifactRefundPreview(getArtifactCostMap(), RESET_PENALTY_RATE)
+    local message
+    if refundPreview.invested > 0 then
+        message = string.format(
+            "Reset profile and disable all artifact upgrades? Artifact Chroma spent: %d. Refund: %d after %d reset penalty.",
+            refundPreview.invested,
+            refundPreview.refund,
+            refundPreview.penalty
+        )
+    else
+        message = "Reset profile and disable all artifact upgrades? No artifact Chroma is available to refund."
+    end
+
     StateManager.push("Confirm", {
         title = "RESET PROFILE",
-        message = "This clears the persistent profile, discovered colors, artifacts, and tutorial completion.",
+        message = message,
         yesLabel = "RESET",
         noLabel = "CANCEL",
         onConfirm = function()
-            MetaProgression.reset()
+            local result = MetaProgression.reset({
+                refundArtifacts = true,
+                artifactCosts = getArtifactCostMap(),
+                penaltyRate = RESET_PENALTY_RATE,
+            })
+            ArtifactManager.reset()
             self.profile = MetaProgression.getProfile()
             selectedArtifact = 1
             focusArea = "artifacts"
-            self:flashNotice("Profile reset. Artifact inventory cleared.", Theme.color.warn)
+            self:flashNotice(
+                string.format("Profile reset. Artifacts disabled. Refunded %d Chroma, penalty %d.", result.refund, result.penalty),
+                Theme.color.warn
+            )
         end,
     })
 end

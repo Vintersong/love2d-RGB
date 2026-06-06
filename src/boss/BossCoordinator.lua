@@ -8,6 +8,8 @@ local CollisionSystem = require("src.combat.CollisionSystem")
 local GameConfig = require("src.core.GameConfig")
 local Config = require("src.Config")
 local EconomySystem = require("src.economy.EconomySystem")
+local RunSummary = require("src.core.RunSummary")
+local SpawnController = require("src.spawning.SpawnController")
 
 BossCoordinator.bossProjectiles = {}
 
@@ -90,36 +92,34 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
         else
             -- Check collision with player using CollisionSystem
             if CollisionSystem.checkBossProjectilePlayerCollision(proj, player) then
-                if not player.invulnerable then
-                    player.hp = player.hp - proj.damage
-                    player.invulnerable = true
-                    player.invulnerableTime = 0.5
-                    player.damageFlashTime = 0.1
-
-                    if player.hp <= 0 then
-                        player.hp = 0
-                        local StateManager = require("src.core.StateManager")
-                        StateManager.switch("GameOver", {
+                local died = player:takeDamage(proj.damage or 0, proj, {
+                    enemies = enemies,
+                    onEnemyKilled = function(target)
+                        if state then
+                            SpawnController.handleEnemyDeath(target, player, state.xpOrbs or {}, state.powerups or {})
+                        end
+                    end,
+                })
+                if died then
+                    local StateManager = require("src.core.StateManager")
+                    StateManager.switch("GameOver", {
+                        player = player,
+                        enemies = enemies,
+                        xpOrbs = state and state.xpOrbs or {},
+                        powerups = state and state.powerups or {},
+                        explosions = state and state.explosions or {},
+                        bossProjectiles = state and state.bossProjectiles or {},
+                        supernovaEffects = state and state.supernovaEffects or {},
+                        gameTime = state and state.gameTime or 0,
+                        enemyKillCount = state and state.enemyKillCount or 0,
+                        musicReactor = musicReactor,
+                        summary = RunSummary.build("defeat", state or {
                             player = player,
                             enemies = enemies,
-                            xpOrbs = state and state.xpOrbs or {},
-                            powerups = state and state.powerups or {},
-                            explosions = state and state.explosions or {},
-                            bossProjectiles = state and state.bossProjectiles or {},
-                            supernovaEffects = state and state.supernovaEffects or {},
-                            gameTime = state and state.gameTime or 0,
-                            enemyKillCount = state and state.enemyKillCount or 0,
                             musicReactor = musicReactor,
-                            summary = RunSummary.build("defeat", state or {
-                                player = player,
-                                enemies = enemies,
-                                musicReactor = musicReactor,
-                            })
                         })
-                        return
-                    end
-                elseif player.onInvulnerableHit then
-                    pcall(player.onInvulnerableHit, player, proj.damage or 0, "boss_projectile")
+                    })
+                    return
                 end
                 table.remove(BossCoordinator.bossProjectiles, i)
             end

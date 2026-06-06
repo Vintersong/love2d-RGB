@@ -4,6 +4,7 @@
 local ConfirmState = {}
 local Config = require("src.Config")
 local Theme = require("src.render.Theme")
+local ShellStyle = require("src.ui.ShellStyle")
 
 local hovered = nil
 local optionRects = {}
@@ -60,38 +61,16 @@ function ConfirmState:draw()
     love.graphics.printf(self.message, panelX + 40, panelY + 90, panelW - 80, "center")
 
     local btnY = panelY + panelH - 72
-    local btnW = 180
-    local btnH = 44
-    local gap = 20
-    local startX = cx - btnW - gap / 2
-
     local buttons = {
-        {label = self.yesLabel, action = "confirm", x = startX, y = btnY, w = btnW, h = btnH},
-        {label = self.noLabel, action = "cancel", x = cx + gap / 2, y = btnY, w = btnW, h = btnH},
+        {label = self.yesLabel, action = "confirm"},
+        {label = self.noLabel, action = "cancel"},
     }
 
-    optionRects = buttons
+    optionRects = ShellStyle.layoutActionRow(buttons, cx, btnY)
     for i, button in ipairs(buttons) do
+        local rect = optionRects[i]
         local isSelected = self.selected == i or hovered == i
-        love.graphics.setColor(0, 0, 0, 0.5 * alpha)
-        love.graphics.rectangle("fill", button.x, button.y, button.w, button.h, 8, 8)
-
-        if isSelected then
-            love.graphics.setLineWidth(2)
-            love.graphics.setColor(accent[1], accent[2], accent[3], alpha)
-        else
-            love.graphics.setLineWidth(1)
-            love.graphics.setColor(1, 1, 1, 0.15 * alpha)
-        end
-        love.graphics.rectangle("line", button.x, button.y, button.w, button.h, 8, 8)
-
-        love.graphics.setFont(Theme.font("uiSemiBold", 18))
-        if isSelected then
-            love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], alpha)
-        else
-            love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], alpha)
-        end
-        love.graphics.printf(button.label, button.x, button.y + 10, button.w, "center")
+        ShellStyle.drawBracketButton(button.label, rect.x, rect.y, rect.w, rect.h, isSelected, alpha, Theme.font("uiSemiBold", 18))
     end
 
     love.graphics.setLineWidth(1)
@@ -109,10 +88,10 @@ end
 function ConfirmState:confirm()
     local StateManager = require("src.core.StateManager")
     local callback = self.onConfirm
-    StateManager.pop()
     if callback then
         callback()
     end
+    StateManager.pop()
 end
 
 function ConfirmState:cancel()

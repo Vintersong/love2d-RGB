@@ -5,6 +5,7 @@ local TutorialState = {}
 local Config = require("src.Config")
 local Theme = require("src.render.Theme")
 local MetaProgression = require("src.core.MetaProgression")
+local ShellStyle = require("src.ui.ShellStyle")
 
 local defaultPages = {
     {
@@ -51,21 +52,13 @@ local defaultPages = {
 
 local buttons = {
     {label = "PREV", action = "prev"},
+    {label = "BACK", action = "back"},
     {label = "NEXT", action = "next"},
-    {label = "EXIT", action = "exit"},
 }
 
 local buttonRects = {}
 local selectedButton = 1
-
-local function drawPanel(x, y, w, h)
-    love.graphics.setColor(0, 0, 0, 0.55)
-    love.graphics.rectangle("fill", x, y, w, h, 16, 16)
-    love.graphics.setLineWidth(2)
-    local accent = Theme.color.accent
-    love.graphics.setColor(accent[1], accent[2], accent[3], 0.45)
-    love.graphics.rectangle("line", x, y, w, h, 16, 16)
-end
+local bgShader = nil
 
 local function wrapText(lines)
     local out = {}
@@ -128,11 +121,13 @@ function TutorialState:enter(previous, data)
     self.page = 1
     self.alpha = 0
     self.autoMarked = false
-    selectedButton = 2
+    selectedButton = 3
     buttonRects = {}
+    bgShader = bgShader or ShellStyle.loadShader("TutorialState")
 end
 
 function TutorialState:update(dt)
+    ShellStyle.updateMusic(dt)
     self.alpha = math.min(1, self.alpha + dt * 3)
 end
 
@@ -157,23 +152,21 @@ end
 function TutorialState:draw()
     local sw, sh = Config.screen.width, Config.screen.height
     local cx = sw / 2
+    local margin = sh * 0.1
 
-    love.graphics.clear(Theme.color.bgVoid[1], Theme.color.bgVoid[2], Theme.color.bgVoid[3], 1)
-    love.graphics.setColor(Theme.color.bgBase[1], Theme.color.bgBase[2], Theme.color.bgBase[3], 1)
-    love.graphics.rectangle("fill", 0, 0, sw, sh)
+    ShellStyle.drawBackground(self.alpha, bgShader)
 
-    local panelW, panelH = 1180, 620
-    local panelX, panelY = cx - panelW / 2, 170
-    drawPanel(panelX, panelY, panelW, panelH)
+    local titleFont = Theme.font("display", 72)
+    ShellStyle.drawRgbTitle(self.title or "TUTORIAL", margin, margin, titleFont, self.alpha)
 
-    love.graphics.setFont(Theme.font("display", 72))
-    love.graphics.setColor(Theme.color.accent[1], Theme.color.accent[2], Theme.color.accent[3], self.alpha)
-    love.graphics.printf(self.title or "TUTORIAL", 0, 68, sw, "center")
+    local panelW, panelH = 1180, 590
+    local panelX, panelY = cx - panelW / 2, 218
+    ShellStyle.drawPanel(panelX, panelY, panelW, panelH, self.alpha)
 
     local page = self.pages[self.page] or self.pages[1] or {title = "", body = {}}
     love.graphics.setFont(Theme.font("uiBold", 28))
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
-    love.graphics.printf(page.title or "", panelX + 50, panelY + 40, panelW - 100, "center")
+    love.graphics.print(page.title or "", panelX + 50, panelY + 42)
 
     love.graphics.setLineWidth(2)
     local accent = Theme.color.accent
@@ -186,7 +179,7 @@ function TutorialState:draw()
     local bodyY = panelY + 150
     local bodyLineHeight = 40
     for i, line in ipairs(body) do
-        love.graphics.printf(line, panelX + 90, bodyY + (i - 1) * bodyLineHeight, panelW - 180, "center")
+        love.graphics.printf(line, panelX + 90, bodyY + (i - 1) * bodyLineHeight, panelW - 180, "left")
     end
 
     local indicator = string.format("%d / %d", self.page, #self.pages)
@@ -194,57 +187,21 @@ function TutorialState:draw()
     love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], self.alpha)
     love.graphics.printf(indicator, panelX, panelY + panelH - 54, panelW, "center")
 
-    local buttonW, buttonH, gap = 160, 42, 18
-    local navLeftX = cx - gap / 2 - buttonW
-    local navRightX = cx + gap / 2
-    local buttonY = panelY + panelH - 104
-    local exitY = panelY + panelH + 18
-    buttonRects = {}
+    local buttonY = sh - 150
+    buttonRects = ShellStyle.layoutActionRow(buttons, cx, buttonY)
 
     for i, button in ipairs(buttons) do
-        local x
-        local y
-        if button.action == "exit" then
-            x = cx - buttonW / 2
-            y = exitY
-        else
-            x = (button.action == "prev") and navLeftX or navRightX
-            y = buttonY
-        end
-
-        buttonRects[i] = {x = x, y = y, w = buttonW, h = buttonH, action = button.action}
-
-        local active = i == selectedButton
-        love.graphics.setColor(0, 0, 0, 0.5 * self.alpha)
-        love.graphics.rectangle("fill", x, y, buttonW, buttonH, 8, 8)
-        if active then
-            local c = Theme.color.accent
-            love.graphics.setColor(c[1], c[2], c[3], self.alpha)
-            love.graphics.setLineWidth(2)
-        else
-            love.graphics.setColor(1, 1, 1, 0.15 * self.alpha)
-            love.graphics.setLineWidth(1)
-        end
-        love.graphics.rectangle("line", x, y, buttonW, buttonH, 8, 8)
-
-        love.graphics.setFont(Theme.font("uiSemiBold", 18))
-        if active then
-            love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], self.alpha)
-        else
-            love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], self.alpha)
-        end
-        love.graphics.printf(button.label, x, y + 10, buttonW, "center")
+        local rect = buttonRects[i]
+        ShellStyle.drawBracketButton(button.label, rect.x, rect.y, rect.w, rect.h, i == selectedButton, self.alpha, Theme.font("uiSemiBold", 18))
     end
 
     local footer
     if self.mode == "onboarding" then
-        footer = "LEFT / RIGHT  Navigate   |   ENTER / SPACE  Begin Run   |   ESC  Skip"
+        footer = "LEFT / RIGHT  Navigate   |   ENTER / SPACE  Select   |   ESC  Back"
     else
-        footer = "LEFT / RIGHT  Navigate   |   ENTER / SPACE  Return   |   ESC  Exit"
+        footer = "LEFT / RIGHT  Navigate   |   ENTER / SPACE  Select   |   ESC  Back"
     end
-    love.graphics.setFont(Theme.font("ui", 16))
-    love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], self.alpha)
-    love.graphics.printf(footer, 0, sh - 84, sw, "center")
+    ShellStyle.drawFooter(footer, sh - 84, self.alpha)
 end
 
 function TutorialState:keypressed(key)
@@ -261,16 +218,16 @@ function TutorialState:keypressed(key)
         else
             self.page = 1
         end
-        selectedButton = 2
+        selectedButton = 3
     elseif key == "escape" then
         self:exitTutorial()
     elseif key == "return" or key == "space" then
         if selectedButton == 1 then
             self:keypressed("left")
         elseif selectedButton == 2 then
-            self:keypressed("right")
-        elseif selectedButton == 3 then
             self:exitTutorial()
+        elseif selectedButton == 3 then
+            self:keypressed("right")
         end
     end
 end
@@ -296,9 +253,9 @@ function TutorialState:mousepressed(x, y, button)
     if index == 1 then
         self:keypressed("left")
     elseif index == 2 then
-        self:keypressed("right")
-    elseif index == 3 then
         self:exitTutorial()
+    elseif index == 3 then
+        self:keypressed("right")
     end
 end
 

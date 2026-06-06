@@ -9,6 +9,7 @@ local StateManager = require("src.core.StateManager")
 local SFXLibrary = require("src.audio.SFXLibrary")
 local Settings = require("src.core.Settings")
 local Theme = require("src.render.Theme")
+local ShellStyle = require("src.ui.ShellStyle")
 
 local OPTIONS_GRID_CELL_HEIGHT = 12
 
@@ -377,12 +378,7 @@ function OptionsState:draw()
     local rightH = screenHeight - rightY - margin
     
     -- Tech panel backing
-    love.graphics.setColor(0.01, 0.01, 0.015, alpha * 0.8)
-    love.graphics.rectangle("fill", rightX, rightY, rightW, rightH, 12, 12)
-    
-    love.graphics.setLineWidth(2)
-    love.graphics.setColor(0, 0.85, 1, alpha * 0.25)
-    love.graphics.rectangle("line", rightX, rightY, rightW, rightH, 12, 12)
+    ShellStyle.drawPanel(rightX, rightY, rightW, rightH, alpha, Theme.color.accent)
     
     -- Sub-title inside right panel
     love.graphics.setFont(subtitleFont)

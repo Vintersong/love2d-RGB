@@ -128,7 +128,7 @@ local CARD_DEFS = {
         isSecondary = false,
         isIntensityFn = function(CS) return CS.primary.GREEN and CS.primary.GREEN.level >= 9 end,
         initial   = {"Bounce Shot", "60-100% chance", "to chain"},
-        normal    = {"+8% bounce", "+3 damage", "More chains!"},
+        normal    = {"+10% bounce chance", "+3 damage", "Every 10: +1 bounce"},
         intensity = {"INTENSITY!", "+1 bounce", "Chain master!"},
     },
     {
@@ -137,7 +137,7 @@ local CARD_DEFS = {
         isSecondary = false,
         isIntensityFn = function(CS) return CS.primary.BLUE and CS.primary.BLUE.level >= 9 end,
         initial   = {"Pierce Shot", "2-5 pierces", "per projectile"},
-        normal    = {"+1 pierce", "+3 damage", "More punch!"},
+        normal    = {"+10% pierce chance", "+3 damage", "Every 10: +1 pierce"},
         intensity = {"INTENSITY!", "+2 pierce", "Ultra punch!"},
     },
     {

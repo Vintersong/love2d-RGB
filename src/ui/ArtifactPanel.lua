@@ -551,6 +551,9 @@ function ArtifactPanel.getArtifactEffectDescription(artifactType, level, player)
     elseif artifactType == "LENS" then
         local bonus = player.weapon.lensBonus or 0
         return string.format("Damage: +%.0f%%", bonus * 100)
+    elseif artifactType == "AURORA" then
+        local regen = player.auroraRegen or 0
+        return regen > 0 and string.format("Regen: %.0f HP/s", regen) or "Health regeneration"
     elseif artifactType == "DIFFRACTION" then
         local diffLevel = player.diffractionLevel or 0
         return diffLevel > 0 and string.format("Burst patterns (Lv %d)", diffLevel) or "Burst patterns"
@@ -562,7 +565,7 @@ function ArtifactPanel.getArtifactEffectDescription(artifactType, level, player)
         return novaLevel > 0 and string.format("Ultimate (Lv %d)", novaLevel) or "Ultimate ability"
     end
 
-    return "TODO: effect description pending"
+    return "Passive artifact"
 end
 
 return ArtifactPanel

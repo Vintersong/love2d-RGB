@@ -24,7 +24,6 @@ local artifactColors = {
     LENS = Theme.color.blue,
     AURORA = Theme.color.green,
     DIFFRACTION = Theme.color.red,
-    DIFFUSION = Theme.color.red,
     REFRACTION = Theme.color.accent,
     SUPERNOVA = Theme.color.warn,
 }

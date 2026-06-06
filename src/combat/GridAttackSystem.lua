@@ -390,8 +390,4 @@ function GridAttackSystem.getActiveCellCount()
 end
 
 -- Manual trigger for testing
-function GridAttackSystem.triggerTestWave()
-    GridAttackSystem.triggerWave(0.8)
-end
-
 return GridAttackSystem

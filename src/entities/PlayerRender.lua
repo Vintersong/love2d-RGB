@@ -28,14 +28,8 @@ local function drawPrismHexBody(size, color, rotation, gapScale)
     local facetGap = size * (gapScale or 0.08)
     local innerRadius = size * 0.34
     local outerRadius = size * 0.92
-    local glowRadius = size * 1.1
     local facetColor = blendTowardsWhite(color, 0.12)
     local coreColor = blendTowardsWhite(color, 0.7)
-
-    love.graphics.setBlendMode("add")
-    love.graphics.setColor(color[1], color[2], color[3], 0.18)
-    love.graphics.circle("fill", 0, 0, glowRadius)
-    love.graphics.setBlendMode("alpha")
 
     love.graphics.push()
     love.graphics.rotate(rotation or 0)

@@ -172,29 +172,6 @@ ArtifactManager.levelDefinitions = {
         }
     },
     
-    DIFFUSION = {
-        name = "Diffusion",
-        description = "Spreads and softens projectile effects",
-        maxLevel = 5,
-        levelEffects = {
-            [1] = {desc = "Basic diffusion effect", effect = function(weapon, player) 
-                weapon.diffusionBonus = (weapon.diffusionBonus or 0) + 1
-            end},
-            [2] = {desc = "Enhanced diffusion", effect = function(weapon, player) 
-                weapon.diffusionBonus = (weapon.diffusionBonus or 0) + 1
-            end},
-            [3] = {desc = "Strong diffusion", effect = function(weapon, player) 
-                weapon.diffusionBonus = (weapon.diffusionBonus or 0) + 1
-            end},
-            [4] = {desc = "Advanced diffusion", effect = function(weapon, player) 
-                weapon.diffusionBonus = (weapon.diffusionBonus or 0) + 2
-            end},
-            [5] = {desc = "Maximum diffusion (MAX)", effect = function(weapon, player) 
-                weapon.diffusionBonus = (weapon.diffusionBonus or 0) + 3
-            end}
-        }
-    },
-    
     REFRACTION = {
         name = "Refraction",
         description = "Bends projectile paths (spiral/orbital)",

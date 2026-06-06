@@ -29,9 +29,6 @@ function Weapon:init(weaponType)
     self.dotDuration = 0
     self.dotDamage = 0
     
-    -- Legacy attributes (unused)
-    self.maxBounces = 0
-    self.maxPierceCount = 0
 end
 
 function Weapon:update(dt)

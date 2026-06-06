@@ -7,7 +7,7 @@ local Config = require("src.Config")
 
 local FILE = "progression.lua"
 
-local profile = {
+local DEFAULT_PROFILE = {
     runs = 0,
     victories = 0,
     defeats = 0,
@@ -20,7 +20,11 @@ local profile = {
         artifacts = {},
     },
     ownedArtifacts = {},
+    artifactInvestment = {},
+    artifactPurchases = 0,
 }
+
+local profile = nil
 
 local function deepcopy(value)
     if type(value) ~= "table" then
@@ -34,8 +38,10 @@ local function deepcopy(value)
     return out
 end
 
+profile = deepcopy(DEFAULT_PROFILE)
+
 local function ensureProfileShape(data)
-    local result = deepcopy(profile)
+    local result = deepcopy(DEFAULT_PROFILE)
     if type(data) ~= "table" then
         return result
     end
@@ -65,12 +71,33 @@ local function ensureProfileShape(data)
     if type(data.ownedArtifacts) == "table" then
         result.ownedArtifacts = {}
         for key, value in pairs(data.ownedArtifacts) do
+            local artifactKey = type(key) == "string" and key:upper() or key
             if value == true then
-                result.ownedArtifacts[key] = 1
+                result.ownedArtifacts[artifactKey] = 1
             elseif type(value) == "number" then
-                result.ownedArtifacts[key] = math.max(0, math.floor(value))
+                result.ownedArtifacts[artifactKey] = math.max(0, math.floor(value))
             end
         end
+    end
+
+    if type(data.artifactInvestment) == "table" then
+        result.artifactInvestment = {}
+        for key, value in pairs(data.artifactInvestment) do
+            if type(value) == "number" then
+                local artifactKey = type(key) == "string" and key:upper() or key
+                result.artifactInvestment[artifactKey] = math.max(0, math.floor(value))
+            end
+        end
+    end
+
+    if type(data.artifactPurchases) == "number" then
+        result.artifactPurchases = math.max(0, math.floor(data.artifactPurchases))
+    else
+        local inferredPurchases = 0
+        for _, level in pairs(result.ownedArtifacts or {}) do
+            inferredPurchases = inferredPurchases + math.max(0, math.floor(level or 0))
+        end
+        result.artifactPurchases = inferredPurchases
     end
 
     return result
@@ -168,9 +195,52 @@ function MetaProgression.save()
     end
 end
 
-function MetaProgression.reset()
-    profile = ensureProfileShape(nil)
+local function getArtifactInvestment(artifactCosts)
+    local total = 0
+    local investedByArtifact = profile.artifactInvestment or {}
+
+    for artifactType in pairs(profile.ownedArtifacts or {}) do
+        local ledgerValue = math.max(0, math.floor(investedByArtifact[artifactType] or 0))
+        total = total + ledgerValue
+    end
+    return math.floor(total)
+end
+
+function MetaProgression.getArtifactRefundPreview(artifactCosts, penaltyRate)
+    penaltyRate = math.max(0, math.min(1, tonumber(penaltyRate) or 0))
+    local invested = getArtifactInvestment(artifactCosts)
+    local penalty = math.floor(invested * penaltyRate)
+    return {
+        invested = invested,
+        penalty = penalty,
+        refund = math.max(0, invested - penalty),
+        currentChroma = MetaProgression.getChroma(),
+    }
+end
+
+function MetaProgression.reset(options)
+    options = options or {}
+    local preview = MetaProgression.getArtifactRefundPreview(options.artifactCosts, options.penaltyRate)
+    local carryChroma = options.refundArtifacts and (preview.currentChroma + preview.refund) or 0
+
+    local nextProfile = ensureProfileShape(nil)
+    for key in pairs(profile) do
+        profile[key] = nil
+    end
+    for key, value in pairs(nextProfile) do
+        profile[key] = value
+    end
+    profile.chroma = carryChroma
     MetaProgression.save()
+    preview.newBalance = MetaProgression.getChroma()
+    print(string.format(
+        "[MetaProgression] Reset profile: invested=%d refund=%d penalty=%d balance=%d",
+        preview.invested,
+        preview.refund,
+        preview.penalty,
+        preview.newBalance
+    ))
+    return preview
 end
 
 function MetaProgression.getProfile()
@@ -217,6 +287,10 @@ function MetaProgression.getChroma()
     return math.max(0, math.floor(profile.chroma or 0))
 end
 
+function MetaProgression.getArtifactPurchaseCount()
+    return math.max(0, math.floor(profile.artifactPurchases or 0))
+end
+
 function MetaProgression.awardChroma(amount)
     amount = math.max(0, math.floor(amount or 0))
     if amount <= 0 then
@@ -246,7 +320,9 @@ end
 function MetaProgression.getNextArtifactCost(artifactType, baseCost)
     local level = MetaProgression.getArtifactLevel(artifactType)
     baseCost = math.max(0, math.floor(baseCost or 0))
-    return baseCost * (level + 1)
+    local purchases = MetaProgression.getArtifactPurchaseCount()
+    local globalMultiplier = 1 + purchases * 0.25 + purchases * purchases * 0.03
+    return math.max(1, math.floor(baseCost * (level + 1) * globalMultiplier + 0.5))
 end
 
 function MetaProgression.purchaseArtifactLevel(artifactType, baseCost, maxLevel)
@@ -269,6 +345,9 @@ function MetaProgression.purchaseArtifactLevel(artifactType, baseCost, maxLevel)
 
     local newLevel = currentLevel + 1
     profile.ownedArtifacts[artifactType] = newLevel
+    profile.artifactPurchases = MetaProgression.getArtifactPurchaseCount() + 1
+    profile.artifactInvestment = profile.artifactInvestment or {}
+    profile.artifactInvestment[artifactType] = math.max(0, math.floor(profile.artifactInvestment[artifactType] or 0)) + cost
     MetaProgression.save()
     return true, nil, newLevel, cost
 end

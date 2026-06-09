@@ -14,6 +14,7 @@ local MetaProgression = require("src.core.MetaProgression")
 -- Game systems (initialized once)
 local MusicReactor = require("src.audio.MusicReactor")
 local ColorSystem = require("src.gameplay.ColorSystem")
+local ColorEconomy = require("src.gameplay.ColorEconomy")
 local World = require("src.gameplay.World")
 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
 local VFXLibrary = require("src.effects.VFXLibrary")
@@ -122,6 +123,7 @@ function love.load(args)
 
     -- Register systems for validation
     BootLoader.registerSystem("ColorSystem", ColorSystem, {"init", "getDominantColor", "getProjectileColor"})
+    BootLoader.registerSystem("ColorEconomy", ColorEconomy, {"init", "classify", "registerKill", "update"})
     BootLoader.registerSystem("World", World, {"init", "update", "draw"})
     BootLoader.registerSystem("FloatingTextSystem", FloatingTextSystem, {"init"})
     BootLoader.registerSystem("VFXLibrary", VFXLibrary, {"clear"})
@@ -170,6 +172,7 @@ function love.load(args)
 
     -- Initialize systems with error handling
     BootLoader.initializeSystem("ColorSystem", ColorSystem.init)
+    BootLoader.initializeSystem("ColorEconomy", ColorEconomy.init)
     BootLoader.initializeSystem("World", World.init)
     BootLoader.initializeSystem("FloatingTextSystem", FloatingTextSystem.init)
     BootLoader.initializeSystem("VFXLibrary", VFXLibrary.clear)

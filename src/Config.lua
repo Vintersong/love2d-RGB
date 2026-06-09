@@ -65,6 +65,52 @@ local Config = {
         },
     },
 
+    -- ------------------------------------------------------------------
+    -- Color economy (moment-to-moment XP routing). Enemies carry a color
+    -- affinity (RED/GREEN/BLUE) derived from their music archetype; killing
+    -- enemies that match the player's committed colors pays more XP. The
+    -- economy only activates once the player has locked both primaries.
+    -- All tunables live here — logic files read these, never hardcode.
+    -- ------------------------------------------------------------------
+    colorEconomy = {
+        -- Music archetype -> affinity (Enemy.frequencyType is lowercase).
+        -- "full" is the fallback for boss / non-banded enemies.
+        archetypeAffinity = {
+            bass   = "RED",
+            mids   = "GREEN",
+            treble = "BLUE",
+            full   = "RED",
+        },
+        -- XP multiplier by kill classification.
+        xpMult = {
+            dominant  = 1.5,  -- affinity == current dominant committed primary
+            committed = 1.0,  -- affinity == the other committed primary
+            off       = 0.5,  -- affinity == locked-out third primary (floor)
+            preCommit = 1.0,  -- economy inactive (both primaries not yet locked)
+        },
+        -- Dominant-match streak: every `perMilestone` consecutive dominant
+        -- kills adds `bonusPerMilestone` to the dominant multiplier, up to
+        -- `maxBonus` (so 1.5 + 0.5 = 2.0x ceiling). Off-color kills reset it.
+        streak = {
+            perMilestone      = 10,
+            bonusPerMilestone = 0.1,
+            maxBonus          = 0.5,
+        },
+        -- Clamp any single affinity to <= this fraction of live enemies per
+        -- spawn pulse, so a bass-heavy track never makes a commitment wrong.
+        affinityClampPct = 0.5,
+    },
+
+    -- Boss progress meter (HUD). Surfaces SpawnController.enemyKillCount as a
+    -- thin glass panel filling toward the next boss wave.
+    bossMeter = {
+        bossInterval   = 100,  -- kills per boss (mirrors SpawnController trigger)
+        pulseThreshold = 90,   -- kills-into-cycle at which the meter pulses on beat
+        pulseScale     = 0.4,  -- extra brightness/scale driven by beatIntensity
+        width          = 320,
+        height         = 14,
+    },
+
     -- Post-FX shader settings
     postFX = {
         bloomEnabled = true,

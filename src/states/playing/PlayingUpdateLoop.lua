@@ -39,6 +39,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
     World.update(dt, state.musicReactor)
     flux.update(dt)
     FloatingTextSystem.update(dt)
+    require("src.gameplay.ColorEconomy").update(dt)
     VFXLibrary.update(dt)
     VFXLibrary.updateImpactBursts(dt)
 

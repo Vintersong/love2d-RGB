@@ -100,6 +100,23 @@ function PlayingInputHandlers.keypressed(state, key, deps)
         local playerCenterY = state.player.y + state.player.height / 2
         table.insert(state.xpOrbs, XPParticleSystem.new(playerCenterX, playerCenterY, 40))
         print("[DEBUG] Spawned large XP particle orb (40 XP)")
+    elseif debugEnabled and key == "f6" then
+        -- Cycle the first live enemy's color-economy affinity (RED->GREEN->BLUE).
+        local cycle = {RED = "GREEN", GREEN = "BLUE", BLUE = "RED"}
+        for _, enemy in ipairs(state.enemies) do
+            if not enemy.dead then
+                enemy.affinity = cycle[enemy.affinity] or "RED"
+                print("[DEBUG] Enemy affinity -> " .. enemy.affinity)
+                break
+            end
+        end
+    elseif debugEnabled and key == "f7" then
+        local s = require("src.gameplay.ColorEconomy").getState()
+        print("[DEBUG] Color Economy State:")
+        print(string.format("  active=%s  dominantPrimary=%s  secondaryUnlocked=%s",
+            tostring(s.active), tostring(s.dominantPrimary), tostring(s.secondaryUnlocked)))
+        print(string.format("  streak=%d (+%.1fx)  mults: dominant=%.1f committed=%.1f off=%.1f",
+            s.streak, s.streakBonus, s.dominantMult, s.committedMult, s.offMult))
     elseif debugEnabled and key == "f11" then
         local primaryChance = state:calculateDropChance("primary", state.player.level, state.gameTime)
         local secondaryChance = state:calculateDropChance("secondary", state.player.level, state.gameTime)

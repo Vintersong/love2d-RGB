@@ -101,7 +101,15 @@ function PickupSystem.calculateDropChance(orbType, playerLevel, time)
     return math.min(total, cap)
 end
 
-function PickupSystem.spawnOrbsForEnemy(enemy, player, gameTime, screenWidth, screenHeight)
+-- `xpMultiplier` (optional, default 1.0) scales each orb's XP value for the
+-- color economy. Results round UP and never drop to zero — an off-color kill is
+-- penalized, not worthless. Powerup/artifact-orb drops are unaffected.
+function PickupSystem.spawnOrbsForEnemy(enemy, player, gameTime, screenWidth, screenHeight, xpMultiplier)
+    xpMultiplier = xpMultiplier or 1.0
+    local function xpValue(base)
+        return math.max(1, math.ceil(base * xpMultiplier))
+    end
+
     local orbX = enemy.x + enemy.width / 2
     local orbY = enemy.y + enemy.height / 2
 
@@ -117,7 +125,7 @@ function PickupSystem.spawnOrbsForEnemy(enemy, player, gameTime, screenWidth, sc
     local orbs = {}
 
     -- Always spawn basic XP particle orb
-    table.insert(orbs, XPParticleSystem.new(orbX, orbY, 10))
+    table.insert(orbs, XPParticleSystem.new(orbX, orbY, xpValue(10)))
 
     -- Check if player has picked first color
     local colorHistory = ColorSystem.colorHistory or {}
@@ -129,7 +137,7 @@ function PickupSystem.spawnOrbsForEnemy(enemy, player, gameTime, screenWidth, sc
         if math.random() < primaryChance then
             local offsetX = orbX + math.random(-20, 20)
             offsetX = math.max(leftBound, math.min(leftBound + playWidth, offsetX))
-            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, 20))
+            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, xpValue(20)))
         end
 
         -- Roll for large XP orb
@@ -137,7 +145,7 @@ function PickupSystem.spawnOrbsForEnemy(enemy, player, gameTime, screenWidth, sc
         if math.random() < secondaryChance then
             local offsetX = orbX + math.random(-20, 20)
             offsetX = math.max(leftBound, math.min(leftBound + playWidth, offsetX))
-            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, 40))
+            table.insert(orbs, XPParticleSystem.new(offsetX, orbY, xpValue(40)))
         end
     end
 

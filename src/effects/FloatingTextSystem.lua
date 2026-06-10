@@ -84,26 +84,29 @@ function FloatingTextSystem.init()
     FloatingTextSystem.texts = {}
 end
 
--- Add floating text at a position
-function FloatingTextSystem.add(text, x, y, textType)
+-- Add floating text at a position.
+-- `colorOverride` (optional {r,g,b}) replaces the type's default color — used by
+-- the color economy to pop XP in the matched affinity color (or gray off-color).
+-- `scaleMult` (optional) scales the type's base scale, e.g. for streak milestones.
+function FloatingTextSystem.add(text, x, y, textType, colorOverride, scaleMult)
     textType = textType or "ARTIFACT"
     local typeData = FloatingTextSystem.Types[textType] or FloatingTextSystem.Types.ARTIFACT
-    
+
     local floatingText = {
         text = text,
         x = x,
         y = y,
         startY = y,
-        color = typeData.color,
+        color = colorOverride or typeData.color,
         duration = typeData.duration,
         fadeStart = typeData.fadeStart,
-        scale = typeData.scale,
+        scale = typeData.scale * (scaleMult or 1),
         riseSpeed = typeData.riseSpeed,
         font = typeData.font,
         timer = 0,
         alpha = 1.0
     }
-    
+
     table.insert(FloatingTextSystem.texts, floatingText)
 end
 

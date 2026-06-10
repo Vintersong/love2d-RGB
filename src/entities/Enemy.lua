@@ -4,6 +4,28 @@ local Enemy = class{__includes = Entity}
 local ShapeLibrary = require("src.render.ShapeLibrary")
 local MathUtils = require("src.utils.MathUtils")
 local EnemyBehaviors = require("src.data.EnemyBehaviors")
+local Config = require("src.Config")
+
+-- Draw the color-economy affinity outline: a soft neon halo plus a crisp ring,
+-- in the affinity's brand color, so the player can route against shapes at speed.
+-- Drawn at the (already translated) enemy center; body color is left untouched.
+local function drawAffinityOutline(affinity, size)
+    if not affinity then return end
+    local c = Config.theme.colors[affinity:lower()]
+    if not c then return end
+
+    love.graphics.push("all")
+    love.graphics.setBlendMode("add")
+    -- Outer glow.
+    love.graphics.setColor(c[1], c[2], c[3], 0.30)
+    love.graphics.setLineWidth(6)
+    love.graphics.circle("line", 0, 0, size + 9)
+    -- Crisp ring.
+    love.graphics.setColor(c[1], c[2], c[3], 0.95)
+    love.graphics.setLineWidth(2.5)
+    love.graphics.circle("line", 0, 0, size + 4)
+    love.graphics.pop()
+end
 
 -- Helper function: Lerp between two colors
 local function lerpColor(color1, color2, t)
@@ -119,6 +141,9 @@ function Enemy:init(x, y, enemyType, playerLevel, formationData)
     
     -- Frequency type (for music-reactive enemies)
     self.frequencyType = nil
+    -- Color-economy affinity ("RED"/"GREEN"/"BLUE"), assigned by the spawner.
+    -- Drives the affinity outline ring; body color stays level-based.
+    self.affinity = self.formationData.affinity
     self.baseColor = {1, 1, 1}  -- White base for all enemies
     self.overlayColor = levelColor  -- Level-based vaporwave color
     self.overlayAlpha = 0.5
@@ -349,7 +374,10 @@ function Enemy:draw(musicReactor)
                 innerRing = {size = size * 0.6, color = {r, g, b}}
             })
         end
-        
+
+        -- Affinity outline (color economy): readable at-a-glance routing signal.
+        drawAffinityOutline(self.affinity, size)
+
     -- LEGACY: Old formation/flanker enemy types (now using level colors)
     elseif self.enemyType == "formation" then
         -- Draw outer rings

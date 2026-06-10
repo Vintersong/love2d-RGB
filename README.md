@@ -30,6 +30,8 @@ Debug hotkeys (**PlayingState**, development prototype; gated by `Config.debug.e
 | F3 | Print `ColorSystem` state to console |
 | F4 | Add enough XP to push toward player level ~20 |
 | F5 | Full heal |
+| F6 | Cycle the first live enemy's color-economy affinity (RED→GREEN→BLUE) |
+| F7 | Print color-economy state (multipliers, streak) to console |
 | F8 | Spawn small XP particle orb at player |
 | F9 | Spawn medium XP particle orb |
 | F10 | Spawn large XP particle orb |

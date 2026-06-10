@@ -8,8 +8,63 @@ local FormationCatalog = require("src.spawning.FormationCatalog")
 local SpawnPolicyMusic = require("src.spawning.SpawnPolicyMusic")
 local EnemyPool = require("src.spawning.EnemyPool")
 local GameConfig = require("src.core.GameConfig")
+local Config = require("src.Config")
 
 local EnemySpawner = {}
+
+local PRIMARIES = {"RED", "GREEN", "BLUE"}
+
+-- Map a spawn enemy type (BASS/MIDS/TREBLE/...) to its color affinity.
+local function affinityForType(enemyType)
+    local map = Config.colorEconomy.archetypeAffinity
+    local key = (enemyType or "full"):lower()
+    return map[key] or map.full
+end
+
+-- Choose ONE affinity for the whole spawn pulse (formations share a color so the
+-- player routes against shapes, not confetti). Derived from the pulse's most
+-- common archetype, then clamped: if committing this affinity would push it over
+-- Config.colorEconomy.affinityClampPct of live enemies, fall back to the
+-- least-represented affinity so a music-skewed track never makes a commitment wrong.
+local function choosePulseAffinity(formationEnemyTypes, enemies, pulseSize)
+    -- Mode of the pulse's archetypes -> music-driven candidate.
+    local typeTally = {}
+    local candidate, best = "RED", -1
+    for _, enemyType in pairs(formationEnemyTypes) do
+        local aff = affinityForType(enemyType)
+        typeTally[aff] = (typeTally[aff] or 0) + 1
+        if typeTally[aff] > best then
+            best = typeTally[aff]
+            candidate = aff
+        end
+    end
+
+    -- Count live enemies already carrying an affinity.
+    local counts = {RED = 0, GREEN = 0, BLUE = 0}
+    local liveTotal = 0
+    for _, enemy in ipairs(enemies) do
+        if enemy.affinity and counts[enemy.affinity] ~= nil and not enemy.dead then
+            counts[enemy.affinity] = counts[enemy.affinity] + 1
+            liveTotal = liveTotal + 1
+        end
+    end
+
+    -- Predicted share of the candidate if this whole pulse joins it.
+    local predictedTotal = liveTotal + pulseSize
+    local predictedShare = predictedTotal > 0 and (counts[candidate] + pulseSize) / predictedTotal or 0
+    if predictedShare > Config.colorEconomy.affinityClampPct then
+        local least, leastCount = candidate, math.huge
+        for _, c in ipairs(PRIMARIES) do
+            if counts[c] < leastCount then
+                leastCount = counts[c]
+                least = c
+            end
+        end
+        return least
+    end
+
+    return candidate
+end
 
 local ENEMY_FOOTPRINTS = {
     BASS = {width = 35, height = 35},
@@ -130,6 +185,10 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
 
     local spacing = getFormationSpacing(formationEnemyTypes, 50)
 
+    -- One shared affinity for the whole pulse (all bands/directions).
+    local pulseSize = totalEnemies * #spawnDirections
+    local pulseAffinity = choosePulseAffinity(formationEnemyTypes, enemies, pulseSize)
+
     for _, direction in ipairs(spawnDirections) do
         local formationID = love.timer.getTime() + math.random()
         local formationWidth = spacing * (formation.columns or 6)
@@ -168,6 +227,7 @@ function EnemySpawner.spawnFormation(enemies, playerLevel, complexity, musicReac
                 centerX = direction.targetX,
                 targetY = direction.targetY,
                 spawnDirection = direction.name,
+                affinity = pulseAffinity,
                 behaviorProfile = EnemySpawner.createBehaviorProfile(enemyType, role, musicReactor, playerLevel, formationName)
             }
 

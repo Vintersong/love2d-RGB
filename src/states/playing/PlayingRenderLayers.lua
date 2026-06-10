@@ -69,6 +69,7 @@ function PlayingRenderLayers.draw(state, deps)
     VFXLibrary.drawImpactBursts()
     state.player:drawTargetingOverlay()
     UISystem.drawPlayerHUD(state.player)
+    require("src.ui.BossMeterPanel").draw(state.enemyKillCount, state.musicReactor)
     FloatingTextSystem.draw()
 
     local GameConfig = require("src.core.GameConfig")

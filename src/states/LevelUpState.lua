@@ -201,7 +201,16 @@ end
 
 -- Angular cyberpunk color card: notched corners, neon rim, additive orb,
 -- centered content (CHROMATIC design system).
-local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory, isHover)
+local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, colorHistory, isHover, alphaMul, glow)
+    alphaMul = alphaMul or 1
+    glow = glow or (isHover and 1 or 0)
+
+    -- All card primitives route through sc() so the animator's per-card alpha
+    -- (enter fade-in, exit fade-out, sibling dim) multiplies every layer.
+    local function sc(r, g, b, a)
+        love.graphics.setColor(r, g, b, (a or 1) * alphaMul)
+    end
+
     local tok = CARD_COLORS[def.code] or {edge = "fg1", fill = "bgRaised"}
     local edge = Theme.color[tok.edge]
     local fill = Theme.color[tok.fill]
@@ -209,16 +218,16 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
     local notch = 22
     local inset = 2
 
-    love.graphics.setColor(edge[1], edge[2], edge[3], 1)
+    sc(edge[1], edge[2], edge[3], 1)
     love.graphics.polygon("fill", notchedPoly(left, cardY, cardWidth, cardHeight, notch))
 
-    love.graphics.setColor(fill[1], fill[2], fill[3], 0.94)
+    sc(fill[1], fill[2], fill[3], 0.94)
     love.graphics.polygon("fill", notchedPoly(left + inset, cardY + inset, cardWidth - inset * 2, cardHeight - inset * 2, notch - inset))
 
-    if isHover then
+    if glow > 0.01 then
         local hl = lighten(edge, 0.5)
         love.graphics.setLineWidth(2)
-        love.graphics.setColor(hl[1], hl[2], hl[3], 0.95)
+        sc(hl[1], hl[2], hl[3], 0.95 * glow)
         love.graphics.polygon("line", notchedPoly(left, cardY, cardWidth, cardHeight, notch))
         love.graphics.setLineWidth(1)
     end
@@ -237,12 +246,12 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
     local orbY = cardY + 46
     local prevBlend = love.graphics.getBlendMode()
     love.graphics.setBlendMode("add")
-    love.graphics.setColor(edge[1], edge[2], edge[3], 0.30)
+    sc(edge[1], edge[2], edge[3], 0.30 + 0.4 * glow)
     love.graphics.circle("fill", cardX, orbY, 20)
-    love.graphics.setColor(edge[1], edge[2], edge[3], 0.85)
+    sc(edge[1], edge[2], edge[3], 0.85)
     love.graphics.circle("fill", cardX, orbY, 10)
     local core = lighten(edge, 0.6)
-    love.graphics.setColor(core[1], core[2], core[3], 1)
+    sc(core[1], core[2], core[3], 1)
     love.graphics.circle("fill", cardX, orbY, 4)
     love.graphics.setBlendMode(prevBlend)
 
@@ -270,19 +279,19 @@ local function drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isInte
 
     love.graphics.setFont(Theme.font("uiSemiBold", 24))
     local nm = lighten(edge, 0.35)
-    love.graphics.setColor(nm[1], nm[2], nm[3], 1)
+    sc(nm[1], nm[2], nm[3], 1)
     love.graphics.printf(def.label, left, ty, cardWidth, "center")
     ty = ty + textHeights[1] + 20
 
     for i, line in ipairs(lines) do
         if i == 1 then
             love.graphics.setFont(Theme.font("uiMedium", 15))
-            love.graphics.setColor(Theme.color.fg1)
+            sc(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
             love.graphics.printf(line, left, ty, cardWidth, "center")
             ty = ty + textHeights[i + 1] + 10
         else
             love.graphics.setFont(Theme.font("ui", 13))
-            love.graphics.setColor(Theme.color.fg2)
+            sc(Theme.color.fg2[1], Theme.color.fg2[2], Theme.color.fg2[3], 1)
             love.graphics.printf(line, left, ty, cardWidth, "center")
             ty = ty + textHeights[i + 1] + 10
         end
@@ -303,6 +312,29 @@ function LevelUpState:enter(previous, data)
     else
         self.returnData = {}
     end
+
+    self:buildCards()
+end
+
+-- (Re)create the animator and register one animatable element per valid choice,
+-- then kick off the staggered intro. Called on enter and again after a selection
+-- that keeps the screen open (multi-level / tutorial).
+function LevelUpState:buildCards()
+    if not self.player then return end
+    local UIAnimator = require("src.effects.UIAnimator")
+    self.animator = UIAnimator.new()
+
+    local validChoices = getChoices(self.player.level)
+    local valid = {}
+    for _, c in ipairs(validChoices) do valid[c] = true end
+
+    for _, def in ipairs(CARD_DEFS) do
+        if valid[def.code] then
+            self.animator:add(def.code)
+        end
+    end
+    self.animator:enter()
+    hoveredCard = nil
 end
 
 function LevelUpState:update(dt)
@@ -317,6 +349,10 @@ function LevelUpState:update(dt)
     World.update(dt, self.returnData.musicReactor)
     FloatingTextSystem.update(dt)
     VFXLibrary.update(dt)
+
+    if self.animator then
+        self.animator:update(dt)
+    end
 end
 
 function LevelUpState:draw()
@@ -472,7 +508,22 @@ function LevelUpState:drawColorSelect()
             local keyNum = getKeyForColor(def.code)
             local cardX = centerX - ((#validChoices - 1) * cardSpacing / 2) + (cardIndex * cardSpacing)
             local isIntensity = def.isIntensityFn(ColorSystem)
-            drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory, hoveredCard == def.code)
+
+            local tf = self.animator and self.animator:get(def.code)
+            local scale   = tf and tf.scale or 1
+            local dx      = tf and tf.dx or 0
+            local dy      = tf and tf.dy or 0
+            local alphaMul = tf and tf.alpha or 1
+            local glow    = tf and tf.glow or (hoveredCard == def.code and 1 or 0)
+            local centerYc = cardY + cardHeight / 2
+
+            -- Scale about the card's own center and apply the animated offset.
+            love.graphics.push()
+            love.graphics.translate(cardX + dx, centerYc + dy)
+            love.graphics.scale(scale, scale)
+            love.graphics.translate(-cardX, -centerYc)
+            drawCard(def, cardX, cardY, cardWidth, cardHeight, keyNum, isIntensity, ColorSystem.colorHistory, hoveredCard == def.code, alphaMul, glow)
+            love.graphics.pop()
 
             cardRects[#cardRects + 1] = {
                 x = cardX - cardWidth / 2,
@@ -500,17 +551,33 @@ function LevelUpState:drawColorSelect()
 end
 
 function LevelUpState:selectColor(colorCode)
+    if self.animator and self.animator:isBusy() then return end
+
     local validChoices = getChoices(self.player.level)
     for _, valid in ipairs(validChoices) do
         if valid == colorCode then
+            -- Apply the gameplay effect immediately so logic stays consistent;
+            -- only the visual exit (and the state pop) is deferred.
             self.player:levelUp()
             ColorSystem.addColor(self.player.weapon, colorCode)
             ColorSystem.applyEffects(self.player.weapon)
             TutorialSystem.onColorAdded(colorCode)
 
-            if not self.player:canLevelUp() and not TutorialSystem.hasPopup() then
-                local StateManager = require("src.core.StateManager")
-                StateManager.pop()
+            local function finish()
+                if not self.player:canLevelUp() and not TutorialSystem.hasPopup() then
+                    require("src.core.StateManager").pop()
+                else
+                    -- More choices to make (multi-level / tutorial popup): rebuild.
+                    self:buildCards()
+                end
+            end
+
+            if self.animator then
+                self.animator:select(colorCode, function()
+                    self.animator:exit(finish)
+                end)
+            else
+                finish()
             end
             return
         end
@@ -525,6 +592,7 @@ function LevelUpState:keypressed(key)
         return
     end
 
+    if self.animator and self.animator:isBusy() then return end
     if key == "escape" then return end
 
     local validChoices = getChoices(self.player.level)
@@ -563,6 +631,8 @@ function LevelUpState:mousepressed(x, y, button)
         return
     end
 
+    if self.animator and self.animator:isBusy() then return end
+
     local code = cardAt(x, y)
     if code then
         self:selectColor(code)
@@ -574,7 +644,15 @@ function LevelUpState:mousemoved(x, y)
         hoveredCard = nil
         return
     end
-    hoveredCard = cardAt(x, y)
+
+    local code = cardAt(x, y)
+    if code ~= hoveredCard then
+        if self.animator then
+            if hoveredCard then self.animator:setHover(hoveredCard, false) end
+            if code then self.animator:setHover(code, true) end
+        end
+        hoveredCard = code
+    end
 end
 
 return LevelUpState

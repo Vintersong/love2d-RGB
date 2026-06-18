@@ -73,7 +73,7 @@ local function buildMenuOptions()
 end
 
 local function buildLoadingData()
-    local PlayingState = require("src.states.PlayingState")
+    local PlayingState = require("src.states.gameplay.PlayingState")
     return {
         message = "Preparing run...",
         nextState = "Playing",

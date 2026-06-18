@@ -4,10 +4,10 @@
 local PlayingState = {}
 local Config = require("src.Config")
 
-local PlayingUpdateLoop = require("src.states.playing.PlayingUpdateLoop")
-local PlayingRenderLayers = require("src.states.playing.PlayingRenderLayers")
-local PlayingInputHandlers = require("src.states.playing.PlayingInputHandlers")
-local PlayingEnemyFlow = require("src.states.playing.PlayingEnemyFlow")
+local PlayingUpdateLoop = require("src.states.gameplay.playing.PlayingUpdateLoop")
+local PlayingRenderLayers = require("src.states.gameplay.playing.PlayingRenderLayers")
+local PlayingInputHandlers = require("src.states.gameplay.playing.PlayingInputHandlers")
+local PlayingEnemyFlow = require("src.states.gameplay.playing.PlayingEnemyFlow")
 
 -- Forward declarations for systems
 local MusicReactor, ColorSystem, SpawnController, World, HealthSystem

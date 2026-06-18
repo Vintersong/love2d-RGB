@@ -249,7 +249,7 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 
 - Health bar and XP bar rendered during play.
 - Floating text system for damage numbers and heal feedback.
-- Level-up is a **pushed Gamestate** ([`Gamestate.push`](libs/hump-master/gamestate.lua)): **enemy simulation freezes** while HUD cards show, but **`LevelUpState` still ticks music / lightweight effects**. Backdrop differs from gameplay: **`World.draw`** is largely disabled and **`BackgroundShader` is not drawn** there (Shader background only in [`PlayingState:draw`](src/states/PlayingState.lua)).
+- Level-up is a **pushed Gamestate** ([`Gamestate.push`](libs/hump-master/gamestate.lua)): **enemy simulation freezes** while HUD cards show, but **`LevelUpState` still ticks music / lightweight effects**. Backdrop differs from gameplay: **`World.draw`** is largely disabled and **`BackgroundShader` is not drawn** there (Shader background only in [`PlayingState:draw`](src/states/gameplay/PlayingState.lua)).
 - Ability cooldown indicators.
 - SUPERNOVA pickup equips the Left Shift active slot; the HUD renders its cooldown once `player.activeAbility` becomes non-nil.
 
@@ -304,13 +304,13 @@ src/
     BackgroundShader.lua      — Canvas + moonshine glow (primary playfield backdrop)
     World.lua                 — Perspective grid scaffolding (drawing disabled — shader replaces it)
     UISystem.lua / DebugMenu.lua / ShapeLibrary.lua / HealthSystem.lua
-  states/
-    SplashScreenState.lua     — Menu: SPACE start, optional U → UISandbox
-    PlayingState.lua          — Primary loop orchestrator
-    LevelUpState.lua          — Card stack atop frozen playfield snapshot
-    GameOverState.lua / VictoryState.lua
-    PauseState.lua            — Pushed pause overlay
-    UISandboxState.lua        — HUD layout prototyping
+  states/                     — grouped by lifecycle phase
+    boot/      SplashScreenState.lua (SPACE start, U → UISandbox), LoadingState.lua
+    menu/      MenuState, OptionsState, AtlasState, ProgressionState, TutorialState
+    gameplay/  PlayingState.lua (primary loop orchestrator) + playing/ submodules,
+               LevelUpState.lua (card stack atop frozen playfield), PauseState.lua
+    outcome/   GameOverState.lua, VictoryState.lua, RunSummaryState.lua
+    overlay/   ConfirmState.lua (modal), UISandboxState.lua (HUD prototyping)
 ```
 
 ### 9.3 Platform Support
@@ -331,7 +331,7 @@ src/
 - **18** scripted synergies triggered through [`SynergySystem.checkAndActivate`](src/gameplay/SynergySystem.lua) on artifact pickups (`Powerup` types aligned with synergy keys — see HUD note for `HALO` vs `AURORA`).
 - Spawn pipeline: **`SpawnController` → `EnemySpawner`**, formations listed in §6.2, BPM / band multipliers hooked to music.
 - **BossSystem** bosses every **100** kills at **2000 HP** until defeated animation completes.
-- **BackgroundShader**: GLSL fill pass + moonshine bloom drawn every [`PlayingState:draw`](src/states/PlayingState.lua).
+- **BackgroundShader**: GLSL fill pass + moonshine bloom drawn every [`PlayingState:draw`](src/states/gameplay/PlayingState.lua).
 - Auxiliary **SimpleGrid** animations (music keyed + **`T`** dev pulse).
 - **SongLibrary**: two authored tracks randomized at startup.
 - **BootLoader** startup validation banner + deterministic init sequencing.

@@ -196,7 +196,7 @@ function RunSummaryState:activate(action)
             message = "Preparing a new run...",
             nextState = "Playing",
             onLoad = function()
-                local PlayingState = require("src.states.PlayingState")
+                local PlayingState = require("src.states.gameplay.PlayingState")
                 PlayingState.startNewRun()
             end,
         })

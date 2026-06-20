@@ -125,17 +125,20 @@ The UI follows the **CHROMATIC Design System** (a handoff bundle authored in Cla
 
 ## States
 
-| State | Notes |
-|-------|-------|
-| `SplashScreenState` | Title + SPACE / sandbox entry; rendered via `splashscreen.glsl` shader backdrop |
-| `MenuState` | Animated main menu (shader backdrop, bracket selection UI, micro-animations); routes to Playing or `OptionsState` via SETTINGS |
-| `OptionsState` | Tabbed settings screen — **AUDIO** (master volume, mute), **VIDEO** (fullscreen, vsync), **CONTROLS** (key reference diagram); returns to `MenuState` |
-| `PlayingState` | Core loop orchestrator (`BackgroundShader` drawn here each frame); delegates update/render/input/enemy-flow to `PlayingUpdateLoop`, `PlayingRenderLayers`, `PlayingInputHandlers`, `PlayingEnemyFlow` |
-| `LevelUpState` | Frozen snapshot + **angular cyberpunk color cards** (notched corners, neon rim, additive orb); **shader grid not redrawn underneath right now** |
-| `GameOverState` | Death recap path (`PlayingState` -> switch) |
-| `VictoryState` | Run completion path after the production BossSystem boss defeat animation finishes |
-| `PauseState` | Pushed pause overlay; freezes gameplay, pauses music, supports resume/restart/quit |
-| `UISandboxState` | Dev HUD playground registered through `StateManager` |
+Demo/beta design-completion status is tracked in [`docs/demo-status.md`](docs/demo-status.md)
+(all 15 registered states + the demo critical path). The `Status` column below mirrors it.
+
+| State | Status | Notes |
+|-------|--------|-------|
+| `SplashScreenState` | **Final** | Title + SPACE / sandbox entry; rendered via `splashscreen.glsl` shader backdrop |
+| `MenuState` | WIP | Animated main menu (shader backdrop, bracket selection UI, micro-animations); routes to Playing or `OptionsState` via SETTINGS |
+| `OptionsState` | WIP | Tabbed settings screen — **AUDIO** (master volume, mute), **VIDEO** (fullscreen, vsync), **CONTROLS** (key reference diagram); returns to `MenuState` |
+| `PlayingState` | WIP | Core loop orchestrator (`BackgroundShader` drawn here each frame); delegates update/render/input/enemy-flow to `PlayingUpdateLoop`, `PlayingRenderLayers`, `PlayingInputHandlers`, `PlayingEnemyFlow` |
+| `LevelUpState` | WIP | Frozen snapshot + **angular cyberpunk color cards** (notched corners, neon rim, additive orb); **shader grid not redrawn underneath right now** |
+| `GameOverState` | WIP | Death recap path (`PlayingState` -> switch) |
+| `VictoryState` | WIP | Run completion path after the production BossSystem boss defeat animation finishes |
+| `PauseState` | WIP | Pushed pause overlay; freezes gameplay, pauses music, supports resume/restart/quit |
+| `UISandboxState` | Dev tool | Dev HUD playground registered through `StateManager` |
 
 ---
 

@@ -103,39 +103,62 @@ function GameOverState:drawContent(sw, sh)
     local pathLabel = "Color Path:"
     love.graphics.print(pathLabel, cx - fontUI:getWidth(pathLabel) / 2, 390)
 
-    -- Color path segments, each drawn in its Theme color token
-    local history = ColorSystem.colorHistory or {}
-    if #history > 0 then
-        local segments, segWidths, segColors = {}, {}, {}
-        for _, code in ipairs(history) do
-            local name = ColorSystem.getColorName(code)
-            if name ~= "Unknown" then
-                table.insert(segments, name:upper())
-                table.insert(segColors, name:lower())
-            end
+    -- Color build: all 6 colors as evenly-distributed orbs with the invested
+    -- level beneath each. Replaces the old per-pick text path, which grew
+    -- unbounded (and overflowed) at high player level.
+    local counts = ColorSystem.getColorCounts() or {}
+    local COLOR_ORBS = {
+        { name = "RED",     token = "red"     },
+        { name = "GREEN",   token = "green"   },
+        { name = "BLUE",    token = "blue"    },
+        { name = "YELLOW",  token = "yellow"  },
+        { name = "MAGENTA", token = "magenta" },
+        { name = "CYAN",    token = "cyan"    },
+    }
+
+    local rowW    = 720
+    local slotW   = rowW / #COLOR_ORBS
+    local rowLeft = cx - rowW / 2
+    local orbY    = 434
+    local numY    = 468
+
+    love.graphics.setFont(fontMono)
+    for i, entry in ipairs(COLOR_ORBS) do
+        local slotCx    = rowLeft + (i - 0.5) * slotW
+        local level     = counts[entry.name] or 0
+        local used      = level > 0
+        local c         = Theme.color[entry.token] or Theme.color.fg1
+        local intensity = used and 1 or 0.22
+
+        -- Additive glow -> mid ring -> bright core, mirroring the level-up cards.
+        local prevBlend = love.graphics.getBlendMode()
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(c[1], c[2], c[3], alpha * 0.30 * intensity)
+        love.graphics.circle("fill", slotCx, orbY, 18)
+        love.graphics.setColor(c[1], c[2], c[3], alpha * 0.85 * intensity)
+        love.graphics.circle("fill", slotCx, orbY, 9)
+        love.graphics.setBlendMode(prevBlend)
+
+        if used then
+            local core = {
+                c[1] + (1 - c[1]) * 0.6,
+                c[2] + (1 - c[2]) * 0.6,
+                c[3] + (1 - c[3]) * 0.6,
+            }
+            love.graphics.setColor(core[1], core[2], core[3], alpha)
+            love.graphics.circle("fill", slotCx, orbY, 4)
+        else
+            -- Faint outline so unused colors still read as a present slot.
+            love.graphics.setColor(c[1], c[2], c[3], alpha * 0.35)
+            love.graphics.setLineWidth(1)
+            love.graphics.circle("line", slotCx, orbY, 9)
         end
-        if #segments > 0 then
-            local arrow  = "  ->  "
-            local arrowW = fontUI:getWidth(arrow)
-            local totalW = 0
-            for i, seg in ipairs(segments) do
-                segWidths[i] = fontUI:getWidth(seg)
-                totalW = totalW + segWidths[i]
-                if i < #segments then totalW = totalW + arrowW end
-            end
-            local px = cx - totalW / 2
-            for i, seg in ipairs(segments) do
-                local c = Theme.color[segColors[i]] or Theme.color.fg1
-                love.graphics.setColor(c[1], c[2], c[3], alpha)
-                love.graphics.print(seg, px, 420)
-                px = px + segWidths[i]
-                if i < #segments then
-                    Theme.setColor("fg3", alpha * 0.4)
-                    love.graphics.print(arrow, px, 420)
-                    px = px + arrowW
-                end
-            end
-        end
+
+        -- Invested level on its own row beneath the orb.
+        local numStr = tostring(level)
+        local numW   = fontMono:getWidth(numStr)
+        love.graphics.setColor(c[1], c[2], c[3], used and alpha or alpha * 0.30)
+        love.graphics.print(numStr, slotCx - numW / 2, numY)
     end
 
     -- Dominant damage stat
@@ -143,7 +166,7 @@ function GameOverState:drawContent(sw, sh)
     Theme.setColor("fg2", alpha)
     local dmg    = (self.player.weapon and self.player.weapon.damage) or 0
     local dmgStr = string.format("Damage  %.0f", dmg)
-    love.graphics.print(dmgStr, cx - fontMono:getWidth(dmgStr) / 2, 480)
+    love.graphics.print(dmgStr, cx - fontMono:getWidth(dmgStr) / 2, 512)
 
     -- Bracket buttons
     local totalBtnH = #buttons * BTN_H + (#buttons - 1) * BTN_GAP

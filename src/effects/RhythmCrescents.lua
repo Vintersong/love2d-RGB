@@ -47,17 +47,26 @@ function RhythmCrescents.draw(player, musicReactor)
     if not (player and cfg and cfg.dashEnabled) then return end
 
     local c = cfg.crescent
-    local window = (musicReactor and musicReactor.timingWindow) or "miss"
-    local baseAlpha = (c.alpha and c.alpha[window]) or 0.1
+
+    -- Anticipatory cue from the continuous beat phase: peaks ON the beat (phase
+    -- ~0 / ~1), troughs between beats (phase ~0.5). Driving the visual off this
+    -- smooth curve -- not the discrete timing window -- gives a readable ramp the
+    -- player can anticipate, instead of a hard strobe. The discrete window still
+    -- drives the actual dash bonus; the burst below is the on-dash confirmation.
+    local phase = (musicReactor and musicReactor.beatPhase) or 0
+    local closeness = (math.cos(phase * 2 * math.pi) + 1) * 0.5  -- 1 on beat, 0 between
+    closeness = closeness ^ (c.sharpness or 2.0)
 
     local color = resolveColor()
     local cx = player.x + player.width / 2
     local cy = player.y + player.height / 2
 
+    local minA, maxA = c.minAlpha or 0.1, c.maxAlpha or 0.95
     local radius = c.radius
-    local alpha = baseAlpha
+    local offset = c.offset - (c.pullIn or 0) * closeness   -- converge inward toward the beat
+    local alpha = minA + (maxA - minA) * closeness
 
-    -- Success burst: expand the arcs outward and flash brighter, fading over
+    -- Success burst: snap inward + expand the arcs + flash brighter, fading over
     -- burstDuration. Perfect bursts punch harder than good.
     if burstStart >= 0 then
         local elapsed = love.timer.getTime() - burstStart
@@ -76,8 +85,8 @@ function RhythmCrescents.draw(player, musicReactor)
     local prevWidth = love.graphics.getLineWidth()
 
     -- Left crescent "(" bulges left (faces angle pi); right ")" bulges right (angle 0).
-    drawCrescent(cx - c.offset, cy, radius, math.pi, c.arcSpan, c.thickness, color, alpha)
-    drawCrescent(cx + c.offset, cy, radius, 0, c.arcSpan, c.thickness, color, alpha)
+    drawCrescent(cx - offset, cy, radius, math.pi, c.arcSpan, c.thickness, color, alpha)
+    drawCrescent(cx + offset, cy, radius, 0, c.arcSpan, c.thickness, color, alpha)
 
     love.graphics.setLineWidth(prevWidth)
     love.graphics.setColor(1, 1, 1, 1)

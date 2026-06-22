@@ -54,12 +54,16 @@ local Config = {
         -- Dash travel-speed multiplier by tier (longer/faster dash on-beat).
         speedMult = { good = 1.3, perfect = 1.6 },
         crescent = {
-            offset = 48,     -- px from player center to each crescent's arc center
+            offset = 64,     -- resting px from player center; converges inward toward the beat
+            pullIn = 22,     -- px the crescents pull inward at the beat (anticipation cue)
             radius = 30,     -- crescent arc radius
             thickness = 5,   -- core stroke width
             arcSpan = 0.52,  -- half-span of the arc in radians (~30 deg each side)
-            -- Glow-gate alpha by current timing window.
-            alpha = { miss = 0.10, okay = 0.20, good = 0.50, perfect = 0.95 },
+            -- Brightness ramps smoothly off MusicReactor.beatPhase (continuous), not
+            -- the discrete timing window, so the cue is anticipatory, not a strobe.
+            minAlpha = 0.12, -- brightness between beats
+            maxAlpha = 0.95, -- brightness on the beat
+            sharpness = 2.4, -- higher = tighter/snappier brightness peak at the beat
             burstDuration = 0.35,  -- seconds the success burst animates
         },
     },

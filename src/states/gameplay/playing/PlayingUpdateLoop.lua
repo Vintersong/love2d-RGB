@@ -1,5 +1,6 @@
 local flux = require("libs.flux-master.flux")
 local RunSummary = require("src.core.RunSummary")
+local OnboardingSequence = require("src.gameplay.OnboardingSequence")
 local PlayingUpdateLoop = {}
 
 function PlayingUpdateLoop.update(state, dt, deps)
@@ -56,8 +57,12 @@ function PlayingUpdateLoop.update(state, dt, deps)
     enemyFlow.rewardNewEnemyDeaths(state, dashAliveBefore, deps)
     state.player:autoFire(state.enemies, BossCoordinator.getActiveBoss())
 
+    OnboardingSequence.update(dt, state.player, state)
+
     ShieldEffect.update(dt)
-    SpawnController.update(dt, state.player.level, state.musicReactor, state.enemies)
+    if not OnboardingSequence.isActive() then
+        SpawnController.update(dt, state.player.level, state.musicReactor, state.enemies)
+    end
     state.enemyKillCount = SpawnController.enemyKillCount
 
     enemyFlow.updateEnemies(state, dt, centerX, centerY, deps)

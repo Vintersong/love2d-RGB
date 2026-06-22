@@ -77,6 +77,7 @@ function PlayingState.startNewRun()
     CollisionSystemLocal.init(Config.gameplay.cellSize)
     VFXLibraryLocal.clear()
     require("src.gameplay.TutorialSystem").beginRun()
+    require("src.gameplay.OnboardingSequence").beginRun()
 
     PlayingState.screenWidth, PlayingState.screenHeight = GameConfig.getScreenSize()
     SpawnControllerLocal.init(PlayingState.screenWidth, PlayingState.screenHeight)

@@ -1,5 +1,6 @@
 local PlayingEnemyFlow = {}
 local RunSummary = require("src.core.RunSummary")
+local OnboardingSequence = require("src.gameplay.OnboardingSequence")
 
 local function captureAliveEnemies(state)
     local alive = {}
@@ -73,6 +74,7 @@ function PlayingEnemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
     end
 
     local collidingEnemies = CollisionSystem.checkPlayerEnemyCollisions(state.player)
+    if not OnboardingSequence.isActive() then
     for _, enemy in ipairs(collidingEnemies) do
         local died = AttackSystem.enemyContactDamage(enemy, state.player, dt, {
             enemies = state.enemies,
@@ -97,6 +99,7 @@ function PlayingEnemyFlow.updateEnemies(state, dt, centerX, centerY, deps)
             })
             return
         end
+    end
     end
 end
 

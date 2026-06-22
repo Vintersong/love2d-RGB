@@ -42,6 +42,28 @@ local Config = {
         tutorialEnabled = true
     },
 
+    -- Rhythm dash: dashing on the beat grants a tiered bonus (good/perfect),
+    -- telegraphed by glow-gate crescents flanking the player. No penalty for
+    -- missing the beat (music rewards, never punishes). Windows come from
+    -- MusicReactor.timingWindow ("perfect" ±50ms, "good" ±100ms).
+    rhythm = {
+        dashEnabled = true,
+        -- Dash pierce-damage multiplier by tier (applies only to colors that
+        -- deal dash damage: BLUE/YELLOW/MAGENTA/CYAN).
+        damageMult = { good = 1.5, perfect = 2.0 },
+        -- Dash travel-speed multiplier by tier (longer/faster dash on-beat).
+        speedMult = { good = 1.3, perfect = 1.6 },
+        crescent = {
+            offset = 48,     -- px from player center to each crescent's arc center
+            radius = 30,     -- crescent arc radius
+            thickness = 5,   -- core stroke width
+            arcSpan = 0.52,  -- half-span of the arc in radians (~30 deg each side)
+            -- Glow-gate alpha by current timing window.
+            alpha = { miss = 0.10, okay = 0.20, good = 0.50, perfect = 0.95 },
+            burstDuration = 0.35,  -- seconds the success burst animates
+        },
+    },
+
     -- Bullet pattern settings
     patterns = {
         patternCooldown = 0.6,

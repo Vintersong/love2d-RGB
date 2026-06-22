@@ -19,6 +19,7 @@ function PlayingRenderLayers.draw(state, deps)
 
     state.player:drawProjectileTrails()
     state.player:drawBody()
+    require("src.effects.RhythmCrescents").draw(state.player, state.musicReactor)
 
     for _, enemy in ipairs(state.enemies) do
         enemy:draw(state.musicReactor)

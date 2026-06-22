@@ -371,13 +371,13 @@ function Player:tryTriggerSupernovaPassive(source, context)
 end
 
 -- Use dash (SPACE key - permanent ability)
-function Player:useDash()
+function Player:useDash(rhythmBonus)
     if not AbilitySystem.isReady(self, "DASH") then
         return false
     end
 
     SFXLibrary.play("playerDash")
-    local success = AbilitySystem.activate(self, "DASH", AbilityLibrary.DASH, {})
+    local success = AbilitySystem.activate(self, "DASH", AbilityLibrary.DASH, { rhythmBonus = rhythmBonus })
     return success
 end
 

@@ -79,6 +79,7 @@ AbilityLibrary.DASH = {
         state.direction = {x = dx, y = dy}
         state.color = dominantColor
         state.piercedEnemies = {}  -- Track enemies hit during dash
+        state.rhythmBonus = context and context.rhythmBonus or nil  -- on-beat dash bonus (or nil)
 
         -- Make player invulnerable during dash
         entity.invulnerable = true
@@ -89,6 +90,16 @@ AbilityLibrary.DASH = {
         local centerX = entity.x + entity.width / 2
         local centerY = entity.y + entity.height / 2
         local dashColor = dominantColor and ColorSystem.getColorRGB(dominantColor) or {1, 1, 1}
+        if state.rhythmBonus then
+            -- On-beat dash: brighten the trail toward white and flash the crescents.
+            local k = (state.rhythmBonus.tier == "perfect") and 0.6 or 0.35
+            dashColor = {
+                dashColor[1] + (1 - dashColor[1]) * k,
+                dashColor[2] + (1 - dashColor[2]) * k,
+                dashColor[3] + (1 - dashColor[3]) * k,
+            }
+            require("src.effects.RhythmCrescents").triggerBurst(state.rhythmBonus.tier)
+        end
         VFXLibrary.spawnDashTrail(centerX, centerY, dashColor, dx, dy)
 
         print(string.format("[Dash] %s Dash activated!", dominantColor or "NEUTRAL"))
@@ -112,9 +123,10 @@ AbilityLibrary.DASH = {
             VFXLibrary.spawnDashTrail(centerX, centerY, trailColor, state.direction.x, state.direction.y)
         end
 
-        -- Move entity during dash
-        local moveX = state.direction.x * AbilityLibrary.DASH.speed * dt
-        local moveY = state.direction.y * AbilityLibrary.DASH.speed * dt
+        -- Move entity during dash (rhythm bonus lengthens the dash by raising speed)
+        local speedMult = (state.rhythmBonus and state.rhythmBonus.speedMult) or 1
+        local moveX = state.direction.x * AbilityLibrary.DASH.speed * speedMult * dt
+        local moveY = state.direction.y * AbilityLibrary.DASH.speed * speedMult * dt
         entity.x = entity.x + moveX
         entity.y = entity.y + moveY
 
@@ -204,7 +216,8 @@ AbilityLibrary.DASH = {
                     if state.color == "BLUE" or state.color == "YELLOW" or
                        state.color == "MAGENTA" or state.color == "CYAN" then
 
-                        local damage = 20  -- Base dash damage
+                        local damageMult = (state.rhythmBonus and state.rhythmBonus.damageMult) or 1
+                        local damage = math.floor(20 * damageMult)  -- Base dash damage x on-beat bonus
                         -- Route through HealthSystem so a dash-only kill marks the
                         -- enemy dead; the PlayingUpdateLoop reward sweep then grants
                         -- XP/drops (a direct `enemy.hp - damage` left kills unrewarded).

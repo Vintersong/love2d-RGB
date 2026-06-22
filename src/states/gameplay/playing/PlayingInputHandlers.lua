@@ -1,4 +1,5 @@
 local OnboardingSequence = require("src.gameplay.OnboardingSequence")
+local RhythmDash = require("src.gameplay.RhythmDash")
 
 local PlayingInputHandlers = {}
 
@@ -21,7 +22,8 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     end
 
     if key == "space" then
-        if state.player:useDash() then
+        local rhythmBonus = RhythmDash.getDashBonus(state.musicReactor)
+        if state.player:useDash(rhythmBonus) then
             print("[Input] Dash activated!")
             OnboardingSequence.notifyAbilityUsed("dash")
         end

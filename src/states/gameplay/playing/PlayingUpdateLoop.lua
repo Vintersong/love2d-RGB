@@ -81,7 +81,7 @@ function PlayingUpdateLoop.update(state, dt, deps)
     PickupSystem.updateXPOrbs(dt, state.player, state.xpOrbs, centerX, centerY)
     PickupSystem.updatePowerups(dt, state.player, state.enemies, state.powerups, centerX, centerY)
 
-    if state.player:canLevelUp() then
+    if state.player:canLevelUp() and not OnboardingSequence.isActive() then
         local StateManager = require("src.core.StateManager")
         StateManager.push("LevelUp", {
             player = state.player,

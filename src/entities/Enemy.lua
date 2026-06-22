@@ -119,6 +119,7 @@ end
 
 
 function Enemy:init(x, y, enemyType, playerLevel, formationData)
+    playerLevel = playerLevel or 1  -- Default for level-less callers (debug F2 spawn, onboarding dummies); guards raw arithmetic below.
     self.x = x or 0
     self.y = y or 0
     self.width = 24

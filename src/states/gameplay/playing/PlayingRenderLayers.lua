@@ -72,6 +72,11 @@ function PlayingRenderLayers.draw(state, deps)
     require("src.ui.BossMeterPanel").draw(state.enemyKillCount, state.musicReactor)
     FloatingTextSystem.draw()
 
+    local prompt = require("src.gameplay.OnboardingSequence").currentPrompt()
+    if prompt then
+        require("src.ui.OnboardingPrompt").draw(prompt)
+    end
+
     local GameConfig = require("src.core.GameConfig")
     if GameConfig.isDebugMode() then
         local DebugMenu = require("src.debug.DebugMenu")

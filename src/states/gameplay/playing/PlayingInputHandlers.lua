@@ -9,6 +9,9 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     local enemyFlow = deps.enemyFlow
 
     if key == "escape" or key == "p" then
+        if OnboardingSequence.isActive() then
+            return
+        end
         local StateManager = require("src.core.StateManager")
         StateManager.push("Pause", {
             player = state.player,

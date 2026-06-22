@@ -57,11 +57,14 @@ local function advance()
     end
 end
 
--- Spawn the harmless dummy enemies used by the AUTO-FIRE beat. They are NOT added
--- to the collision world, so they never deal contact damage; auto-fire still
--- targets them via the enemies list.
+-- Spawn the dummy enemies used by the AUTO-FIRE beat. They must be registered with
+-- the collision world (like every real enemy) or projectile hits — which resolve via
+-- CollisionSystem.checkProjectileEnemyCollisions / world:queryRect — can never land,
+-- leaving the beat unable to advance. They deal no contact damage during phase 0
+-- because PlayingEnemyFlow.updateEnemies suppresses the contact loop while active.
 local function spawnDummies(state)
     local Enemy = require("src.entities.Enemy")
+    local CollisionSystem = require("src.combat.CollisionSystem")
     dummies = {}
     local px = state.player.x + state.player.width / 2
     local py = state.player.y + state.player.height / 2
@@ -71,6 +74,7 @@ local function spawnDummies(state)
         local dy = py + math.sin(angle) * 260
         local dummy = Enemy(dx, dy)
         table.insert(state.enemies, dummy)
+        CollisionSystem.add(dummy, "enemy")
         dummies[#dummies + 1] = dummy
     end
 end

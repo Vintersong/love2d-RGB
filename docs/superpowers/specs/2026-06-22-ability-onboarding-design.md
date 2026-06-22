@@ -57,7 +57,8 @@ Each beat shows an in-game prompt card (keycap glyph + ability name + a one-line
 During phase 0 the player **cannot die**:
 
 - Normal `SpawnController` spawning is suppressed while `OnboardingSequence.isActive()` is true (gated in `PlayingEnemyFlow`).
-- Beat 2 spawns 1–2 slow, harmless dummy enemies purely for the auto-fire lesson.
+- Beat 2 spawns 1–2 dummy enemies purely for the auto-fire lesson. **They must be registered in the collision world** (`CollisionSystem.add(dummy, "enemy")`) — projectile hits resolve via `CollisionSystem.checkProjectileEnemyCollisions` (`world:queryRect`), so an unregistered dummy is unhittable and the beat would deadlock. (An earlier design assumed dummies could stay out of the world for harmlessness; that was wrong and caused a stuck auto-fire beat.)
+- The player still **cannot die** during phase 0 because the contact-damage loop in `PlayingEnemyFlow.updateEnemies` is suppressed while active — that guard, not the dummies' world-membership, is what provides safety.
 - After the hand-off, normal spawning resumes and the run is real (full stakes, XP, level-ups).
 
 ---

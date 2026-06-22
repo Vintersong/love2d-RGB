@@ -38,7 +38,7 @@ Survive → Kill enemies → Collect XP orbs → Level up → Choose a color upg
 | Space | Dash — color-reactive burst | 1.5s |
 | E | Blink — teleport to mouse cursor | 5s |
 | Q | Shield — 3s invulnerability | 10s |
-| Left Shift | SUPERNOVA active artifact ultimate | SUPERNOVA pickup required; cooldown and behavior use the current dominant color variant |
+| _(passive)_ | SUPERNOVA — triggers automatically once the artifact is owned | Reactive passive (`Player.supernovaPassive` → `ArtifactManager.triggerReactiveSupernova`); behavior uses the current dominant color variant. No key binding. |
 | P / Esc | Pause / resume gameplay | — |
 
 **Developer debug (PlayingState, gated by `Config.debug.enabled`)**
@@ -251,7 +251,7 @@ The system tracks "perfect / good / okay / miss" windows relative to the beat. T
 - Floating text system for damage numbers and heal feedback.
 - Level-up is a **pushed Gamestate** ([`Gamestate.push`](libs/hump-master/gamestate.lua)): **enemy simulation freezes** while HUD cards show, but **`LevelUpState` still ticks music / lightweight effects**. Backdrop differs from gameplay: **`World.draw`** is largely disabled and **`BackgroundShader` is not drawn** there (Shader background only in [`PlayingState:draw`](src/states/gameplay/PlayingState.lua)).
 - Ability cooldown indicators.
-- SUPERNOVA pickup equips the Left Shift active slot; the HUD renders its cooldown once `player.activeAbility` becomes non-nil.
+- SUPERNOVA is a passive artifact effect (no active slot / key); once owned it triggers reactively and the HUD renders its cooldown glyph.
 
 ---
 

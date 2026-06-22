@@ -18,7 +18,7 @@ Canonical runtime entrypoints are the root **`main.lua`**, **`conf.lua`**, and *
 | Space | Dash (1.5s cooldown) |
 | E | Blink — teleport to mouse position (5s cooldown) |
 | Q | Shield — temporary invulnerability (10s cooldown, 3s duration) |
-| Left Shift | SUPERNOVA active artifact ultimate once collected; uses the current dominant color variant and its cooldown. |
+| _(passive)_ | SUPERNOVA — once the artifact is collected it triggers automatically (reactive); there is no key binding. |
 | P / Esc | Pause / resume during gameplay. |
 
 Debug hotkeys (**PlayingState**, development prototype; gated by `Config.debug.enabled`):

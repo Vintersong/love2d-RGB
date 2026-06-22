@@ -1,3 +1,5 @@
+local OnboardingSequence = require("src.gameplay.OnboardingSequence")
+
 local PlayingInputHandlers = {}
 
 function PlayingInputHandlers.keypressed(state, key, deps)
@@ -18,6 +20,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     if key == "space" then
         if state.player:useDash() then
             print("[Input] Dash activated!")
+            OnboardingSequence.notifyAbilityUsed("dash")
         end
         return
     end
@@ -33,6 +36,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     if key == "e" then
         if state.player:useBlink() then
             print("[Input] Blink activated!")
+            OnboardingSequence.notifyAbilityUsed("blink")
         end
         return
     end
@@ -40,6 +44,7 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     if key == "q" then
         if state.player:useShield() then
             print("[Input] Shield activated!")
+            OnboardingSequence.notifyAbilityUsed("shield")
         end
         return
     end

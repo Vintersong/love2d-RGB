@@ -35,6 +35,7 @@ function RunSummary.build(outcome, data)
     local player = data.player
     local weapon = player and player.weapon or nil
     local ColorSystem = require("src.gameplay.ColorSystem")
+    local BossSystem = require("src.boss.BossSystem")
 
     local summary = {
         outcome = outcome or "defeat",
@@ -53,6 +54,7 @@ function RunSummary.build(outcome, data)
         colorHistory = copyList(ColorSystem.colorHistory),
         artifacts = buildArtifactList(),
         musicReactor = data.musicReactor,
+        bossDamage = BossSystem.totalDamageDealt or 0,
     }
 
     return summary

@@ -90,6 +90,28 @@ local function drawHealthBar(boss)
     love.graphics.setLineWidth(1)
     love.graphics.rectangle("line", barX, barY, barW, barH)
 
+    -- Ring boss: split the bar into the four phase segments (each = a quarter of HP) and
+    -- outline the active phase. HP empties right->left, so segments L->R are P4|P3|P2|P1.
+    if boss and boss.ringPhase then
+        for s = 1, 3 do
+            local dx = barX + barW * (s * 0.25)
+            love.graphics.setColor(0, 0, 0, 0.65)
+            love.graphics.setLineWidth(2)
+            love.graphics.line(dx, barY, dx, barY + barH)
+        end
+
+        local phase = math.max(1, math.min(4, boss.ringPhase))
+        local segX = barX + barW * ((4 - phase) * 0.25)
+        local segW = barW * 0.25
+        love.graphics.setColor(Theme.color.accent[1], Theme.color.accent[2], Theme.color.accent[3], 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", segX, barY - 2, segW, barH + 4)
+
+        love.graphics.setFont(Theme.font("mono", 10))
+        love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)
+        love.graphics.print(string.format("PHASE %d/4", phase), barX, barY - 14)
+    end
+
     local hpText = string.format("%d / %d", math.floor(health), math.floor(maxHealth))
     love.graphics.setFont(Theme.font("mono", 11))
     local hpTextWidth = love.graphics.getFont():getWidth(hpText)

@@ -94,6 +94,7 @@ function RunSummaryState:draw()
     love.graphics.print(string.format("Bullets: %d", summary.bulletCount or 1), panelX + 50, panelY + 184)
     love.graphics.print(string.format("Pierce: %d", summary.pierceCount or 0), panelX + 50, panelY + 214)
     love.graphics.print(string.format("HP: %d / %d", summary.hp or 0, summary.maxHp or 0), panelX + 50, panelY + 244)
+    love.graphics.print(string.format("Boss Damage: %d", math.floor(summary.bossDamage or 0)), panelX + 250, panelY + 244)
 
     love.graphics.setFont(Theme.font("uiSemiBold", 22))
     love.graphics.setColor(Theme.color.fg1[1], Theme.color.fg1[2], Theme.color.fg1[3], 1)

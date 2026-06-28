@@ -103,6 +103,102 @@ do
     section(string.format("composite  3 layers  total=%d overCap=%s", total, tostring(overCap)), merged)
 end
 
+-- ---------------------------------------------------------------------------
+-- Pillars: a field-space pattern, so it gets a field renderer + a field-aware dump
+-- (velocity scatter is meaningless for descending columns).
+-- ---------------------------------------------------------------------------
+
+-- Field-aware descriptor dump: shows the telegraph/bullet type and marker fields.
+local function dumpPillar(descriptors, maxRows)
+    maxRows = maxRows or #descriptors
+    print(string.format("  %-3s %-8s %-8s %-5s %-6s %-10s %-8s %-7s %-6s",
+        "#", "x", "y", "vx", "vy", "type", "style", "gapH", "axis"))
+    for i = 1, math.min(#descriptors, maxRows) do
+        local d = descriptors[i]
+        print(string.format("  %-3d %-8.1f %-8.1f %-5.0f %-6.0f %-10s %-8s %-7s %-6s",
+            i, d.x, d.y, d.vx, d.vy, tostring(d.type), tostring(d.marker_style),
+            d.gap_height and string.format("%.0f", d.gap_height) or "-",
+            tostring(d.color_axis)))
+    end
+    if #descriptors > maxRows then
+        print(string.format("  ... (%d more)", #descriptors - maxRows))
+    end
+end
+
+-- Render descriptors onto a downsampled play-field grid: 'o' bullets, 'T' telegraph markers.
+-- Blank rows inside a column are the visible safe gap (the refuge).
+local function fieldRender(descriptors, bounds, cols, rows)
+    cols = cols or 48
+    rows = rows or 20
+    local grid = {}
+    for r = 1, rows do
+        grid[r] = {}
+        for c = 1, cols do grid[r][c] = " " end
+    end
+    for i = 1, #descriptors do
+        local d = descriptors[i]
+        local fx = (d.x - bounds.left) / (bounds.right - bounds.left)
+        local fy = (d.y - bounds.top) / (bounds.bottom - bounds.top)
+        local c = 1 + math.floor(fx * (cols - 1) + 0.5)
+        local r = 1 + math.floor(fy * (rows - 1) + 0.5)
+        if r >= 1 and r <= rows and c >= 1 and c <= cols then
+            if d.type == "telegraph" then
+                grid[r][c] = "T" -- telegraph wins visually
+            elseif grid[r][c] == " " then
+                grid[r][c] = "o"
+            end
+        end
+    end
+    for r = 1, rows do
+        print("  |" .. table.concat(grid[r]) .. "|")
+    end
+end
+
+do
+    local bounds = { left = 0, right = 1920, top = 0, bottom = 1080 }
+    local pillarField = {
+        pillarCount = 4, fieldLeft = 0, fieldRight = 1920, fieldTop = 0, fieldBottom = 1080,
+        bulletsPerPillar = 22, gaps = { { pos = 0.45, width = 0.18 } },
+        descendSpeed = 220, telegraph_duration = 0.8, color_axis = "bass",
+    }
+
+    print("")
+    print("=== pillars WARNING stage (t=0 < telegraph_duration) ===")
+    local warn = BPL.pillars({ x = 0, y = 0 }, 0, pillarField)
+    dumpPillar(warn)
+    print("  -- field (T = telegraph marker at the safe gap) --")
+    fieldRender(warn, bounds)
+
+    print("")
+    print("=== pillars RESOLVE stage (t=1.0 >= telegraph_duration) ===")
+    local res = BPL.pillars({ x = 0, y = 0 }, 1.0, pillarField)
+    print(string.format("  %d bullets; columns descend (vy=220), gap band ~0.36..0.54 is empty", #res))
+    dumpPillar(res, 6)
+    print("  -- field (blank band inside each column = the refuge that was telegraphed) --")
+    fieldRender(res, bounds)
+
+    print("")
+    print("=== pillars per-pillar gaps (staggered refuges), WARNING ===")
+    local staggered = BPL.pillars({ x = 0, y = 0 }, 0, {
+        pillarCount = 5, fieldLeft = 0, fieldRight = 1920, fieldTop = 0, fieldBottom = 1080,
+        gapsPerPillar = {
+            { { pos = 0.15, width = 0.12 } },
+            { { pos = 0.35, width = 0.12 } },
+            { { pos = 0.55, width = 0.12 } },
+            { { pos = 0.75, width = 0.12 } },
+            { { pos = 0.90, width = 0.12 } },
+        },
+    })
+    fieldRender(staggered, bounds)
+
+    print("")
+    print("=== composite: pillar curtain (resolve) + radial ring (Phase 1 will layer these) ===")
+    local ring = BPL.radial({ x = 960, y = 540 }, 0, { count = 16, speed = 200, color_axis = "mids" })
+    local merged, total = BPL.composite({ res, ring }, { softCap = 600 })
+    print(string.format("  total=%d (pillars %d + ring %d)", total, #res, #ring))
+    fieldRender(merged, bounds)
+end
+
 -- Demonstrate the soft-cap warning path (writes to stderr, returns overCap=true).
 do
     print("")

@@ -120,7 +120,7 @@ The UI follows the **CHROMATIC Design System** (a handoff bundle authored in Cla
 | **`Theme`** (+ `Config.theme`) | Design-system color/type tokens + lazy font loader (`Theme.font/color/setColor`) |
 | **`Icons`** | Bespoke neon line-icon set — SVG-path renderer that recolors to the current color |
 | **`DebugMenu`** | Config-gated overlay diagnostics |
-| **`BulletPatternLibrary`** _(standalone, not wired)_ | Pure bullet-pattern generators (radial / spiral / flower / aimed / wall-with-gap + composite). Returns inert `{x,y,vx,vy,color_axis}` descriptors only — no entities, no color resolution, no audio hooks. Preview + tests live in `tools/patterns/`. Intended for later integration; nothing in the runtime requires it yet |
+| **`BulletPatternLibrary`** _(standalone, not wired)_ | Pure bullet-pattern generators (radial / spiral / flower / aimed / wall-with-gap / pillars + composite). Returns inert `{x,y,vx,vy,color_axis}` descriptors only — no entities, no color resolution, no audio hooks. `pillars` adds a telegraphed-safe-gap curtain with a two-stage (warning→resolve) output driven by the caller's `t`. Preview + tests live in `tools/patterns/`. Intended for later integration; nothing in the runtime requires it yet |
 
 ---
 
@@ -161,7 +161,7 @@ Demo/beta design-completion status is tracked in [`docs/demo-status.md`](docs/de
 - `reference/donor/` contains selected old prototype code for idea-mining only; do not port donor color-system behavior into the canonical root game.
 - `src/data/ColorTree.lua` is now an archived legacy data tree; active color progression lives in `src/gameplay/ColorSystem.lua`.
 - `src/data/BossArchetypes.lua` is legacy compatibility only; canonical boss AI comes from `src/data/BossBehaviors.lua`.
-- `src/patterns/BulletPatternLibrary.lua` is a **standalone, not-yet-wired** pure pattern-generation library (distinct from the live `src/data/BulletPatterns.lua`). It is self-contained (no `Config`/`MathUtils`/`love.*` deps) and proven in isolation: run `lua tools/patterns/tests.lua` for unit tests, `lua tools/patterns/preview.lua` for a text/ASCII dump, or `love tools/patterns/love_preview` for a visual preview.
+- `src/patterns/BulletPatternLibrary.lua` is a **standalone, not-yet-wired** pure pattern-generation library (distinct from the live `src/data/BulletPatterns.lua`). It is self-contained (no `Config`/`MathUtils`/`love.*` deps) and proven in isolation: run `lua tools/patterns/tests.lua` for unit tests, `lua tools/patterns/preview.lua` for a text/ASCII dump (including the pillar warning→resolve stages on a field grid), or `love tools/patterns/love_preview` for a visual preview. Telegraph markers carry inert `type`/`marker_style`/`gap_height` pass-through fields for a future renderer — never resolved here.
 - `src/` **+** root `main.lua` / `conf.lua` remain authoritative for behavior.
 
 ---

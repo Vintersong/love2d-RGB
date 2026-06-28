@@ -218,6 +218,138 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- pillars (vertical curtain with telegraphed safe gaps)
+-- ---------------------------------------------------------------------------
+do
+    -- Shared field: 3 pillars at known x, height 0..1000, 11 bullets/pillar (u = j/10),
+    -- one centered gap pos=0.5 width=0.2 -> band 0.4..0.6 removes u in {0.4, 0.5, 0.6}.
+    local field = {
+        pillarCount = 3, xs = { 200, 600, 1000 },
+        fieldTop = 0, fieldBottom = 1000,
+        bulletsPerPillar = 11,
+        gaps = { { pos = 0.5, width = 0.2 } },
+        descendSpeed = 300, telegraph_duration = 0.8,
+    }
+    local extent = 1000
+
+    -- --- resolve stage: counts ---
+    local res = BPL.pillars({ x = 0, y = 0 }, 1.0, field) -- t >= telegraph_duration
+    assertEqual(#res, 3 * (11 - 3), "pillars: total resolve count (3 pillars x 8)")
+
+    -- group bullets by pillar x; assert 8 each and gather their u positions.
+    local byX = { [200] = {}, [600] = {}, [1000] = {} }
+    for i = 1, #res do
+        local b = res[i]
+        assertEqual(b.type, "bullet", "pillars: resolve descriptor is a bullet")
+        assertEqual(b.vx, 0, "pillars: bullet vx == 0")
+        assertEqual(b.vy, 300, "pillars: bullet vy == descendSpeed")
+        local list = byX[b.x]
+        ok(list ~= nil, "pillars: bullet x matches a pillar")
+        if list then list[#list + 1] = (b.y - field.fieldTop) / extent end
+    end
+    for _, x in ipairs({ 200, 600, 1000 }) do
+        assertEqual(#byX[x], 8, "pillars: 8 bullets in pillar x=" .. x)
+    end
+
+    -- --- gap is actually empty + resolve fills everything except the gap ---
+    -- Expected surviving u's for every pillar (gap removed 0.4/0.5/0.6).
+    local expected = { 0, 0.1, 0.2, 0.3, 0.7, 0.8, 0.9, 1.0 }
+    local got = byX[200]
+    table.sort(got)
+    assertEqual(#got, #expected, "pillars: surviving u count matches")
+    for i = 1, #expected do
+        assertNear(got[i], expected[i], "pillars: surviving u " .. i)
+        ok(math.abs(got[i] - 0.5) > 0.1, "pillars: no bullet inside gap band " .. i)
+    end
+    -- (#present 8) + (#sampled-in-gap 3) == 11 sampled total.
+    assertEqual(#got + 3, 11, "pillars: present + in-gap == sampled total")
+
+    -- --- warning stage: telegraph markers align with gap centers ---
+    local warn = BPL.pillars({ x = 0, y = 0 }, 0, field) -- t < telegraph_duration
+    assertEqual(#warn, 3, "pillars: one telegraph marker per pillar")
+    local seenX = { [200] = false, [600] = false, [1000] = false }
+    for i = 1, #warn do
+        local m = warn[i]
+        assertEqual(m.type, "telegraph", "pillars: warning descriptor is a telegraph")
+        assertEqual(m.vx, 0, "pillars: marker vx == 0")
+        assertEqual(m.vy, 0, "pillars: marker vy == 0")
+        assertEqual(m.marker_style, "outline", "pillars: default marker_style")
+        assertNear(m.y, field.fieldTop + 0.5 * extent, "pillars: marker at gap center y")
+        assertNear(m.gap_height, 0.2 * extent, "pillars: marker gap_height == width*extent")
+        ok(seenX[m.x] == false, "pillars: marker x is a distinct pillar")
+        seenX[m.x] = true
+    end
+
+    -- --- stage selection driven purely by t ---
+    local early = BPL.pillars({ x = 0, y = 0 }, 0.79, field)
+    local late = BPL.pillars({ x = 0, y = 0 }, 0.80, field)
+    assertEqual(early[1].type, "telegraph", "pillars: t<dur -> telegraph")
+    assertEqual(late[1].type, "bullet", "pillars: t>=dur -> bullet")
+    -- explicit stage override wins over t.
+    local forced = BPL.pillars({ x = 0, y = 0 }, 0, { pillarCount = 1, xs = { 5 }, stage = "resolve",
+        fieldBottom = 1000, bulletsPerPillar = 5, gaps = {} })
+    assertEqual(forced[1].type, "bullet", "pillars: stage override forces resolve")
+
+    -- --- per-pillar gaps land at their own centers ---
+    local pp = BPL.pillars({ x = 0, y = 0 }, 0, {
+        pillarCount = 3, xs = { 200, 600, 1000 }, fieldTop = 0, fieldBottom = 1000,
+        gapsPerPillar = {
+            { { pos = 0.25, width = 0.1 } },
+            { { pos = 0.50, width = 0.1 } },
+            { { pos = 0.75, width = 0.1 } },
+        },
+    })
+    assertEqual(#pp, 3, "pillars: per-pillar gaps -> one marker each")
+    assertNear(pp[1].y, 250, "pillars: pillar 1 gap center")
+    assertNear(pp[2].y, 500, "pillars: pillar 2 gap center")
+    assertNear(pp[3].y, 750, "pillars: pillar 3 gap center")
+    assertEqual(pp[1].x, 200, "pillars: pillar 1 x")
+    assertEqual(pp[3].x, 1000, "pillars: pillar 3 x")
+
+    -- --- spacing-based density (no gap) fills every sampled step ---
+    local sp = BPL.pillars({ x = 0, y = 0 }, 1.0, {
+        pillarCount = 1, xs = { 50 }, fieldTop = 0, fieldBottom = 1000,
+        spacing = 100, gaps = {}, stage = "resolve",
+    })
+    -- steps = floor(1000/100) = 10 -> j = 0..10 -> 11 bullets.
+    assertEqual(#sp, 11, "pillars: spacing density count (no gap)")
+
+    -- --- auto even x placement (cell centers) ---
+    local auto = BPL.pillars({ x = 0, y = 0 }, 0, {
+        pillarCount = 4, fieldLeft = 0, fieldRight = 800, fieldTop = 0, fieldBottom = 1000,
+    })
+    -- markers in pillar order; x_i = (i-0.5)/4 * 800 -> 100, 300, 500, 700.
+    local expX = { 100, 300, 500, 700 }
+    for i = 1, 4 do assertNear(auto[i].x, expX[i], "pillars: auto cell-center x " .. i) end
+
+    -- --- xGen function placement ---
+    local gen = BPL.pillars({ x = 0, y = 0 }, 0, {
+        pillarCount = 3, xGen = function(i) return i * 111 end, fieldBottom = 1000,
+    })
+    assertNear(gen[1].x, 111, "pillars: xGen x1")
+    assertNear(gen[3].x, 333, "pillars: xGen x3")
+
+    -- --- color_axis passthrough on both stages ---
+    local cw = BPL.pillars({ x = 0, y = 0 }, 0, { pillarCount = 1, xs = { 5 }, color_axis = "bass" })
+    assertEqual(cw[1].color_axis, "bass", "pillars: warning color_axis passthrough")
+    local cr = BPL.pillars({ x = 0, y = 0 }, 1.0, { pillarCount = 1, xs = { 5 }, color_axis = "bass",
+        fieldBottom = 1000, bulletsPerPillar = 3, gaps = {} })
+    assertEqual(cr[1].color_axis, "bass", "pillars: resolve color_axis passthrough")
+    assertEqual(cr[1].color_axis, "bass", "pillars: resolve color_axis passthrough 2")
+
+    -- --- composites cleanly with the ring emitters (Phase 1 will run both at once) ---
+    local ring = BPL.radial({ x = 500, y = 500 }, 0, { count = 8 })
+    local merged, total = BPL.composite({ res, ring })
+    assertEqual(total, #res + 8, "pillars: composite total == sum")
+    assertEqual(#res, 24, "pillars: composite leaves pillar input untouched")
+    -- types survive the merge (bullets from pillars, nil-type from radial).
+    local telMerge = BPL.composite({ warn, ring })
+    local tel = 0
+    for i = 1, #telMerge do if telMerge[i].type == "telegraph" then tel = tel + 1 end end
+    assertEqual(tel, 3, "pillars: telegraph type preserved through composite")
+end
+
+-- ---------------------------------------------------------------------------
 -- determinism & seeding
 -- ---------------------------------------------------------------------------
 do

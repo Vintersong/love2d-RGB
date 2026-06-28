@@ -12,6 +12,13 @@
 --     params  : table                          -- plain tunables (see each function)
 --   descriptor : { x, y, vx, vy, color_axis }  -- inert data only
 --
+-- Some generators add optional pass-through fields the future renderer can dispatch on:
+--   * `type`         : "bullet" | "telegraph" (absent => a normal bullet)
+--   * `marker_style` : "outline" | "bright" | "dim" -- shape/luminance INTENT for telegraphs,
+--                      never resolved to a color/luminance here (must survive the reactive bg)
+--   * `gap_height`   : px size of a telegraphed refuge, so a renderer can size the marker
+-- These are inert placeholders only; this module draws nothing and resolves nothing.
+--
 -- Guarantees:
 --   * No live entities are created; descriptors are plain tables.
 --   * No global state is mutated; no love.*, Config, or MathUtils dependency.
@@ -32,6 +39,22 @@ local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 -- Build one inert spawn descriptor. color_axis defaults to nil (placeholder only).
 local function descriptor(x, y, vx, vy, color_axis)
     return { x = x, y = y, vx = vx, vy = vy, color_axis = color_axis }
+end
+
+-- A pillar bullet: descends straight down (vx = 0), tagged so a merged list can tell it
+-- apart from telegraph markers. type is the only addition over a plain descriptor.
+local function pillarBullet(x, y, vy, color_axis)
+    return { x = x, y = y, vx = 0, vy = vy, color_axis = color_axis, type = "bullet" }
+end
+
+-- A telegraph marker: a static (vx = vy = 0) indicator at a safe-gap location. marker_style
+-- and gap_height are inert pass-throughs for the future renderer (shape/luminance intent +
+-- refuge size); nothing is resolved here.
+local function telegraphMarker(x, y, color_axis, marker_style, gap_height)
+    return {
+        x = x, y = y, vx = 0, vy = 0, color_axis = color_axis,
+        type = "telegraph", marker_style = marker_style, gap_height = gap_height,
+    }
 end
 
 -- Self-contained deterministic RNG (LCG, Numerical Recipes constants). Returns a closure
@@ -216,6 +239,127 @@ function BulletPatternLibrary.wallWithGap(origin, t, params)
                 vx, vy,
                 color_axis
             )
+        end
+    end
+    return out
+end
+
+-- Pillars: vertical columns (a "curtain") with telegraphed safe gaps.
+--
+-- Each pillar is a column at a fixed x with bullets sampled down the play-field height; a
+-- safe gap is a normalized vertical band (pos, width in 0..1 of the column) left empty -- a
+-- horizontal lane the player slides into. The vertical analog of wallWithGap, plus descent.
+--
+-- Two-stage output driven by the caller-supplied `t` (NOT an internal timer):
+--   warning stage (t < telegraph_duration): emits one telegraph marker per gap per pillar at
+--     the gap CENTER, so the refuge location is shown before bullets appear.
+--   resolve stage (t >= telegraph_duration): emits the descending bullets, skipping gap bands.
+-- The stage may also be forced via params.stage ("warning"/"resolve").
+--
+-- params:
+--   pillarCount (4)
+--   x placement (first match wins): xs (list) | xGen(i, count) (function) |
+--       auto even cell-centers across [fieldLeft, fieldRight]
+--   fieldLeft (0), fieldRight (1920), fieldTop (0), fieldBottom (1080)
+--   density (first match wins): bulletsPerPillar (N) | spacing (px, default 48)
+--   descendSpeed (200) -> bullet vy
+--   gaps (first match wins): gapsFor(p, x) (function->list) | gapsPerPillar (table by p) |
+--       gaps (one list for all) | default {{pos=0.5, width=0.16}}; gap = {pos 0..1, width 0..1}
+--   telegraph_duration (0.8) -- plain numeric warning lead time; not beat-synced
+--   marker_style ("outline"), color_axis (nil), stage (optional override)
+-- `origin` is accepted for signature/contract uniformity; pillar geometry uses field params.
+function BulletPatternLibrary.pillars(origin, t, params)
+    params = params or {}
+    t = t or 0
+    local pillarCount = params.pillarCount or 4
+    local fieldLeft = params.fieldLeft or 0
+    local fieldRight = params.fieldRight or 1920
+    local fieldTop = params.fieldTop or 0
+    local fieldBottom = params.fieldBottom or 1080
+    local descendSpeed = params.descendSpeed or 200
+    local telegraphDuration = params.telegraph_duration or 0.8
+    local markerStyle = params.marker_style or "outline"
+    local color_axis = params.color_axis
+    local extent = fieldBottom - fieldTop
+
+    -- Resolve pillar x positions.
+    local xs = {}
+    if type(params.xs) == "table" then
+        for i = 1, pillarCount do xs[i] = params.xs[i] end
+    elseif type(params.xGen) == "function" then
+        for i = 1, pillarCount do xs[i] = params.xGen(i, pillarCount) end
+    else
+        -- Even cell-centers: the i-th of pillarCount columns sits at the middle of its slice.
+        local width = fieldRight - fieldLeft
+        for i = 1, pillarCount do
+            xs[i] = fieldLeft + (i - 0.5) / pillarCount * width
+        end
+    end
+
+    -- Resolve the gap list for a given pillar.
+    local function gapsForPillar(p, x)
+        if type(params.gapsFor) == "function" then
+            return params.gapsFor(p, x) or {}
+        elseif type(params.gapsPerPillar) == "table" then
+            return params.gapsPerPillar[p] or {}
+        elseif type(params.gaps) == "table" then
+            return params.gaps
+        end
+        return { { pos = 0.5, width = 0.16 } }
+    end
+
+    local function inGap(u, gaps)
+        for g = 1, #gaps do
+            if math.abs(u - gaps[g].pos) <= (gaps[g].width * 0.5) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local stage = params.stage
+    if not stage then
+        stage = (t < telegraphDuration) and "warning" or "resolve"
+    end
+
+    local out = {}
+
+    if stage == "warning" then
+        for p = 1, pillarCount do
+            local x = xs[p]
+            local gaps = gapsForPillar(p, x)
+            for g = 1, #gaps do
+                local gy = fieldTop + gaps[g].pos * extent
+                local gh = gaps[g].width * extent
+                out[#out + 1] = telegraphMarker(x, gy, color_axis, markerStyle, gh)
+            end
+        end
+        return out
+    end
+
+    -- resolve stage: build the column sampling (normalized u positions top->bottom).
+    local us = {}
+    if params.bulletsPerPillar then
+        local n = params.bulletsPerPillar
+        for j = 0, n - 1 do
+            us[#us + 1] = (n == 1) and 0.5 or j / (n - 1)
+        end
+    else
+        local spacing = params.spacing or 48
+        local steps = math.max(1, math.floor(extent / spacing)) -- inclusive of both ends
+        for j = 0, steps do
+            us[#us + 1] = j * spacing / extent
+        end
+    end
+
+    for p = 1, pillarCount do
+        local x = xs[p]
+        local gaps = gapsForPillar(p, x)
+        for j = 1, #us do
+            local u = us[j]
+            if not inGap(u, gaps) then
+                out[#out + 1] = pillarBullet(x, fieldTop + u * extent, descendSpeed, color_axis)
+            end
         end
     end
     return out

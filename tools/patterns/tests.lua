@@ -636,4 +636,67 @@ do
     assertEqual(RingBoss.isCoreVulnerable(boss.ringPhase), true, "ring: core now vulnerable in P4")
 end
 
+-- ---------------------------------------------------------------------------
+-- PatternSpawner bridge: descriptors -> live projectiles (love-free via fake factory)
+-- ---------------------------------------------------------------------------
+do
+    local PatternSpawner = require("src.combat.PatternSpawner")
+    -- Fake Projectile constructor: captures args, returns a mutable projectile-like table.
+    local function fakeFactory(x, y, vx, vy, damage, projType, owner)
+        return { x = x, y = y, vx = vx, vy = vy, damage = damage, projType = projType, owner = owner }
+    end
+
+    -- Pillar resolve stage -> bullets; prepend a telegraph marker to prove it is skipped.
+    local descriptors = BPL.pillars({ x = 0, y = 0 }, 1.0, {
+        pillarCount = 2, xs = { 100, 200 }, fieldTop = 0, fieldBottom = 1000,
+        bulletsPerPillar = 5, gaps = { { pos = 0.5, width = 0.2 } }, descendSpeed = 300,
+        color_axis = "mids",
+    })
+    local bulletCount = #descriptors
+    table.insert(descriptors, 1, { x = 1, y = 2, vx = 0, vy = 0, type = "telegraph", marker_style = "outline" })
+
+    local sink = {}
+    local spawned, skipped = PatternSpawner.spawn(descriptors, sink, {
+        factory = fakeFactory, damage = 12, projType = "boss_orb",
+    })
+    assertEqual(skipped, 1, "bridge: telegraph markers skipped")
+    assertEqual(spawned, bulletCount, "bridge: every non-telegraph descriptor spawned")
+    assertEqual(#sink, bulletCount, "bridge: sink length == spawned")
+
+    local midsColor = PatternSpawner.AXIS_COLORS.mids
+    for i = 1, #sink do
+        assertEqual(sink[i].owner, "boss", "bridge: owner set")
+        assertEqual(sink[i].projType, "boss_orb", "bridge: projType set")
+        assertEqual(sink[i].damage, 12, "bridge: base damage applied")
+        assertEqual(sink[i].vy, 300, "bridge: velocity carried through")
+        assertEqual(sink[i].color, midsColor, "bridge: color_axis=mids resolved to mids color")
+    end
+
+    -- Colour precedence: explicit opts.color overrides the axis.
+    local sink2 = {}
+    PatternSpawner.spawn({ { x = 0, y = 0, vx = 0, vy = 1, color_axis = "bass" } }, sink2,
+        { factory = fakeFactory, color = { 0.1, 0.2, 0.3 } })
+    assertNear(sink2[1].color[1], 0.1, "bridge: explicit color overrides axis")
+
+    -- A descriptor's own color (if present) beats axis resolution.
+    local sink3 = {}
+    PatternSpawner.spawn({ { x = 0, y = 0, vx = 0, vy = 1, color_axis = "bass", color = { 0.9, 0.9, 0.9 } } },
+        sink3, { factory = fakeFactory })
+    assertNear(sink3[1].color[1], 0.9, "bridge: descriptor color beats axis")
+
+    -- nil axis -> default colour.
+    local sink4 = {}
+    PatternSpawner.spawn({ { x = 0, y = 0, vx = 0, vy = 1 } }, sink4, { factory = fakeFactory })
+    assertEqual(sink4[1].color, PatternSpawner.DEFAULT_COLOR, "bridge: nil axis -> default color")
+
+    -- Composability: a RingBoss choreography frame flows through the same bridge; warning-stage
+    -- telegraph markers are skipped, leaving only the would-be bullets.
+    local frame = RingBoss.pillarChoreography(0.05, { columns = 2, fieldTop = 0, fieldBottom = 1000,
+        nodeDelay = 0.0, telegraph_duration = 5 }) -- all in warning stage -> all telegraphs
+    local sink5 = {}
+    local s5, t5 = PatternSpawner.spawn(frame, sink5, { factory = fakeFactory })
+    assertEqual(s5, 0, "bridge: an all-warning choreography frame spawns no bullets")
+    assertEqual(t5, #frame, "bridge: all warning descriptors counted as telegraphs")
+end
+
 print(string.format("OK (%d passed)", passed))

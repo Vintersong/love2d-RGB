@@ -90,6 +90,11 @@ local Config = {
             },
         },
 
+        -- Opt-in: when true, bosses can select the BulletPatternLibrary curtain attack
+        -- (fired through src/combat/PatternSpawner). Default OFF so the stock attack mix is
+        -- unchanged; flip to true to see the standalone pattern library fire in-game.
+        patternLibAttacks = false,
+
         -- Final-boss "ring boss" extension (dodecagonal ring + central core). Pure logic
         -- lives in src/patterns/RingBoss.lua. Everything here defaults OFF so the existing
         -- submittable build is byte-for-byte unchanged in behavior.

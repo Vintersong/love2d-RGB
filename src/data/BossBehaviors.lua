@@ -6,6 +6,7 @@ local Projectile = require("src.entities.Projectile")
 local BulletPatterns = require("src.data.BulletPatterns")
 local MathUtils = require("src.utils.MathUtils")
 local GameConfig = require("src.core.GameConfig")
+local Config = require("src.Config")
 
 local function bossOrigin(boss)
     return {x = boss.x, y = boss.y}
@@ -296,20 +297,62 @@ BossBehaviors.catalog = {
             return 1.25
         end,
     },
+    {
+        -- Opt-in demonstration that the standalone BulletPatternLibrary fires in-game through
+        -- the shared PatternSpawner bridge. Gated by Config.boss.patternLibAttacks (default
+        -- OFF) via canRun, so even though its id is in the archetype attack lists it is never
+        -- selected unless the flag is on -- the stock attack mix is unchanged by default.
+        id = "pattern_pillar_curtain",
+        kind = "attack",
+        validFor = "boss",
+        tags = {"ranged", "mids"},
+        cooldown = 6.0,
+        canRun = function(boss, context)
+            return Config.boss and Config.boss.patternLibAttacks == true
+        end,
+        weight = function(boss, context)
+            return 1.4 + (context.mids or 0) * 1.5
+        end,
+        execute = function(boss, context)
+            local BulletPatternLibrary = require("src.patterns.BulletPatternLibrary")
+            local PatternSpawner = require("src.combat.PatternSpawner")
+            local screenW, screenH = GameConfig.getScreenSize()
+            -- A descending curtain of vertical pillars with a safe lane, spanning from the
+            -- boss line down to the floor. Resolve stage -> live bullets (telegraph markers
+            -- come from the warning stage and are rendered elsewhere; the bridge skips them).
+            local descriptors = BulletPatternLibrary.pillars({x = boss.x, y = boss.y}, 1.0, {
+                pillarCount = 5,
+                fieldLeft = 0, fieldRight = screenW,
+                fieldTop = boss.y, fieldBottom = screenH,
+                bulletsPerPillar = 8,
+                gaps = {{pos = 0.5, width = 0.24}},
+                descendSpeed = 210,
+                color_axis = "mids",
+                stage = "resolve",
+            })
+            PatternSpawner.spawn(descriptors, context.bossProjectiles, {
+                damage = bossDamage(boss, 0.45, 9),
+                projType = "boss_orb",
+            })
+            return 1.4
+        end,
+    },
 }
 
 BossBehaviors.archetypes = {
+    -- "pattern_pillar_curtain" is listed for every archetype but only fires when
+    -- Config.boss.patternLibAttacks is true (its canRun gate); default OFF leaves the mix as-is.
     berserker = {
         phase = {"dash_strike", "phase_low_health"},
-        attack = {"single_shot", "slam"},
+        attack = {"single_shot", "slam", "pattern_pillar_curtain"},
     },
     mage = {
         phase = {"phase_low_health"},
-        attack = {"single_shot", "spread_cone", "spiral", "circle_burst", "wave", "cross", "slam", "double_spiral", "flower"},
+        attack = {"single_shot", "spread_cone", "spiral", "circle_burst", "wave", "cross", "slam", "double_spiral", "flower", "pattern_pillar_curtain"},
     },
     warrior = {
         phase = {"dash_strike", "phase_low_health"},
-        attack = {"single_shot", "spread_cone", "wave", "slam"},
+        attack = {"single_shot", "spread_cone", "wave", "slam", "pattern_pillar_curtain"},
     },
 }
 

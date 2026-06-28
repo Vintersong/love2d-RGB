@@ -374,7 +374,7 @@ end
 -- is called if provided, else a warning is written to io.stderr. Never throws.
 -- Returns: merged, total, overCap
 function BulletPatternLibrary.composite(lists, opts)
-    if not lists then return {}, 0, false end
+    if type(lists) ~= "table" then return {}, 0, false end
     opts = opts or {}
     local softCap = opts.softCap or 600
 

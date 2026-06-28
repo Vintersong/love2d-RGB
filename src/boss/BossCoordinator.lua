@@ -10,6 +10,7 @@ local Config = require("src.Config")
 local EconomySystem = require("src.economy.EconomySystem")
 local RunSummary = require("src.core.RunSummary")
 local SpawnController = require("src.spawning.SpawnController")
+local LaserBeam = require("src.combat.LaserBeam")
 
 BossCoordinator.bossProjectiles = {}
 
@@ -64,7 +65,6 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
         -- ring state was attached (Config.boss.ringBoss.enabled, default off).
         activeBoss = BossSystem.activeBoss
         if activeBoss and activeBoss._ringLasers and #activeBoss._ringLasers > 0 then
-            local LaserBeam = require("src.combat.LaserBeam")
             local px = player.x + (player.width or 0) / 2
             local py = player.y + (player.height or 0) / 2
             for _, beam in ipairs(activeBoss._ringLasers) do

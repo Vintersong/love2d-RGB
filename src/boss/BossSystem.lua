@@ -17,6 +17,7 @@ local LaserBeam = require("src.combat.LaserBeam")
 -- Wave-based spawn fields are retired to avoid dual policy drift.
 BossSystem.activeBoss = nil
 BossSystem.nextEncounterIndex = 1
+BossSystem.totalDamageDealt = 0 -- total HP removed from bosses this run (for the end screen)
 
 -- Boss colors (replaced palette dependency)
 local BOSS_COLOR = {1, 0.2, 0.8}  -- Neon pink
@@ -48,6 +49,7 @@ function BossSystem.reset()
     BossSystem.clearBossReferences(BossSystem.activeBoss)
     BossSystem.activeBoss = nil
     BossSystem.nextEncounterIndex = 1
+    BossSystem.totalDamageDealt = 0
 end
 
 function BossSystem.spawnBoss(options)
@@ -254,11 +256,12 @@ function BossSystem:update(dt, playerX, playerY)
             self.hitFlash = self.hitFlash - dt
         end
 
-        -- Ring-boss (opt-in): advance P1->P2->P3 by time (the core is invulnerable until P4,
-        -- so an HP-driven progression would deadlock), then fire that phase's ring attack on a
-        -- cadence. No-op unless ring state was attached at spawn (default off).
+        -- Ring-boss (opt-in): the phase tracks the boss's HP quarter (P1 100-75%, P2 75-50%,
+        -- P3 50-25%, P4 25-0%), so the four phases map 1:1 to the four health-bar segments and
+        -- damage visibly drives the fight. Then fire that phase's ring attack on a cadence.
+        -- No-op unless ring state was attached at spawn (default off).
         if self.ringPhase then
-            RingBoss.advancePhaseByTime(self, dt, (self.ringConfig and self.ringConfig.phaseDuration) or 12)
+            RingBoss.updatePhase(self)
 
             -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
             -- reconfigures via the phase layout). Clamped to the arena.
@@ -390,15 +393,6 @@ end
 function BossSystem:takeDamage(amount, colorName)
     if self.invulnerable then return end
 
-    -- Ring-boss (opt-in): the central core is only vulnerable in Phase 4 (closing circle /
-    -- core exposed). In P1-P3 the ring shields the core, so damage is ignored. No-op unless
-    -- ring state was attached at spawn (default off).
-    if self.ringPhase then
-        if not RingBoss.isCoreVulnerable(self.ringPhase) then
-            return
-        end
-    end
-
     -- Color affinity (bonus-only): a projectile matching this archetype's weak
     -- color deals bonus damage. Regular enemies never reach this path, so they
     -- stay affinity-free by design. See Config.boss.affinity.
@@ -410,14 +404,22 @@ function BossSystem:takeDamage(amount, colorName)
         end
     end
 
+    -- Apply damage and accumulate the actual HP removed (for the boss health bar + end screen).
+    local before = self.health
     self.health = self.health - amount
+    if self.health < 0 then self.health = 0 end
+    local applied = before - self.health
+    self.damageTaken = (self.damageTaken or 0) + applied
+    BossSystem.totalDamageDealt = (BossSystem.totalDamageDealt or 0) + applied
+
     if self.health <= 0 then
         self.health = 0
         self.phase = "defeated"
-        -- Ring-boss (opt-in): the exposed core was destroyed (damage only lands in P4 per the
-        -- vulnerability guard above). This flag drives the flag-gated P4 core-kill win path.
+        -- Ring-boss (opt-in): the core is destroyed. Force the final phase so the P4 core-kill
+        -- win registers even if the killing blow crossed into P4 in a single hit.
         if self.ringPhase then
             self.coreDestroyed = true
+            self.ringPhase = RingBoss.PHASE.P4
         end
     end
 

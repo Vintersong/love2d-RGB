@@ -190,6 +190,7 @@ function VictoryState:drawContent(sw, sh)
     love.graphics.print(string.format("TIME      %s", summary.gameTime and string.format("%.1fs", summary.gameTime) or "--"), panelX, detailY + 34)
     love.graphics.print(string.format("KILLS     %d", summary.enemyKillCount or 0), panelX, detailY + 60)
     love.graphics.print(string.format("HP        %d / %d", summary.hp or player.hp or 0, summary.maxHp or player.maxHp or 0), panelX, detailY + 86)
+    love.graphics.print(string.format("BOSS DMG  %d", math.floor(summary.bossDamage or 0)), panelX, detailY + 112)
 
     Theme.setColor("fg2", alpha)
     love.graphics.print("SUMMARY  FULL RECAP", rightColX, detailY + 34)

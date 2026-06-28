@@ -89,6 +89,27 @@ local Config = {
                 warrior   = "GREEN",  -- the bruiser folds to adaptation/chains
             },
         },
+
+        -- Opt-in: when true, bosses can select the BulletPatternLibrary curtain attack
+        -- (fired through src/combat/PatternSpawner). Default OFF so the stock attack mix is
+        -- unchanged; flip to true to see the standalone pattern library fire in-game.
+        patternLibAttacks = false,
+
+        -- Final-boss "ring boss" extension (dodecagonal ring + central core). Pure logic
+        -- lives in src/patterns/RingBoss.lua. Everything here defaults OFF so the existing
+        -- submittable build is byte-for-byte unchanged in behavior.
+        ringBoss = {
+            enabled = false,                 -- attach ring phase state to spawned bosses
+            use_ring_boss_wincon = false,    -- gate the new win condition (P4 core kill).
+                                             -- When false, the ORIGINAL win condition runs
+                                             -- (track-completion: the run is won when the
+                                             -- music song finishes). See RingBoss.evaluateWincon.
+            phaseThresholds = { 0.75, 0.5, 0.25 }, -- HP fractions: >t1 P1, >t2 P2, >t3 P3, else P4
+            baseRadius = 220,                -- ring radius (px) at scale 1.0
+            nodeDelay = 0.18,                -- per-node firing delay in the 6/6 choreography (s)
+            telegraphDuration = 0.7,         -- safe-gap warning lead time (s); not beat-synced
+            laserInterval = 7,               -- P3 chord interval in semitones (fifth=7, tritone=6)
+        },
     },
 
     -- ------------------------------------------------------------------

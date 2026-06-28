@@ -96,14 +96,17 @@ local Config = {
         patternLibAttacks = false,
 
         -- Final-boss "ring boss" extension (dodecagonal ring + central core). Pure logic
-        -- lives in src/patterns/RingBoss.lua. Everything here defaults OFF so the existing
-        -- submittable build is byte-for-byte unchanged in behavior.
+        -- lives in src/patterns/RingBoss.lua.
+        -- CURRENT WIN CONDITION: defeating the final boss. `enabled` spawns the ring boss
+        -- at `encounterIndex`, and `use_ring_boss_wincon` makes the run won ONLY by destroying
+        -- the exposed P4 core -- the song finishing no longer wins (the playlist just loops).
+        -- To restore the original track-completion win, set both back to false.
         ringBoss = {
-            enabled = false,                 -- attach ring phase state to spawned bosses
-            use_ring_boss_wincon = false,    -- gate the new win condition (P4 core kill).
-                                             -- When false, the ORIGINAL win condition runs
-                                             -- (track-completion: the run is won when the
-                                             -- music song finishes). See RingBoss.evaluateWincon.
+            enabled = true,                  -- attach ring phase state to spawned bosses
+            use_ring_boss_wincon = true,     -- WIN = destroy the exposed P4 core. When true,
+                                             -- RingBoss.evaluateWincon ignores song-end entirely,
+                                             -- so defeating the final boss is the only victory.
+                                             -- false restores the ORIGINAL track-completion win.
             phaseThresholds = { 0.75, 0.5, 0.25 }, -- HP fractions: >t1 P1, >t2 P2, >t3 P3, else P4
             baseRadius = 220,                -- ring radius (px) at scale 1.0
             nodeDelay = 0.18,                -- per-node firing delay in the 6/6 choreography (s)
@@ -249,7 +252,12 @@ local Config = {
         enabled = true,
         showColliders = false,
         showFPS = true,
-        muteAudio = false -- Set to true to disable/mute all audio during debugging
+        muteAudio = false, -- Set to true to disable/mute all audio during debugging
+        -- Testing aid: when true, the run NEVER ends from the song finishing (the
+        -- track-completion win is disabled). The playlist auto-advances/loops on its own,
+        -- so play is endless -- handy for reaching and balancing the ring boss. Death
+        -- (GameOver) and the P4 ring-core-kill win still work. Leave false for real runs.
+        endlessMode = false
     }
 }
 

@@ -26,7 +26,10 @@ function PlayingUpdateLoop.update(state, dt, deps)
     -- wins only by destroying the exposed ring-boss core during Phase 4. The original path is
     -- left fully intact for reconciliation; routing lives in RingBoss.evaluateWincon.
     local ringCfg = (Config.boss and Config.boss.ringBoss) or {}
-    local songEnded = state.musicReactor and state.musicReactor.isPlaying
+    -- Debug endless mode: suppress the track-completion win so the run never auto-ends; the
+    -- playlist's own autoAdvance then loops/cycles the music. Lets you reach + balance bosses.
+    local endlessMode = Config.debug and Config.debug.endlessMode
+    local songEnded = (not endlessMode) and state.musicReactor and state.musicReactor.isPlaying
         and state.musicReactor.currentSong
         and not state.musicReactor.currentSong:isPlaying()
     local activeBoss = deps.BossCoordinator and deps.BossCoordinator.getActiveBoss()

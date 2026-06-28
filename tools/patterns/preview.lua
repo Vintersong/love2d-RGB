@@ -277,6 +277,25 @@ do
     end
 
     print("")
+    print("=== RING BOSS per-phase attacks (emitters fire FROM the ring nodes) ===")
+    local atkCenter = { x = 960, y = 540 }
+    -- P1: the firing origin walks the ring as t advances (music-box unspooling).
+    for _, tt in ipairs({ 0.0, 0.12, 0.24 }) do
+        local burst = RingBoss.phaseAttack(atkCenter, RingBoss.PHASE.P1, tt, { baseRadius = 220, count = 6, nodeFireInterval = 0.12, rotateSpeed = 0 })
+        print(string.format("  P1 t=%.2f: %d-bullet burst from node origin (%.0f, %.0f)", tt, #burst, burst[1].x, burst[1].y))
+    end
+    -- P3: interval lasers (count = pairs x 2 ends); P4: all 12 fire inward at once.
+    local p3 = RingBoss.phaseAttack(atkCenter, RingBoss.PHASE.P3, 0, { baseRadius = 220, laserInterval = 7 })
+    local p3tri = RingBoss.phaseAttack(atkCenter, RingBoss.PHASE.P3, 0, { baseRadius = 220, laserInterval = 6 })
+    print(string.format("  P3 lasers: fifth -> %d laser ends, tritone -> %d laser ends (type=laser, bridge-skipped)", #p3, #p3tri))
+    local p4 = RingBoss.phaseAttack(atkCenter, RingBoss.PHASE.P4, 0, { baseRadius = 220, speed = 240 })
+    local inward = 0
+    for i = 1, #p4 do
+        if (atkCenter.x - p4[i].x) * p4[i].vx + (atkCenter.y - p4[i].y) * p4[i].vy > 0 then inward = inward + 1 end
+    end
+    print(string.format("  P4 burn/dodge: %d bullets, %d/%d confirmed aiming inward at the exposed core", #p4, inward, #p4))
+
+    print("")
     print("=== RING BOSS win condition routing (flag-gated; default OFF keeps old wincon) ===")
     local function showWin(label, p)
         local won, reason = RingBoss.evaluateWincon(p)

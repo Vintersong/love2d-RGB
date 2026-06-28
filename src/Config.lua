@@ -109,6 +109,7 @@ local Config = {
             nodeDelay = 0.18,                -- per-node firing delay in the 6/6 choreography (s)
             telegraphDuration = 0.7,         -- safe-gap warning lead time (s); not beat-synced
             laserInterval = 7,               -- P3 chord interval in semitones (fifth=7, tritone=6)
+            fireCadence = 0.5,               -- seconds between ring-node attack volleys (P1-P4)
         },
     },
 

@@ -618,6 +618,59 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- RingBoss: per-phase attack generation (emitters fire from the ring nodes)
+-- ---------------------------------------------------------------------------
+do
+    local center = { x = 1000, y = 500 }
+    local params = { baseRadius = 200, speed = 240 }
+
+    -- P4: all 12 nodes fire inward simultaneously; each velocity points at the core.
+    local p4 = RingBoss.phaseAttack(center, RingBoss.PHASE.P4, 0, params)
+    assertEqual(#p4, 12, "phaseAttack: P4 fires all 12 nodes")
+    for i = 1, #p4 do
+        local b = p4[i]
+        assertEqual(b.type, "bullet", "phaseAttack: P4 emits bullets " .. i)
+        -- velocity points toward the core: dot((center - pos), v) > 0.
+        local dot = (center.x - b.x) * b.vx + (center.y - b.y) * b.vy
+        ok(dot > 0, "phaseAttack: P4 bullet aims inward " .. i)
+        assertNear(math.sqrt(b.vx ^ 2 + b.vy ^ 2), 240, "phaseAttack: P4 speed " .. i)
+    end
+
+    -- P1: the firing origin walks the ring as t advances.
+    local p1a = RingBoss.phaseAttack(center, RingBoss.PHASE.P1, 0.00, { baseRadius = 200, count = 6, nodeFireInterval = 0.1, rotateSpeed = 0 })
+    local p1b = RingBoss.phaseAttack(center, RingBoss.PHASE.P1, 0.15, { baseRadius = 200, count = 6, nodeFireInterval = 0.1, rotateSpeed = 0 })
+    assertEqual(#p1a, 6, "phaseAttack: P1 radial burst count")
+    -- t=0 -> node 1 (angle 0) at (center.x + radius, center.y); all bullets share that origin.
+    assertNear(p1a[1].x, center.x + 200, "phaseAttack: P1 origin on node 1 at t=0")
+    assertNear(p1a[1].y, center.y, "phaseAttack: P1 origin y on node 1")
+    -- t=0.15 with interval 0.1 -> node 2; origin moves off node 1.
+    ok(math.abs(p1b[1].x - p1a[1].x) > 1e-6 or math.abs(p1b[1].y - p1a[1].y) > 1e-6,
+        "phaseAttack: P1 origin walks the ring over t")
+
+    -- P3: interval lasers -> a laser descriptor per paired node (both ends fire inward).
+    local p3 = RingBoss.phaseAttack(center, RingBoss.PHASE.P3, 0, { baseRadius = 200, speed = 240, laserInterval = 7 })
+    -- fifth = 12 pairs, each pair fires from both nodes -> 24 laser descriptors.
+    assertEqual(#p3, 24, "phaseAttack: P3 fifth -> 24 laser ends")
+    for i = 1, #p3 do
+        assertEqual(p3[i].type, "laser", "phaseAttack: P3 emits lasers " .. i)
+        assertEqual(p3[i].interval, 7, "phaseAttack: P3 carries interval " .. i)
+    end
+    local p3tri = RingBoss.phaseAttack(center, RingBoss.PHASE.P3, 0, { laserInterval = 6 })
+    assertEqual(#p3tri, 12, "phaseAttack: P3 tritone -> 12 laser ends")
+
+    -- The bridge realizes P4 bullets but skips P3 lasers (no Projectile for a beam).
+    local PatternSpawner = require("src.combat.PatternSpawner")
+    local function fakeFactory(x, y, vx, vy, d, pt, o) return { x = x, y = y, vx = vx, vy = vy, color = nil } end
+    local sinkP4 = {}
+    local spawnedP4 = PatternSpawner.spawn(p4, sinkP4, { factory = fakeFactory })
+    assertEqual(spawnedP4, 12, "phaseAttack: bridge spawns all P4 bullets")
+    local sinkP3 = {}
+    local spawnedP3, skippedP3 = PatternSpawner.spawn(p3, sinkP3, { factory = fakeFactory })
+    assertEqual(spawnedP3, 0, "phaseAttack: bridge spawns no laser bullets")
+    assertEqual(skippedP3, 24, "phaseAttack: bridge skips all laser descriptors")
+end
+
+-- ---------------------------------------------------------------------------
 -- RingBoss: boss-state attach / updatePhase (the entity reconfigures)
 -- ---------------------------------------------------------------------------
 do

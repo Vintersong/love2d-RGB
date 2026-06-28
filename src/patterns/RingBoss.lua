@@ -292,6 +292,85 @@ function RingBoss.pillarChoreography(t, params)
 end
 
 -- ---------------------------------------------------------------------------
+-- Per-phase attack generator: spawn descriptors emitted FROM the ring nodes.
+-- ---------------------------------------------------------------------------
+
+-- Unit velocity pointing from a node toward the core, scaled to speed.
+local function inwardVelocity(node, center, speed)
+    local dx, dy = center.x - node.x, center.y - node.y
+    local len = math.sqrt(dx * dx + dy * dy)
+    if len == 0 then return 0, 0 end
+    return dx / len * speed, dy / len * speed
+end
+
+-- Build the descriptor list for the current phase's attack, originating at the ring nodes
+-- (not the core). Pure: returns inert descriptors for PatternSpawner to realize.
+--   P1: the bullet origin WALKS the ring -- one node fires a radial burst per tick (music box).
+--   P2: the collapsed ring spits short-range aimed shots at the player from a few nodes.
+--   P3: interval lasers -- a `type="laser"` beam descriptor fired inward from each paired node
+--       (params.laserInterval; fifth=7, tritone=6). Lasers are not bullets; PatternSpawner skips them.
+--   P4: all 12 nodes fire inward simultaneously (the chromatic wall; core exposed).
+-- params: baseRadius, rotateSpeed, speed, count, nodeFireInterval, nodesFiring,
+--         targetX, targetY, laserInterval, color_axis.
+function RingBoss.phaseAttack(center, phaseId, t, params)
+    params = params or {}
+    t = t or 0
+    center = center or { x = 0, y = 0 }
+    local cfg = RingBoss.phaseConfig(phaseId)
+    local speed = params.speed or 240
+    local color_axis = params.color_axis
+    local nodes = RingBoss.phaseLayout(phaseId, center, t, params)
+    local out = {}
+
+    if phaseId == RingBoss.PHASE.P1 then
+        local interval = params.nodeFireInterval or 0.12
+        local activeIndex = (math.floor(t / interval) % #nodes) + 1
+        local node = nodes[activeIndex]
+        local burst = BulletPatternLibrary.radial({ x = node.x, y = node.y }, t, {
+            count = params.count or 6, speed = speed, baseAngle = node.angle, color_axis = color_axis,
+        })
+        for i = 1, #burst do out[#out + 1] = burst[i] end
+
+    elseif phaseId == RingBoss.PHASE.P2 then
+        local tx = params.targetX or center.x
+        local ty = params.targetY or center.y
+        local fired = params.nodesFiring or 3
+        for k = 0, fired - 1 do
+            local node = nodes[(k % #nodes) + 1]
+            local fan = BulletPatternLibrary.aimed({ x = node.x, y = node.y }, t, {
+                targetX = tx, targetY = ty, count = 1, speed = speed * 0.9, color_axis = color_axis,
+            })
+            out[#out + 1] = fan[1]
+        end
+
+    elseif phaseId == RingBoss.PHASE.P3 then
+        local interval = params.laserInterval or cfg.laserInterval or 7
+        local pairs = RingBoss.intervalPairs(interval, #nodes)
+        for i = 1, #pairs do
+            for _, idx in ipairs({ pairs[i].a, pairs[i].b }) do
+                local node = nodes[idx + 1]
+                local vx, vy = inwardVelocity(node, center, speed)
+                out[#out + 1] = {
+                    x = node.x, y = node.y, vx = vx, vy = vy, color_axis = color_axis,
+                    type = "laser", interval = interval,
+                }
+            end
+        end
+
+    elseif phaseId == RingBoss.PHASE.P4 then
+        for i = 1, #nodes do
+            local vx, vy = inwardVelocity(nodes[i], center, speed)
+            out[#out + 1] = {
+                x = nodes[i].x, y = nodes[i].y, vx = vx, vy = vy,
+                color_axis = color_axis, type = "bullet",
+            }
+        end
+    end
+
+    return out
+end
+
+-- ---------------------------------------------------------------------------
 -- Win condition (pure router; the flag-gated live hook calls this)
 -- ---------------------------------------------------------------------------
 

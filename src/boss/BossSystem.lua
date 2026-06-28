@@ -238,9 +238,30 @@ function BossSystem:update(dt, playerX, playerY)
         end
 
         -- Ring-boss (opt-in): recompute which of the four ring phases this entity is in from
-        -- its current HP. No-op unless ring state was attached at spawn (default off).
+        -- its current HP, then fire that phase's ring attack on a cadence. No-op unless ring
+        -- state was attached at spawn (Config.boss.ringBoss.enabled, default off).
         if self.ringPhase then
-            require("src.patterns.RingBoss").updatePhase(self)
+            local RingBoss = require("src.patterns.RingBoss")
+            RingBoss.updatePhase(self)
+
+            self._ringFireTimer = (self._ringFireTimer or 0) - dt
+            if self._ringFireTimer <= 0 then
+                self._ringFireTimer = (self.ringConfig and self.ringConfig.fireCadence) or 0.5
+                -- Descriptors emit from the 12 ring-node positions; the PatternSpawner bridge
+                -- turns the bullet ones into live projectiles (lasers/telegraphs are skipped,
+                -- pending their own renderer -- see Phase 2 notes).
+                local PatternSpawner = require("src.combat.PatternSpawner")
+                local descriptors = RingBoss.phaseAttack({x = self.x, y = self.y}, self.ringPhase, self.combatTime or 0, {
+                    baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220,
+                    speed = 230,
+                    targetX = playerX, targetY = playerY,
+                    color_axis = "mids",
+                })
+                PatternSpawner.spawn(descriptors, self._bossProjectiles or {}, {
+                    damage = math.floor((self.damage or 10) * 0.5),
+                    projType = "boss_orb",
+                })
+            end
         end
 
         -- Check death
@@ -416,7 +437,13 @@ function BossSystem:draw()
     love.graphics.circle("fill", 0, 0, self.size * 0.3)
     
     love.graphics.pop()
-    
+
+    -- Ring-boss (opt-in): draw the dodecagonal ring overlay around the core. Additive and
+    -- gated by ring state (default off), so the stock boss silhouette is unchanged.
+    if self.ringPhase then
+        self:drawRing()
+    end
+
     -- Health bar
     if self.phase ~= "defeated" then
         self:drawHealthBar()
@@ -433,6 +460,34 @@ end
 function BossSystem:drawHealthBar()
     local BossPanel = require("src.ui.BossPanel")
     BossPanel.drawBossInfo(self)
+end
+
+-- Ring-boss (opt-in) overlay: the 12-node dodecagonal ring reconfiguring around the core.
+-- Radius/rotation come from the pure RingBoss phase layout, so the silhouette reads as one
+-- entity changing shape across phases. The core is highlighted red when exposed (P4).
+function BossSystem:drawRing()
+    local RingBoss = require("src.patterns.RingBoss")
+    local baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220
+    local nodes, cfg = RingBoss.phaseLayout(self.ringPhase, {x = self.x, y = self.y}, self.combatTime or 0, {
+        baseRadius = baseRadius,
+    })
+    local radius = baseRadius * (cfg.radiusScale or 1)
+    local bossColor = self.bossColor or BOSS_COLOR
+
+    love.graphics.setColor(bossColor[1], bossColor[2], bossColor[3], 0.30)
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line", self.x, self.y, radius)
+
+    for i = 1, #nodes do
+        love.graphics.setColor(1, 1, 1, 0.85)
+        love.graphics.circle("fill", nodes[i].x, nodes[i].y, 6)
+    end
+
+    if cfg.coreVulnerable then
+        love.graphics.setColor(1, 0.3, 0.3, 0.9)
+        love.graphics.setLineWidth(3)
+        love.graphics.circle("line", self.x, self.y, (self.size or 30) * 0.6)
+    end
 end
 
 -- Helper

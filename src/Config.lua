@@ -249,7 +249,12 @@ local Config = {
         enabled = true,
         showColliders = false,
         showFPS = true,
-        muteAudio = false -- Set to true to disable/mute all audio during debugging
+        muteAudio = false, -- Set to true to disable/mute all audio during debugging
+        -- Testing aid: when true, the run NEVER ends from the song finishing (the
+        -- track-completion win is disabled). The playlist auto-advances/loops on its own,
+        -- so play is endless -- handy for reaching and balancing the ring boss. Death
+        -- (GameOver) and the P4 ring-core-kill win still work. Leave false for real runs.
+        endlessMode = false
     }
 }
 

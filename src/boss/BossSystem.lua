@@ -9,6 +9,9 @@ local BehaviorSelector = require("src.combat.BehaviorSelector")
 local MathUtils = require("src.utils.MathUtils")
 local GameConfig = require("src.core.GameConfig")
 local SimpleGrid = require("src.gameplay.SimpleGrid")
+local RingBoss = require("src.patterns.RingBoss")
+local PatternSpawner = require("src.combat.PatternSpawner")
+local LaserBeam = require("src.combat.LaserBeam")
 
 -- Canonical spawn policy is kill-based via SpawnController.
 -- Wave-based spawn fields are retired to avoid dual policy drift.
@@ -119,7 +122,7 @@ function BossSystem.spawnBoss(options)
     local Config = require("src.Config")
     local rc = Config.boss and Config.boss.ringBoss
     if rc and rc.enabled and (rc.encounterIndex == nil or boss.encounterIndex == rc.encounterIndex) then
-        require("src.patterns.RingBoss").attach(boss, rc)
+        RingBoss.attach(boss, rc)
     end
 
     BossSystem.activeBoss = boss
@@ -254,7 +257,6 @@ function BossSystem:update(dt, playerX, playerY)
         -- its current HP, then fire that phase's ring attack on a cadence. No-op unless ring
         -- state was attached at spawn (Config.boss.ringBoss.enabled, default off).
         if self.ringPhase then
-            local RingBoss = require("src.patterns.RingBoss")
             RingBoss.updatePhase(self)
 
             -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
@@ -282,7 +284,6 @@ function BossSystem:update(dt, playerX, playerY)
                 if self.ringPhase == RingBoss.PHASE.P3 then
                     -- P3 emits laser BEAMS (segments), not bullets: each telegraphs, then fires.
                     -- BossCoordinator checks active beams against the player.
-                    local LaserBeam = require("src.combat.LaserBeam")
                     self._ringLasers = self._ringLasers or {}
                     local length = baseRadius * 2.4
                     for _, d in ipairs(descriptors) do
@@ -296,7 +297,6 @@ function BossSystem:update(dt, playerX, playerY)
                     end
                 else
                     -- P1/P2/P4 emit bullets: realize them through the shared bridge.
-                    local PatternSpawner = require("src.combat.PatternSpawner")
                     PatternSpawner.spawn(descriptors, self._bossProjectiles or {}, {
                         damage = math.floor((self.damage or 10) * 0.5),
                         projType = "boss_orb",
@@ -306,7 +306,6 @@ function BossSystem:update(dt, playerX, playerY)
 
             -- Advance laser beams (telegraph -> active -> done) and retire finished ones.
             if self._ringLasers and #self._ringLasers > 0 then
-                local LaserBeam = require("src.combat.LaserBeam")
                 for i = #self._ringLasers, 1, -1 do
                     LaserBeam.update(self._ringLasers[i], dt)
                     if LaserBeam.isDone(self._ringLasers[i]) then
@@ -394,7 +393,6 @@ function BossSystem:takeDamage(amount, colorName)
     -- core exposed). In P1-P3 the ring shields the core, so damage is ignored. No-op unless
     -- ring state was attached at spawn (default off).
     if self.ringPhase then
-        local RingBoss = require("src.patterns.RingBoss")
         if not RingBoss.isCoreVulnerable(self.ringPhase) then
             return
         end
@@ -527,7 +525,6 @@ end
 -- Radius/rotation come from the pure RingBoss phase layout, so the silhouette reads as one
 -- entity changing shape across phases. The core is highlighted red when exposed (P4).
 function BossSystem:drawRing()
-    local RingBoss = require("src.patterns.RingBoss")
     local baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220
     local nodes, cfg = RingBoss.phaseLayout(self.ringPhase, {x = self.x, y = self.y}, self.combatTime or 0, {
         baseRadius = baseRadius,
@@ -552,7 +549,6 @@ function BossSystem:drawRing()
 
     -- P3 laser beams: dim while telegraphing, bright while firing.
     if self._ringLasers and #self._ringLasers > 0 then
-        local LaserBeam = require("src.combat.LaserBeam")
         for i = 1, #self._ringLasers do
             LaserBeam.draw(self._ringLasers[i], bossColor)
         end
@@ -565,7 +561,6 @@ end
 -- P1 6/6 pillar curtain on a cadence: warn (telegraph markers) then resolve (live bullets).
 -- Reuses the pure RingBoss.curtainVolley + the PatternSpawner bridge. No-op outside P1.
 function BossSystem:updateRingCurtain(dt)
-    local RingBoss = require("src.patterns.RingBoss")
     local cfg = self.ringConfig or {}
     local sw, sh = GameConfig.getScreenSize()
     local params = {
@@ -591,7 +586,6 @@ function BossSystem:updateRingCurtain(dt)
     elseif self._curtainState == "warning" then
         self._curtainTimer = (self._curtainTimer or 0) - dt
         if self._curtainTimer <= 0 then
-            local PatternSpawner = require("src.combat.PatternSpawner")
             local bullets = RingBoss.curtainVolley("resolve", self._curtainParams or params)
             PatternSpawner.spawn(bullets, self._bossProjectiles or {}, {
                 damage = math.floor((self.damage or 10) * 0.4),

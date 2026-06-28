@@ -157,6 +157,7 @@ end
 -- (top c1, bottom c1, top c2, bottom c2, ...). Columns are 1-indexed to match Lua tables, so
 -- caller-supplied xs / topGapsPerColumn / bottomGapsPerColumn line up. Pass params.order to reorder.
 function RingBoss.defaultFiringOrder(columns)
+    columns = columns or 6
     local order = {}
     for c = 1, columns do
         order[#order + 1] = { bank = "top", col = c }
@@ -315,7 +316,8 @@ end
 function RingBoss.phaseAttack(center, phaseId, t, params)
     params = params or {}
     t = t or 0
-    center = center or { x = 0, y = 0 }
+    -- Tolerate a nil or partial center ({} would be truthy but lack x/y).
+    center = { x = (center and center.x) or 0, y = (center and center.y) or 0 }
     local cfg = RingBoss.phaseConfig(phaseId)
     local speed = params.speed or 240
     local color_axis = params.color_axis
@@ -417,6 +419,8 @@ function RingBoss.phaseVelocity(phaseId, fromX, fromY, targetX, targetY, params)
     params = params or {}
     local cfg = RingBoss.phaseConfig(phaseId)
     if cfg.fireMode == "follow" then
+        fromX = fromX or 0
+        fromY = fromY or 0
         local tx, ty = targetX or fromX, targetY or fromY
         local dx, dy = tx - fromX, ty - fromY
         local d = math.sqrt(dx * dx + dy * dy)

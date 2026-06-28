@@ -868,4 +868,36 @@ do
     ok(LaserBeam.isDone(beam), "laser: done at 1.2s")
 end
 
+-- ---------------------------------------------------------------------------
+-- Defensive guards (from PR review): malformed/nil inputs must not crash
+-- ---------------------------------------------------------------------------
+do
+    local LaserBeam = require("src.combat.LaserBeam")
+
+    -- composite tolerates nil / non-table.
+    local m, n, over = BPL.composite(nil)
+    assertEqual(#m, 0, "guard: composite(nil) -> empty")
+    assertEqual(n, 0, "guard: composite(nil) total 0")
+    assertEqual(over, false, "guard: composite(nil) not over cap")
+    local m2 = BPL.composite("not a table")
+    assertEqual(#m2, 0, "guard: composite(non-table) -> empty")
+
+    -- LaserBeam helpers tolerate nil.
+    assertEqual(LaserBeam.pointDistance(nil, 1, 2), 0, "guard: pointDistance(nil) -> 0")
+    local zseg = LaserBeam.segment(nil, nil)
+    assertEqual(zseg.x1, 0, "guard: segment(nil,nil) -> zero seg x1")
+    assertEqual(zseg.x2, 0, "guard: segment(nil,nil) -> zero seg x2")
+    local vseg = LaserBeam.segmentFromVelocity(nil, nil, nil, nil, nil)
+    assertEqual(vseg.x1, 0, "guard: segmentFromVelocity(nil...) -> zero seg")
+
+    -- RingBoss helpers tolerate nil / partial args.
+    assertEqual(#RingBoss.defaultFiringOrder(), 12, "guard: defaultFiringOrder() defaults 6 columns")
+    local pv1, pv2 = RingBoss.phaseVelocity(RingBoss.PHASE.P2, nil, nil, nil, nil)
+    assertEqual(pv1, 0, "guard: phaseVelocity(nil coords) holds x")
+    assertEqual(pv2, 0, "guard: phaseVelocity(nil coords) holds y")
+    local pa = RingBoss.phaseAttack({}, RingBoss.PHASE.P4, 0, {})
+    assertEqual(#pa, 12, "guard: phaseAttack(empty center) still fires 12")
+    ok(pa[1].x == pa[1].x, "guard: phaseAttack(empty center) produces finite coords") -- not NaN
+end
+
 print(string.format("OK (%d passed)", passed))

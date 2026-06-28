@@ -9,17 +9,22 @@ local LaserBeam = {}
 
 -- Segment from `from` toward `to`, extended to `length` px (defaults to the from->to distance).
 function LaserBeam.segment(from, to, length)
-    local dx, dy = to.x - from.x, to.y - from.y
+    if not from or not to then return { x1 = 0, y1 = 0, x2 = 0, y2 = 0 } end
+    local fx, fy = from.x or 0, from.y or 0
+    local tx, ty = to.x or 0, to.y or 0
+    local dx, dy = tx - fx, ty - fy
     local d = math.sqrt(dx * dx + dy * dy)
     if d == 0 then
-        return { x1 = from.x, y1 = from.y, x2 = from.x, y2 = from.y }
+        return { x1 = fx, y1 = fy, x2 = fx, y2 = fy }
     end
     local len = length or d
-    return { x1 = from.x, y1 = from.y, x2 = from.x + dx / d * len, y2 = from.y + dy / d * len }
+    return { x1 = fx, y1 = fy, x2 = fx + dx / d * len, y2 = fy + dy / d * len }
 end
 
 -- Segment from (x,y) along a velocity/direction (vx,vy), extended to `length` px.
 function LaserBeam.segmentFromVelocity(x, y, vx, vy, length)
+    x, y = x or 0, y or 0
+    vx, vy, length = vx or 0, vy or 0, length or 0
     local d = math.sqrt(vx * vx + vy * vy)
     if d == 0 then
         return { x1 = x, y1 = y, x2 = x, y2 = y }
@@ -29,19 +34,23 @@ end
 
 -- Shortest distance from point (px,py) to the segment (clamped to the endpoints).
 function LaserBeam.pointDistance(seg, px, py)
-    local vx, vy = seg.x2 - seg.x1, seg.y2 - seg.y1
-    local wx, wy = px - seg.x1, py - seg.y1
+    if not seg then return 0 end
+    px, py = px or 0, py or 0
+    local x1, y1 = seg.x1 or 0, seg.y1 or 0
+    local x2, y2 = seg.x2 or 0, seg.y2 or 0
+    local vx, vy = x2 - x1, y2 - y1
+    local wx, wy = px - x1, py - y1
     local c1 = vx * wx + vy * wy
     if c1 <= 0 then
         return math.sqrt(wx * wx + wy * wy)
     end
     local c2 = vx * vx + vy * vy
     if c2 <= c1 then
-        local dx, dy = px - seg.x2, py - seg.y2
+        local dx, dy = px - x2, py - y2
         return math.sqrt(dx * dx + dy * dy)
     end
     local b = c1 / c2
-    local bx, by = seg.x1 + b * vx, seg.y1 + b * vy
+    local bx, by = x1 + b * vx, y1 + b * vy
     local dx, dy = px - bx, py - by
     return math.sqrt(dx * dx + dy * dy)
 end

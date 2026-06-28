@@ -62,12 +62,15 @@ end
 -- HP-threshold transition. thresholds are descending HP fractions {t1,t2,t3}:
 --   frac > t1 -> P1, frac > t2 -> P2, frac > t3 -> P3, else P4.
 function RingBoss.phaseForHealth(frac, thresholds)
-    thresholds = thresholds or { 0.75, 0.5, 0.25 }
-    if frac > thresholds[1] then
+    -- Per-index fallbacks so a short/partial custom thresholds table can't crash the compare.
+    local t1 = (thresholds and thresholds[1]) or 0.75
+    local t2 = (thresholds and thresholds[2]) or 0.5
+    local t3 = (thresholds and thresholds[3]) or 0.25
+    if frac > t1 then
         return RingBoss.PHASE.P1
-    elseif frac > thresholds[2] then
+    elseif frac > t2 then
         return RingBoss.PHASE.P2
-    elseif frac > thresholds[3] then
+    elseif frac > t3 then
         return RingBoss.PHASE.P3
     end
     return RingBoss.PHASE.P4
@@ -151,10 +154,11 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Default firing order: alternating banks walking across the columns
--- (top c0, bottom c0, top c1, bottom c1, ...). Data-driven: pass params.order to reorder.
+-- (top c1, bottom c1, top c2, bottom c2, ...). Columns are 1-indexed to match Lua tables, so
+-- caller-supplied xs / topGapsPerColumn / bottomGapsPerColumn line up. Pass params.order to reorder.
 function RingBoss.defaultFiringOrder(columns)
     local order = {}
-    for c = 0, columns - 1 do
+    for c = 1, columns do
         order[#order + 1] = { bank = "top", col = c }
         order[#order + 1] = { bank = "bottom", col = c }
     end
@@ -182,8 +186,8 @@ function RingBoss.wholeToneGaps(bank, columns, width)
     local scale = (bank == "top") and 0 or 1
     local pitches = RingBoss.WHOLE_TONE[scale]
     local gaps = {}
-    for c = 0, columns - 1 do
-        local pitch = pitches[(c % #pitches) + 1]
+    for c = 1, columns do
+        local pitch = pitches[((c - 1) % #pitches) + 1]
         gaps[c] = { pos = (pitch + 0.5) / 12, width = width }
     end
     return gaps
@@ -194,8 +198,8 @@ local function columnXs(columns, fieldLeft, fieldRight, xs)
     if xs then return xs end
     local out = {}
     local w = fieldRight - fieldLeft
-    for c = 0, columns - 1 do
-        out[c] = fieldLeft + (c + 0.5) / columns * w
+    for c = 1, columns do
+        out[c] = fieldLeft + (c - 0.5) / columns * w
     end
     return out
 end
@@ -285,6 +289,143 @@ function RingBoss.pillarChoreography(t, params)
         end
     end
     return out
+end
+
+-- ---------------------------------------------------------------------------
+-- Per-phase attack generator: spawn descriptors emitted FROM the ring nodes.
+-- ---------------------------------------------------------------------------
+
+-- Unit velocity pointing from a node toward the core, scaled to speed.
+local function inwardVelocity(node, center, speed)
+    local dx, dy = center.x - node.x, center.y - node.y
+    local len = math.sqrt(dx * dx + dy * dy)
+    if len == 0 then return 0, 0 end
+    return dx / len * speed, dy / len * speed
+end
+
+-- Build the descriptor list for the current phase's attack, originating at the ring nodes
+-- (not the core). Pure: returns inert descriptors for PatternSpawner to realize.
+--   P1: the bullet origin WALKS the ring -- one node fires a radial burst per tick (music box).
+--   P2: the collapsed ring spits short-range aimed shots at the player from a few nodes.
+--   P3: interval lasers -- a `type="laser"` beam descriptor fired inward from each paired node
+--       (params.laserInterval; fifth=7, tritone=6). Lasers are not bullets; PatternSpawner skips them.
+--   P4: all 12 nodes fire inward simultaneously (the chromatic wall; core exposed).
+-- params: baseRadius, rotateSpeed, speed, count, nodeFireInterval, nodesFiring,
+--         targetX, targetY, laserInterval, color_axis.
+function RingBoss.phaseAttack(center, phaseId, t, params)
+    params = params or {}
+    t = t or 0
+    center = center or { x = 0, y = 0 }
+    local cfg = RingBoss.phaseConfig(phaseId)
+    local speed = params.speed or 240
+    local color_axis = params.color_axis
+    local nodes = RingBoss.phaseLayout(phaseId, center, t, params)
+    local out = {}
+
+    if phaseId == RingBoss.PHASE.P1 then
+        local interval = params.nodeFireInterval or 0.12
+        local activeIndex = (math.floor(t / interval) % #nodes) + 1
+        local node = nodes[activeIndex]
+        local burst = BulletPatternLibrary.radial({ x = node.x, y = node.y }, t, {
+            count = params.count or 6, speed = speed, baseAngle = node.angle, color_axis = color_axis,
+        })
+        for i = 1, #burst do out[#out + 1] = burst[i] end
+
+    elseif phaseId == RingBoss.PHASE.P2 then
+        local tx = params.targetX or center.x
+        local ty = params.targetY or center.y
+        local fired = params.nodesFiring or 3
+        for k = 0, fired - 1 do
+            local node = nodes[(k % #nodes) + 1]
+            local fan = BulletPatternLibrary.aimed({ x = node.x, y = node.y }, t, {
+                targetX = tx, targetY = ty, count = 1, speed = speed * 0.9, color_axis = color_axis,
+            })
+            out[#out + 1] = fan[1]
+        end
+
+    elseif phaseId == RingBoss.PHASE.P3 then
+        local interval = params.laserInterval or cfg.laserInterval or 7
+        local pairs = RingBoss.intervalPairs(interval, #nodes)
+        for i = 1, #pairs do
+            for _, idx in ipairs({ pairs[i].a, pairs[i].b }) do
+                local node = nodes[idx + 1]
+                local vx, vy = inwardVelocity(node, center, speed)
+                out[#out + 1] = {
+                    x = node.x, y = node.y, vx = vx, vy = vy, color_axis = color_axis,
+                    type = "laser", interval = interval,
+                }
+            end
+        end
+
+    elseif phaseId == RingBoss.PHASE.P4 then
+        for i = 1, #nodes do
+            local vx, vy = inwardVelocity(nodes[i], center, speed)
+            out[#out + 1] = {
+                x = nodes[i].x, y = nodes[i].y, vx = vx, vy = vy,
+                color_axis = color_axis, type = "bullet",
+            }
+        end
+    end
+
+    return out
+end
+
+-- Synchronized 6/6 curtain volley for one stage ("warning" -> telegraph markers, "resolve"
+-- -> descending/rising bullets). Top bank descends, bottom bank rises, sharing the same
+-- columns with INDEPENDENT gaps (the convergence dodge). A simpler, balance-friendly live form
+-- of pillarChoreography: both banks fire together rather than walking. Pure; reuses pillars.
+function RingBoss.curtainVolley(stage, params)
+    params = params or {}
+    local columns = params.columns or 6
+    local fieldLeft = params.fieldLeft or 0
+    local fieldRight = params.fieldRight or 1920
+    local fieldTop = params.fieldTop or 0
+    local fieldBottom = params.fieldBottom or 1080
+    local speed = params.descendSpeed or 200
+    local color_axis = params.color_axis
+    local markerStyle = params.marker_style or "outline"
+    local topGap = params.topGap or { pos = 0.30, width = 0.13 }
+    local bottomGap = params.bottomGap or { pos = 0.64, width = 0.13 }
+
+    local function bank(name, gap, signedSpeed)
+        local part = BulletPatternLibrary.pillars({ x = 0, y = 0 }, 0, {
+            pillarCount = columns,
+            fieldLeft = fieldLeft, fieldRight = fieldRight,
+            fieldTop = fieldTop, fieldBottom = fieldBottom,
+            bulletsPerPillar = params.bulletsPerColumn,
+            spacing = params.spacing or 64,
+            gaps = { gap },
+            descendSpeed = signedSpeed,
+            marker_style = markerStyle,
+            color_axis = color_axis,
+            stage = stage,
+        })
+        for i = 1, #part do part[i].bank = name end
+        return part
+    end
+
+    local out = {}
+    for _, d in ipairs(bank("top", topGap, speed)) do out[#out + 1] = d end
+    for _, d in ipairs(bank("bottom", bottomGap, -speed)) do out[#out + 1] = d end
+    return out
+end
+
+-- Per-phase boss-entity motion (distinct from the ring RADIUS animation that phaseLayout
+-- handles). P2 "close follow" chases the player; the other phases hold position so the ring
+-- radius does the reconfiguring. Returns target velocity components (vx, vy). Pure.
+function RingBoss.phaseVelocity(phaseId, fromX, fromY, targetX, targetY, params)
+    params = params or {}
+    local cfg = RingBoss.phaseConfig(phaseId)
+    if cfg.fireMode == "follow" then
+        local tx, ty = targetX or fromX, targetY or fromY
+        local dx, dy = tx - fromX, ty - fromY
+        local d = math.sqrt(dx * dx + dy * dy)
+        local stop = params.followStop or 80
+        if d <= stop or d == 0 then return 0, 0 end
+        local speed = params.chaseSpeed or 150
+        return dx / d * speed, dy / d * speed
+    end
+    return 0, 0
 end
 
 -- ---------------------------------------------------------------------------

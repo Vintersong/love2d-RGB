@@ -494,20 +494,20 @@ end
 do
     local seq = RingBoss.firingSequence({ columns = 6, nodeDelay = 0.2 })
     assertEqual(#seq, 12, "ring: 6 columns x 2 banks = 12 firings")
-    -- Default alternating walk: top c0, bottom c0, top c1, bottom c1, ...
+    -- Default alternating walk (1-indexed columns): top c1, bottom c1, top c2, bottom c2, ...
     assertEqual(seq[1].bank, "top", "ring: seq[1] is top bank")
-    assertEqual(seq[1].col, 0, "ring: seq[1] is column 0")
+    assertEqual(seq[1].col, 1, "ring: seq[1] is column 1")
     assertEqual(seq[2].bank, "bottom", "ring: seq[2] is bottom bank")
-    assertEqual(seq[2].col, 0, "ring: seq[2] is column 0")
+    assertEqual(seq[2].col, 1, "ring: seq[2] is column 1")
     assertEqual(seq[3].bank, "top", "ring: seq[3] is top bank")
-    assertEqual(seq[3].col, 1, "ring: seq[3] walks to column 1")
+    assertEqual(seq[3].col, 2, "ring: seq[3] walks to column 2")
     -- fire times are monotonically increasing by nodeDelay.
     for i = 1, #seq do
         assertNear(seq[i].fireTime, (i - 1) * 0.2, "ring: fireTime step " .. i)
     end
     -- Sequence is reorderable via params.order.
     local custom = RingBoss.firingSequence({ nodeDelay = 0.1,
-        order = { { bank = "bottom", col = 3 }, { bank = "top", col = 0 } } })
+        order = { { bank = "bottom", col = 3 }, { bank = "top", col = 1 } } })
     assertEqual(#custom, 2, "ring: custom order length")
     assertEqual(custom[1].bank, "bottom", "ring: custom order respected (bank)")
     assertEqual(custom[1].col, 3, "ring: custom order respected (col)")
@@ -520,7 +520,7 @@ do
     -- Whole-tone generator maps banks to the two whole-tone scales (offset by construction).
     local topG = RingBoss.wholeToneGaps("top", 6)
     local botG = RingBoss.wholeToneGaps("bottom", 6)
-    for c = 0, 5 do
+    for c = 1, 6 do
         ok(math.abs(topG[c].pos - botG[c].pos) > 1e-6, "ring: whole-tone banks differ at col " .. c)
     end
 
@@ -618,6 +618,131 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- RingBoss: per-phase attack generation (emitters fire from the ring nodes)
+-- ---------------------------------------------------------------------------
+do
+    local center = { x = 1000, y = 500 }
+    local params = { baseRadius = 200, speed = 240 }
+
+    -- P4: all 12 nodes fire inward simultaneously; each velocity points at the core.
+    local p4 = RingBoss.phaseAttack(center, RingBoss.PHASE.P4, 0, params)
+    assertEqual(#p4, 12, "phaseAttack: P4 fires all 12 nodes")
+    for i = 1, #p4 do
+        local b = p4[i]
+        assertEqual(b.type, "bullet", "phaseAttack: P4 emits bullets " .. i)
+        -- velocity points toward the core: dot((center - pos), v) > 0.
+        local dot = (center.x - b.x) * b.vx + (center.y - b.y) * b.vy
+        ok(dot > 0, "phaseAttack: P4 bullet aims inward " .. i)
+        assertNear(math.sqrt(b.vx ^ 2 + b.vy ^ 2), 240, "phaseAttack: P4 speed " .. i)
+    end
+
+    -- P1: the firing origin walks the ring as t advances.
+    local p1a = RingBoss.phaseAttack(center, RingBoss.PHASE.P1, 0.00, { baseRadius = 200, count = 6, nodeFireInterval = 0.1, rotateSpeed = 0 })
+    local p1b = RingBoss.phaseAttack(center, RingBoss.PHASE.P1, 0.15, { baseRadius = 200, count = 6, nodeFireInterval = 0.1, rotateSpeed = 0 })
+    assertEqual(#p1a, 6, "phaseAttack: P1 radial burst count")
+    -- t=0 -> node 1 (angle 0) at (center.x + radius, center.y); all bullets share that origin.
+    assertNear(p1a[1].x, center.x + 200, "phaseAttack: P1 origin on node 1 at t=0")
+    assertNear(p1a[1].y, center.y, "phaseAttack: P1 origin y on node 1")
+    -- t=0.15 with interval 0.1 -> node 2; origin moves off node 1.
+    ok(math.abs(p1b[1].x - p1a[1].x) > 1e-6 or math.abs(p1b[1].y - p1a[1].y) > 1e-6,
+        "phaseAttack: P1 origin walks the ring over t")
+
+    -- P3: interval lasers -> a laser descriptor per paired node (both ends fire inward).
+    local p3 = RingBoss.phaseAttack(center, RingBoss.PHASE.P3, 0, { baseRadius = 200, speed = 240, laserInterval = 7 })
+    -- fifth = 12 pairs, each pair fires from both nodes -> 24 laser descriptors.
+    assertEqual(#p3, 24, "phaseAttack: P3 fifth -> 24 laser ends")
+    for i = 1, #p3 do
+        assertEqual(p3[i].type, "laser", "phaseAttack: P3 emits lasers " .. i)
+        assertEqual(p3[i].interval, 7, "phaseAttack: P3 carries interval " .. i)
+    end
+    local p3tri = RingBoss.phaseAttack(center, RingBoss.PHASE.P3, 0, { laserInterval = 6 })
+    assertEqual(#p3tri, 12, "phaseAttack: P3 tritone -> 12 laser ends")
+
+    -- The bridge realizes P4 bullets but skips P3 lasers (no Projectile for a beam).
+    local PatternSpawner = require("src.combat.PatternSpawner")
+    local function fakeFactory(x, y, vx, vy, d, pt, o) return { x = x, y = y, vx = vx, vy = vy, color = nil } end
+    local sinkP4 = {}
+    local spawnedP4 = PatternSpawner.spawn(p4, sinkP4, { factory = fakeFactory })
+    assertEqual(spawnedP4, 12, "phaseAttack: bridge spawns all P4 bullets")
+    local sinkP3 = {}
+    local spawnedP3, skippedP3 = PatternSpawner.spawn(p3, sinkP3, { factory = fakeFactory })
+    assertEqual(spawnedP3, 0, "phaseAttack: bridge spawns no laser bullets")
+    assertEqual(skippedP3, 24, "phaseAttack: bridge skips all laser descriptors")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: synchronized 6/6 curtain volley (warning markers / resolve bullets)
+-- ---------------------------------------------------------------------------
+do
+    local extent = 1000
+    local params = {
+        columns = 6, fieldLeft = 0, fieldRight = 1920, fieldTop = 0, fieldBottom = extent,
+        bulletsPerColumn = 8,
+        topGap = { pos = 0.30, width = 0.12 }, bottomGap = { pos = 0.64, width = 0.12 },
+        descendSpeed = 200,
+    }
+
+    -- warning: one telegraph marker per column per bank -> 6 top + 6 bottom = 12.
+    local warn = RingBoss.curtainVolley("warning", params)
+    assertEqual(#warn, 12, "curtain: warning -> 12 telegraph markers")
+    local topMarkers, botMarkers = 0, 0
+    for i = 1, #warn do
+        assertEqual(warn[i].type, "telegraph", "curtain: warning descriptor is telegraph " .. i)
+        if warn[i].bank == "top" then
+            topMarkers = topMarkers + 1
+            assertNear(warn[i].y, 0.30 * extent, "curtain: top marker at top gap center " .. i)
+        else
+            botMarkers = botMarkers + 1
+            assertNear(warn[i].y, 0.64 * extent, "curtain: bottom marker at bottom gap center " .. i)
+        end
+    end
+    assertEqual(topMarkers, 6, "curtain: 6 top markers")
+    assertEqual(botMarkers, 6, "curtain: 6 bottom markers")
+
+    -- resolve: bullets; top bank descends (vy>0), bottom rises (vy<0); gap bands stay empty.
+    local res = RingBoss.curtainVolley("resolve", params)
+    ok(#res > 0, "curtain: resolve emits bullets")
+    local sawTop, sawBottom = false, false
+    for i = 1, #res do
+        local b = res[i]
+        local u = (b.y - params.fieldTop) / extent
+        if b.bank == "top" then
+            sawTop = true
+            assertEqual(b.vy, 200, "curtain: top bullet descends")
+            ok(math.abs(u - 0.30) > 0.06, "curtain: top gap band empty " .. i)
+        else
+            sawBottom = true
+            assertEqual(b.vy, -200, "curtain: bottom bullet rises")
+            ok(math.abs(u - 0.64) > 0.06, "curtain: bottom gap band empty " .. i)
+        end
+    end
+    ok(sawTop and sawBottom, "curtain: both banks resolve to bullets")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: per-phase boss movement (P2 chases, others hold)
+-- ---------------------------------------------------------------------------
+do
+    -- P2 (close_follow) chases the player: velocity points at the target at ~chaseSpeed.
+    local vx, vy = RingBoss.phaseVelocity(RingBoss.PHASE.P2, 0, 0, 300, 0, { chaseSpeed = 150 })
+    ok(vx > 0, "phaseVelocity: P2 moves toward target x")
+    assertNear(vy, 0, "phaseVelocity: P2 stays on the target axis")
+    assertNear(math.sqrt(vx ^ 2 + vy ^ 2), 150, "phaseVelocity: P2 uses chaseSpeed")
+
+    -- Within the follow-stop band, the chaser holds.
+    local sx, sy = RingBoss.phaseVelocity(RingBoss.PHASE.P2, 0, 0, 50, 0, { followStop = 80 })
+    assertEqual(sx, 0, "phaseVelocity: P2 holds inside follow-stop (x)")
+    assertEqual(sy, 0, "phaseVelocity: P2 holds inside follow-stop (y)")
+
+    -- Non-follow phases hold position (the ring radius reconfigures, the body does not chase).
+    for _, ph in ipairs({ RingBoss.PHASE.P1, RingBoss.PHASE.P3, RingBoss.PHASE.P4 }) do
+        local hx, hy = RingBoss.phaseVelocity(ph, 0, 0, 500, 500)
+        assertEqual(hx, 0, "phaseVelocity: phase " .. ph .. " holds x")
+        assertEqual(hy, 0, "phaseVelocity: phase " .. ph .. " holds y")
+    end
+end
+
+-- ---------------------------------------------------------------------------
 -- RingBoss: boss-state attach / updatePhase (the entity reconfigures)
 -- ---------------------------------------------------------------------------
 do
@@ -697,6 +822,50 @@ do
     local s5, t5 = PatternSpawner.spawn(frame, sink5, { factory = fakeFactory })
     assertEqual(s5, 0, "bridge: an all-warning choreography frame spawns no bullets")
     assertEqual(t5, #frame, "bridge: all warning descriptors counted as telegraphs")
+end
+
+-- ---------------------------------------------------------------------------
+-- LaserBeam: P3 beam geometry, lifecycle, and point/segment collision (pure)
+-- ---------------------------------------------------------------------------
+do
+    local LaserBeam = require("src.combat.LaserBeam")
+
+    -- segment: from->to extended to a length.
+    local seg = LaserBeam.segment({ x = 0, y = 0 }, { x = 10, y = 0 }, 20)
+    assertNear(seg.x1, 0, "laser: seg start x")
+    assertNear(seg.x2, 20, "laser: seg extended to length")
+    assertNear(seg.y2, 0, "laser: seg stays on axis")
+
+    -- segmentFromVelocity: direction normalized then scaled to length.
+    local segv = LaserBeam.segmentFromVelocity(5, 5, 0, 3, 10) -- straight down
+    assertNear(segv.x2, 5, "laser: velocity seg x unchanged")
+    assertNear(segv.y2, 15, "laser: velocity seg extends by length")
+
+    -- pointDistance: perpendicular, before-start, past-end, and on-line cases.
+    local s = { x1 = 0, y1 = 0, x2 = 10, y2 = 0 }
+    assertNear(LaserBeam.pointDistance(s, 5, 5), 5, "laser: perpendicular distance")
+    assertNear(LaserBeam.pointDistance(s, -3, 0), 3, "laser: clamps to start point")
+    assertNear(LaserBeam.pointDistance(s, 15, 0), 5, "laser: clamps to end point")
+    assertNear(LaserBeam.pointDistance(s, 4, 0), 0, "laser: point on the segment")
+
+    -- hitsPoint respects the half-width band.
+    ok(LaserBeam.hitsPoint(s, 5, 6, 8), "laser: within band -> hit")
+    ok(not LaserBeam.hitsPoint(s, 5, 6, 4), "laser: outside band -> miss")
+
+    -- lifecycle: telegraph (warn) -> active -> done.
+    assertEqual(LaserBeam.lifecycle(0.3, 0.6, 0.5), "warning", "laser: warning window")
+    assertEqual(LaserBeam.lifecycle(0.8, 0.6, 0.5), "active", "laser: active window")
+    assertEqual(LaserBeam.lifecycle(1.2, 0.6, 0.5), "done", "laser: done window")
+
+    -- a live beam advances through the stages and only damages while active.
+    local beam = LaserBeam.new(s, { telegraphTime = 0.6, activeTime = 0.5, halfWidth = 10, damage = 7 })
+    assertEqual(beam.phase, "warning", "laser: new beam starts warning")
+    LaserBeam.update(beam, 0.3)
+    ok(not LaserBeam.isActive(beam), "laser: still warning at 0.3s (no damage)")
+    LaserBeam.update(beam, 0.4) -- elapsed 0.7 -> active
+    ok(LaserBeam.isActive(beam), "laser: active at 0.7s")
+    LaserBeam.update(beam, 0.5) -- elapsed 1.2 -> done
+    ok(LaserBeam.isDone(beam), "laser: done at 1.2s")
 end
 
 print(string.format("OK (%d passed)", passed))

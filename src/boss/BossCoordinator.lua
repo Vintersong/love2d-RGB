@@ -59,6 +59,50 @@ function BossCoordinator.update(dt, player, playerProjectiles, bossProjectiles, 
             end
         end
 
+        -- Ring-boss (opt-in) laser beams: an ACTIVE beam overlapping the player deals damage,
+        -- mirroring the boss-projectile path. Beams live on the boss; this is a no-op unless
+        -- ring state was attached (Config.boss.ringBoss.enabled, default off).
+        activeBoss = BossSystem.activeBoss
+        if activeBoss and activeBoss._ringLasers and #activeBoss._ringLasers > 0 then
+            local LaserBeam = require("src.combat.LaserBeam")
+            local px = player.x + (player.width or 0) / 2
+            local py = player.y + (player.height or 0) / 2
+            for _, beam in ipairs(activeBoss._ringLasers) do
+                if LaserBeam.isActive(beam) and LaserBeam.hitsPoint(beam.seg, px, py, beam.halfWidth) then
+                    local died = player:takeDamage(beam.damage or 0, {x = px, y = py}, {
+                        enemies = enemies,
+                        onEnemyKilled = function(target)
+                            if state then
+                                SpawnController.handleEnemyDeath(target, player, state.xpOrbs or {}, state.powerups or {})
+                            end
+                        end,
+                    })
+                    if died then
+                        local StateManager = require("src.core.StateManager")
+                        StateManager.switch("GameOver", {
+                            player = player,
+                            enemies = enemies,
+                            xpOrbs = state and state.xpOrbs or {},
+                            powerups = state and state.powerups or {},
+                            explosions = state and state.explosions or {},
+                            bossProjectiles = state and state.bossProjectiles or {},
+                            supernovaEffects = state and state.supernovaEffects or {},
+                            gameTime = state and state.gameTime or 0,
+                            enemyKillCount = state and state.enemyKillCount or 0,
+                            musicReactor = musicReactor,
+                            summary = RunSummary.build("defeat", state or {
+                                player = player,
+                                enemies = enemies,
+                                musicReactor = musicReactor,
+                            })
+                        })
+                        return
+                    end
+                    break -- one beam hit per frame is enough; player now has i-frames
+                end
+            end
+        end
+
         -- Check if boss is defeated
         activeBoss = BossSystem.activeBoss
         if activeBoss and not activeBoss.alive then

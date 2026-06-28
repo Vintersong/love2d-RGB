@@ -25,6 +25,10 @@ function PatternSpawner.resolveColorAxis(axis, fallback)
     return (axis and PatternSpawner.AXIS_COLORS[axis]) or fallback or PatternSpawner.DEFAULT_COLOR
 end
 
+-- Descriptor types that are NOT bullets and so are skipped by spawn(): telegraph refuge cues
+-- and laser beams (which need their own beam entity / renderer, not a Projectile).
+PatternSpawner.SKIP_TYPES = { telegraph = true, laser = true }
+
 -- Lazily require the real Projectile only when actually spawning in-game (keeps this module
 -- love-free at load time so the harness/tests can require it under plain Lua).
 local function defaultFactory(x, y, vx, vy, damage, projType, owner)
@@ -37,6 +41,7 @@ end
 -- opts: damage, projType, owner, color, fallbackColor, resolveColor(fn), factory(fn)
 -- Returns: spawnedCount, skippedTelegraphCount.
 function PatternSpawner.spawn(descriptors, sink, opts)
+    if not descriptors then return 0, 0 end
     opts = opts or {}
     local factory = opts.factory or defaultFactory
     local resolve = opts.resolveColor or PatternSpawner.resolveColorAxis
@@ -44,11 +49,11 @@ function PatternSpawner.spawn(descriptors, sink, opts)
     local projType = opts.projType or "spread"
     local baseDamage = opts.damage or 10
 
-    local spawned, telegraphs = 0, 0
+    local spawned, skipped = 0, 0
     for i = 1, #descriptors do
         local d = descriptors[i]
-        if d.type == "telegraph" then
-            telegraphs = telegraphs + 1
+        if d.type and PatternSpawner.SKIP_TYPES[d.type] then
+            skipped = skipped + 1 -- telegraph cue or laser beam: not a Projectile
         else
             local proj = factory(d.x, d.y, d.vx, d.vy, d.damage or baseDamage, projType, owner)
             proj.color = opts.color or d.color or resolve(d.color_axis, opts.fallbackColor)
@@ -56,7 +61,7 @@ function PatternSpawner.spawn(descriptors, sink, opts)
             spawned = spawned + 1
         end
     end
-    return spawned, telegraphs
+    return spawned, skipped
 end
 
 return PatternSpawner

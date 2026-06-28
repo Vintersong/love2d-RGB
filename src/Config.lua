@@ -109,6 +109,10 @@ local Config = {
             nodeDelay = 0.18,                -- per-node firing delay in the 6/6 choreography (s)
             telegraphDuration = 0.7,         -- safe-gap warning lead time (s); not beat-synced
             laserInterval = 7,               -- P3 chord interval in semitones (fifth=7, tritone=6)
+            fireCadence = 0.5,               -- seconds between ring-node attack volleys (P1-P4)
+            chaseSpeed = 150,                -- P2 close-follow chase speed (px/s)
+            curtainInterval = 5.0,           -- seconds between P1 6/6 pillar-curtain volleys
+            encounterIndex = 1,              -- which boss encounter IS the ring boss (nil = every boss)
         },
     },
 

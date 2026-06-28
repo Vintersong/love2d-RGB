@@ -32,6 +32,12 @@ function BossSystem.clearBossReferences(boss)
     boss._bossProjectiles = nil
     boss._scheduledProjectiles = nil
     boss._scheduler = nil
+    boss._ringLasers = nil
+    boss._curtainMarkers = nil
+    boss._curtainParams = nil
+    boss._curtainState = nil
+    boss._curtainTimer = nil
+    boss._curtainCooldown = nil
 end
 
 function BossSystem.reset()
@@ -111,8 +117,9 @@ function BossSystem.spawnBoss(options)
     -- same entity can reconfigure across P1-P4. Pure logic in src/patterns/RingBoss.lua; when
     -- Config.boss.ringBoss.enabled is false this block is skipped and the boss is unchanged.
     local Config = require("src.Config")
-    if Config.boss and Config.boss.ringBoss and Config.boss.ringBoss.enabled then
-        require("src.patterns.RingBoss").attach(boss, Config.boss.ringBoss)
+    local rc = Config.boss and Config.boss.ringBoss
+    if rc and rc.enabled and (rc.encounterIndex == nil or boss.encounterIndex == rc.encounterIndex) then
+        require("src.patterns.RingBoss").attach(boss, rc)
     end
 
     BossSystem.activeBoss = boss
@@ -165,51 +172,57 @@ function BossSystem:update(dt, playerX, playerY)
             musicReactor = self._musicReactor,
         })
 
-        local movement = self._currentMovementBehavior
-        if not movement or (movement.canRun and not movement.canRun(self, context)) then
-            movement = BehaviorSelector.select(
-                BossBehaviors.listByKind("movement"),
-                "movement",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.movement}
-            ) or BossBehaviors.getById("horizontal_oscillate")
-        end
-        BehaviorSelector.setMovement(self, movement, context)
-        if self._currentMovementBehavior and self._currentMovementBehavior.update then
-            self._currentMovementBehavior.update(self, dt, context)
-        end
+        -- Ring bosses drive their own movement and attacks from the ring phase (below), so the
+        -- archetype movement/attack/phase selection is suppressed while ring state is attached.
+        -- This makes the four phases read as ONE entity reconfiguring, not the stock boss plus
+        -- extra bullets. No-op unless ring state was attached (default off).
+        if not self.ringPhase then
+            local movement = self._currentMovementBehavior
+            if not movement or (movement.canRun and not movement.canRun(self, context)) then
+                movement = BehaviorSelector.select(
+                    BossBehaviors.listByKind("movement"),
+                    "movement",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.movement}
+                ) or BossBehaviors.getById("horizontal_oscillate")
+            end
+            BehaviorSelector.setMovement(self, movement, context)
+            if self._currentMovementBehavior and self._currentMovementBehavior.update then
+                self._currentMovementBehavior.update(self, dt, context)
+            end
 
-        local lowHealthPhase = BossBehaviors.getById("phase_low_health")
-        if lowHealthPhase and lowHealthPhase.canRun and lowHealthPhase.canRun(self, context) then
-            BehaviorSelector.execute(self, lowHealthPhase, context)
-        end
+            local lowHealthPhase = BossBehaviors.getById("phase_low_health")
+            if lowHealthPhase and lowHealthPhase.canRun and lowHealthPhase.canRun(self, context) then
+                BehaviorSelector.execute(self, lowHealthPhase, context)
+            end
 
-        self.behaviorTimer = self.behaviorTimer - dt
-        if self.behaviorTimer <= 0 then
-            local phaseBehavior = BehaviorSelector.select(
-                BossBehaviors.listByKind("phase"),
-                "phase",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.phase or BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
-            )
-            local attackBehavior = BehaviorSelector.select(
-                BossBehaviors.listByKind("attack"),
-                "attack",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.attack or BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
-            )
+            self.behaviorTimer = self.behaviorTimer - dt
+            if self.behaviorTimer <= 0 then
+                local phaseBehavior = BehaviorSelector.select(
+                    BossBehaviors.listByKind("phase"),
+                    "phase",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.phase or BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
+                )
+                local attackBehavior = BehaviorSelector.select(
+                    BossBehaviors.listByKind("attack"),
+                    "attack",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.attack or BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
+                )
 
-            local behavior = phaseBehavior or attackBehavior
-            if behavior then
-                self.behaviorTimer = BehaviorSelector.execute(self, behavior, context) or self.attackRate or 0.8
-            else
-                self.behaviorTimer = 0.3
+                local behavior = phaseBehavior or attackBehavior
+                if behavior then
+                    self.behaviorTimer = BehaviorSelector.execute(self, behavior, context) or self.attackRate or 0.8
+                else
+                    self.behaviorTimer = 0.3
+                end
             end
         end
 
@@ -238,9 +251,78 @@ function BossSystem:update(dt, playerX, playerY)
         end
 
         -- Ring-boss (opt-in): recompute which of the four ring phases this entity is in from
-        -- its current HP. No-op unless ring state was attached at spawn (default off).
+        -- its current HP, then fire that phase's ring attack on a cadence. No-op unless ring
+        -- state was attached at spawn (Config.boss.ringBoss.enabled, default off).
         if self.ringPhase then
-            require("src.patterns.RingBoss").updatePhase(self)
+            local RingBoss = require("src.patterns.RingBoss")
+            RingBoss.updatePhase(self)
+
+            -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
+            -- reconfigures via the phase layout). Clamped to the arena.
+            local mvx, mvy = RingBoss.phaseVelocity(self.ringPhase, self.x, self.y, playerX, playerY, {
+                chaseSpeed = (self.ringConfig and self.ringConfig.chaseSpeed) or 150,
+            })
+            if mvx ~= 0 or mvy ~= 0 then
+                local sw, sh = GameConfig.getScreenSize()
+                self.x = math.max(40, math.min((sw or 1920) - 40, self.x + mvx * dt))
+                self.y = math.max(self.minY or 50, math.min((sh or 1080) - 120, self.y + mvy * dt))
+            end
+
+            self._ringFireTimer = (self._ringFireTimer or 0) - dt
+            if self._ringFireTimer <= 0 then
+                self._ringFireTimer = (self.ringConfig and self.ringConfig.fireCadence) or 0.5
+                -- Descriptors emit from the 12 ring-node positions.
+                local baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220
+                local descriptors = RingBoss.phaseAttack({x = self.x, y = self.y}, self.ringPhase, self.combatTime or 0, {
+                    baseRadius = baseRadius,
+                    speed = 230,
+                    targetX = playerX, targetY = playerY,
+                    color_axis = "mids",
+                })
+                if self.ringPhase == RingBoss.PHASE.P3 then
+                    -- P3 emits laser BEAMS (segments), not bullets: each telegraphs, then fires.
+                    -- BossCoordinator checks active beams against the player.
+                    local LaserBeam = require("src.combat.LaserBeam")
+                    self._ringLasers = self._ringLasers or {}
+                    local length = baseRadius * 2.4
+                    for _, d in ipairs(descriptors) do
+                        if d.type == "laser" then
+                            local seg = LaserBeam.segmentFromVelocity(d.x, d.y, d.vx, d.vy, length)
+                            self._ringLasers[#self._ringLasers + 1] = LaserBeam.new(seg, {
+                                damage = math.floor((self.damage or 10) * 0.6),
+                                color_axis = d.color_axis,
+                            })
+                        end
+                    end
+                else
+                    -- P1/P2/P4 emit bullets: realize them through the shared bridge.
+                    local PatternSpawner = require("src.combat.PatternSpawner")
+                    PatternSpawner.spawn(descriptors, self._bossProjectiles or {}, {
+                        damage = math.floor((self.damage or 10) * 0.5),
+                        projType = "boss_orb",
+                    })
+                end
+            end
+
+            -- Advance laser beams (telegraph -> active -> done) and retire finished ones.
+            if self._ringLasers and #self._ringLasers > 0 then
+                local LaserBeam = require("src.combat.LaserBeam")
+                for i = #self._ringLasers, 1, -1 do
+                    LaserBeam.update(self._ringLasers[i], dt)
+                    if LaserBeam.isDone(self._ringLasers[i]) then
+                        table.remove(self._ringLasers, i)
+                    end
+                end
+            end
+
+            -- P1 also runs the telegraphed 6/6 pillar curtain on its own cadence; other
+            -- phases retire any lingering telegraph markers.
+            if self.ringPhase == RingBoss.PHASE.P1 then
+                self:updateRingCurtain(dt)
+            else
+                self._curtainMarkers = nil
+                self._curtainState = "idle"
+            end
         end
 
         -- Check death
@@ -416,7 +498,13 @@ function BossSystem:draw()
     love.graphics.circle("fill", 0, 0, self.size * 0.3)
     
     love.graphics.pop()
-    
+
+    -- Ring-boss (opt-in): draw the dodecagonal ring overlay around the core. Additive and
+    -- gated by ring state (default off), so the stock boss silhouette is unchanged.
+    if self.ringPhase then
+        self:drawRing()
+    end
+
     -- Health bar
     if self.phase ~= "defeated" then
         self:drawHealthBar()
@@ -433,6 +521,105 @@ end
 function BossSystem:drawHealthBar()
     local BossPanel = require("src.ui.BossPanel")
     BossPanel.drawBossInfo(self)
+end
+
+-- Ring-boss (opt-in) overlay: the 12-node dodecagonal ring reconfiguring around the core.
+-- Radius/rotation come from the pure RingBoss phase layout, so the silhouette reads as one
+-- entity changing shape across phases. The core is highlighted red when exposed (P4).
+function BossSystem:drawRing()
+    local RingBoss = require("src.patterns.RingBoss")
+    local baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220
+    local nodes, cfg = RingBoss.phaseLayout(self.ringPhase, {x = self.x, y = self.y}, self.combatTime or 0, {
+        baseRadius = baseRadius,
+    })
+    local radius = baseRadius * (cfg.radiusScale or 1)
+    local bossColor = self.bossColor or BOSS_COLOR
+
+    love.graphics.setColor(bossColor[1], bossColor[2], bossColor[3], 0.30)
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line", self.x, self.y, radius)
+
+    for i = 1, #nodes do
+        love.graphics.setColor(1, 1, 1, 0.85)
+        love.graphics.circle("fill", nodes[i].x, nodes[i].y, 6)
+    end
+
+    if cfg.coreVulnerable then
+        love.graphics.setColor(1, 0.3, 0.3, 0.9)
+        love.graphics.setLineWidth(3)
+        love.graphics.circle("line", self.x, self.y, (self.size or 30) * 0.6)
+    end
+
+    -- P3 laser beams: dim while telegraphing, bright while firing.
+    if self._ringLasers and #self._ringLasers > 0 then
+        local LaserBeam = require("src.combat.LaserBeam")
+        for i = 1, #self._ringLasers do
+            LaserBeam.draw(self._ringLasers[i], bossColor)
+        end
+    end
+
+    -- P1 pillar-curtain telegraphs: outline the safe lanes before the curtain resolves.
+    self:drawCurtainTelegraphs()
+end
+
+-- P1 6/6 pillar curtain on a cadence: warn (telegraph markers) then resolve (live bullets).
+-- Reuses the pure RingBoss.curtainVolley + the PatternSpawner bridge. No-op outside P1.
+function BossSystem:updateRingCurtain(dt)
+    local RingBoss = require("src.patterns.RingBoss")
+    local cfg = self.ringConfig or {}
+    local sw, sh = GameConfig.getScreenSize()
+    local params = {
+        columns = 6,
+        fieldLeft = 0, fieldRight = sw or 1920,
+        fieldTop = 0, fieldBottom = sh or 1080,
+        bulletsPerColumn = 8,
+        descendSpeed = 200,
+        topGap = { pos = 0.30, width = 0.13 },
+        bottomGap = { pos = 0.64, width = 0.13 },
+        color_axis = "bass",
+    }
+
+    self._curtainState = self._curtainState or "idle"
+    if self._curtainState == "idle" then
+        self._curtainCooldown = (self._curtainCooldown or (cfg.curtainInterval or 5.0)) - dt
+        if self._curtainCooldown <= 0 then
+            self._curtainMarkers = RingBoss.curtainVolley("warning", params)
+            self._curtainParams = params
+            self._curtainState = "warning"
+            self._curtainTimer = cfg.telegraphDuration or 0.7
+        end
+    elseif self._curtainState == "warning" then
+        self._curtainTimer = (self._curtainTimer or 0) - dt
+        if self._curtainTimer <= 0 then
+            local PatternSpawner = require("src.combat.PatternSpawner")
+            local bullets = RingBoss.curtainVolley("resolve", self._curtainParams or params)
+            PatternSpawner.spawn(bullets, self._bossProjectiles or {}, {
+                damage = math.floor((self.damage or 10) * 0.4),
+                projType = "boss_orb",
+            })
+            self._curtainMarkers = nil
+            self._curtainState = "idle"
+            self._curtainCooldown = cfg.curtainInterval or 5.0
+        end
+    end
+end
+
+-- Draw the curtain telegraph markers as hollow "safe lane" rectangles. The inert
+-- marker_style / gap_height pass-throughs from the pattern library finally drive a visual:
+-- gap_height sizes the refuge band; marker_style picks luminance intent (outline/bright/dim).
+function BossSystem:drawCurtainTelegraphs()
+    if not self._curtainMarkers or #self._curtainMarkers == 0 then return end
+    local p = self._curtainParams or {}
+    local colWidth = ((p.fieldRight or 1920) - (p.fieldLeft or 0)) / (p.columns or 6)
+    local w = colWidth * 0.7
+    for i = 1, #self._curtainMarkers do
+        local m = self._curtainMarkers[i]
+        local h = m.gap_height or 60
+        local alpha = (m.marker_style == "bright") and 0.7 or (m.marker_style == "dim") and 0.22 or 0.45
+        love.graphics.setColor(1, 1, 0.4, alpha)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", m.x - w / 2, m.y - h / 2, w, h)
+    end
 end
 
 -- Helper

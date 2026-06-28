@@ -12,6 +12,7 @@ if root == here then root = "." end
 package.path = root .. "/?.lua;" .. package.path
 
 local BPL = require("src.patterns.BulletPatternLibrary")
+local RingBoss = require("src.patterns.RingBoss")
 
 local EPS = 1e-9
 local passed = 0
@@ -411,6 +412,228 @@ do
     assertEqual(t2, 50, "composite: overflow total")
     assertEqual(seenTotal, 50, "composite: onOverflow total arg")
     assertEqual(seenCap, 20, "composite: onOverflow cap arg")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: phase configs + core vulnerability + phase transitions
+-- ---------------------------------------------------------------------------
+do
+    assertEqual(RingBoss.isCoreVulnerable(RingBoss.PHASE.P1), false, "ring: P1 core invulnerable")
+    assertEqual(RingBoss.isCoreVulnerable(RingBoss.PHASE.P2), false, "ring: P2 core invulnerable")
+    assertEqual(RingBoss.isCoreVulnerable(RingBoss.PHASE.P3), false, "ring: P3 core invulnerable")
+    assertEqual(RingBoss.isCoreVulnerable(RingBoss.PHASE.P4), true, "ring: P4 core vulnerable")
+
+    -- HP-threshold transitions (default {0.75,0.5,0.25}).
+    assertEqual(RingBoss.phaseForHealth(0.90), 1, "ring: 90% HP -> P1")
+    assertEqual(RingBoss.phaseForHealth(0.60), 2, "ring: 60% HP -> P2")
+    assertEqual(RingBoss.phaseForHealth(0.40), 3, "ring: 40% HP -> P3")
+    assertEqual(RingBoss.phaseForHealth(0.10), 4, "ring: 10% HP -> P4")
+    -- Custom thresholds are honored (parameterized, not hardcoded).
+    assertEqual(RingBoss.phaseForHealth(0.55, { 0.6, 0.3, 0.1 }), 2, "ring: custom thresholds")
+    -- External-trigger transitions clamp at P4.
+    assertEqual(RingBoss.nextPhase(1), 2, "ring: nextPhase 1->2")
+    assertEqual(RingBoss.nextPhase(4), 4, "ring: nextPhase clamps at P4")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: ring geometry
+-- ---------------------------------------------------------------------------
+do
+    local nodes = RingBoss.ringNodes({ x = 0, y = 0 }, 100, 12, 0)
+    assertEqual(#nodes, 12, "ring: 12 nodes")
+    for i = 1, 12 do
+        assertNear(math.sqrt(nodes[i].x ^ 2 + nodes[i].y ^ 2), 100, "ring: node on radius " .. i)
+        assertEqual(nodes[i].semitone, i - 1, "ring: node semitone index " .. i)
+    end
+    -- Even angular spacing of 2pi/12.
+    for i = 1, 11 do
+        assertNear(nodes[i + 1].angle - nodes[i].angle, TWO_PI / 12, "ring: node spacing " .. i)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: P3 interval-laser node pairing (fifth=7, tritone=6)
+-- ---------------------------------------------------------------------------
+do
+    local function hasPair(pairs, a, b)
+        local lo, hi = math.min(a, b), math.max(a, b)
+        for i = 1, #pairs do
+            if pairs[i].a == lo and pairs[i].b == hi then return true end
+        end
+        return false
+    end
+
+    -- Tritone (6 semitones apart): the maximally-dissonant axis -> 6 distinct dyads.
+    local tri = RingBoss.intervalPairs(6, 12)
+    assertEqual(#tri, 6, "ring: tritone -> 6 pairs")
+    for i = 1, #tri do
+        assertEqual(tri[i].b - tri[i].a, 6, "ring: tritone pair is 6 apart " .. i)
+    end
+    ok(hasPair(tri, 0, 6), "ring: tritone contains {0,6}")
+    ok(hasPair(tri, 5, 11), "ring: tritone contains {5,11}")
+
+    -- Perfect fifth (7 semitones apart) -> 12 distinct dyads (interval class 5).
+    local fifth = RingBoss.intervalPairs(7, 12)
+    assertEqual(#fifth, 12, "ring: fifth -> 12 pairs")
+    for i = 1, #fifth do
+        local d = fifth[i].b - fifth[i].a
+        ok(d == 7 or d == (12 - 7), "ring: fifth pair spans 7 (or 5 wrapped) " .. i)
+    end
+    ok(hasPair(fifth, 0, 7), "ring: fifth contains {0,7}")
+    ok(hasPair(fifth, 0, 5), "ring: fifth contains {0,5} (wrap of 7)")
+
+    -- laserChords resolves pairs to node positions.
+    local chords, pairs = RingBoss.laserChords(6, { x = 0, y = 0 }, { baseRadius = 100 })
+    assertEqual(#chords, 6, "ring: tritone chords resolved to 6 node pairs")
+    assertEqual(#pairs, 6, "ring: laserChords returns the pair index list too")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: 6/6 firing sequence order (data-driven)
+-- ---------------------------------------------------------------------------
+do
+    local seq = RingBoss.firingSequence({ columns = 6, nodeDelay = 0.2 })
+    assertEqual(#seq, 12, "ring: 6 columns x 2 banks = 12 firings")
+    -- Default alternating walk: top c0, bottom c0, top c1, bottom c1, ...
+    assertEqual(seq[1].bank, "top", "ring: seq[1] is top bank")
+    assertEqual(seq[1].col, 0, "ring: seq[1] is column 0")
+    assertEqual(seq[2].bank, "bottom", "ring: seq[2] is bottom bank")
+    assertEqual(seq[2].col, 0, "ring: seq[2] is column 0")
+    assertEqual(seq[3].bank, "top", "ring: seq[3] is top bank")
+    assertEqual(seq[3].col, 1, "ring: seq[3] walks to column 1")
+    -- fire times are monotonically increasing by nodeDelay.
+    for i = 1, #seq do
+        assertNear(seq[i].fireTime, (i - 1) * 0.2, "ring: fireTime step " .. i)
+    end
+    -- Sequence is reorderable via params.order.
+    local custom = RingBoss.firingSequence({ nodeDelay = 0.1,
+        order = { { bank = "bottom", col = 3 }, { bank = "top", col = 0 } } })
+    assertEqual(#custom, 2, "ring: custom order length")
+    assertEqual(custom[1].bank, "bottom", "ring: custom order respected (bank)")
+    assertEqual(custom[1].col, 3, "ring: custom order respected (col)")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: top/bottom gap independence + telegraph alignment
+-- ---------------------------------------------------------------------------
+do
+    -- Whole-tone generator maps banks to the two whole-tone scales (offset by construction).
+    local topG = RingBoss.wholeToneGaps("top", 6)
+    local botG = RingBoss.wholeToneGaps("bottom", 6)
+    for c = 0, 5 do
+        ok(math.abs(topG[c].pos - botG[c].pos) > 1e-6, "ring: whole-tone banks differ at col " .. c)
+    end
+
+    -- Drive the choreography so column-0's top and bottom pillars are BOTH in the warning
+    -- window at once; their telegraph markers must sit at different y (independent gaps).
+    local cfg = {
+        columns = 1, fieldLeft = 0, fieldRight = 100, fieldTop = 0, fieldBottom = 1000,
+        nodeDelay = 0.18, telegraph_duration = 0.7,
+        topGap = { pos = 0.35, width = 0.14 }, bottomGap = { pos = 0.65, width = 0.14 },
+    }
+    local warn = RingBoss.pillarChoreography(0.25, cfg) -- top rel=0.25, bottom rel=0.07: both warning
+    assertEqual(#warn, 2, "ring: both banks telegraph at col 0")
+    local topMarker, botMarker
+    for i = 1, #warn do
+        assertEqual(warn[i].type, "telegraph", "ring: choreography warning is a telegraph " .. i)
+        if warn[i].bank == "top" then topMarker = warn[i] else botMarker = warn[i] end
+    end
+    ok(topMarker and botMarker, "ring: one marker per bank")
+    -- Telegraph alignment: marker y == fieldTop + gap.pos * extent (extent = 1000).
+    assertNear(topMarker.y, 0.35 * 1000, "ring: top telegraph aligns to top gap center")
+    assertNear(botMarker.y, 0.65 * 1000, "ring: bottom telegraph aligns to bottom gap center")
+    ok(math.abs(topMarker.y - botMarker.y) > 1, "ring: top and bottom gaps are independent")
+    assertEqual(topMarker.x, botMarker.x, "ring: same column -> same x (convergence axis)")
+
+    -- Changing the top gap must not move the bottom gap (independence, not mirrored).
+    local cfg2 = {
+        columns = 1, fieldTop = 0, fieldBottom = 1000, nodeDelay = 0.18, telegraph_duration = 0.7,
+        topGap = { pos = 0.10, width = 0.14 }, bottomGap = { pos = 0.65, width = 0.14 },
+    }
+    local warn2 = RingBoss.pillarChoreography(0.25, cfg2)
+    local bot2
+    for i = 1, #warn2 do if warn2[i].bank == "bottom" then bot2 = warn2[i] end end
+    assertNear(bot2.y, 0.65 * 1000, "ring: bottom gap unchanged when top gap moves")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: choreography stage timing (driven by caller t)
+-- ---------------------------------------------------------------------------
+do
+    local cfg = {
+        columns = 1, fieldTop = 0, fieldBottom = 1000, nodeDelay = 0.18, telegraph_duration = 0.7,
+        spacing = 100, topGap = { pos = 0.5, width = 0.2 }, bottomGap = { pos = 0.5, width = 0.2 },
+        descendSpeed = 240,
+    }
+    -- Before anything fires: empty.
+    assertEqual(#RingBoss.pillarChoreography(-1, cfg), 0, "ring: nothing before t=0")
+
+    -- After both resolve (t large): bullets only, top descends (+vy), bottom rises (-vy).
+    local res = RingBoss.pillarChoreography(5, cfg)
+    ok(#res > 0, "ring: resolve emits bullets")
+    local sawDown, sawUp = false, false
+    for i = 1, #res do
+        assertEqual(res[i].type, "bullet", "ring: resolved descriptor is a bullet " .. i)
+        if res[i].bank == "top" then
+            assertEqual(res[i].vy, 240, "ring: top bank descends")
+            sawDown = true
+        else
+            assertEqual(res[i].vy, -240, "ring: bottom bank rises")
+            sawUp = true
+        end
+        -- gap (pos 0.5, width 0.2 -> band 0.4..0.6) must be empty in both banks.
+        local u = res[i].y / 1000
+        ok(math.abs(u - 0.5) > 0.1, "ring: resolve leaves the safe gap empty " .. i)
+    end
+    ok(sawDown and sawUp, "ring: both banks resolve (down + up)")
+
+    -- resolveWindow makes a node go inactive again after its bullets have flown.
+    local windowed = RingBoss.pillarChoreography(5, {
+        columns = 1, fieldTop = 0, fieldBottom = 1000, nodeDelay = 0.18,
+        telegraph_duration = 0.7, resolveWindow = 0.2,
+    })
+    assertEqual(#windowed, 0, "ring: finite resolveWindow deactivates old nodes")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: win-condition flag routing (old vs new path)
+-- ---------------------------------------------------------------------------
+do
+    -- flag OFF -> ORIGINAL path (track-completion): song end wins; core kill is ignored.
+    local won, reason = RingBoss.evaluateWincon({ useRingWincon = false, songEnded = true })
+    ok(won and reason == "song_end", "wincon: flag off + song end -> old path victory")
+    won = RingBoss.evaluateWincon({ useRingWincon = false, songEnded = false,
+        phase = 4, coreDestroyed = true })
+    ok(not won, "wincon: flag off ignores P4 core kill")
+
+    -- flag ON -> NEW path (P4 core kill): song end is ignored; core kill in P4 wins.
+    won, reason = RingBoss.evaluateWincon({ useRingWincon = true, phase = 4, coreDestroyed = true })
+    ok(won and reason == "ring_core_kill", "wincon: flag on + P4 core kill -> new path victory")
+    won = RingBoss.evaluateWincon({ useRingWincon = true, phase = 4, coreDestroyed = false })
+    ok(not won, "wincon: flag on but core not destroyed -> no win")
+    won = RingBoss.evaluateWincon({ useRingWincon = true, phase = 3, coreDestroyed = true })
+    ok(not won, "wincon: flag on but pre-P4 core not vulnerable -> no win")
+    won = RingBoss.evaluateWincon({ useRingWincon = true, songEnded = true })
+    ok(not won, "wincon: flag on ignores the old song-end signal")
+end
+
+-- ---------------------------------------------------------------------------
+-- RingBoss: boss-state attach / updatePhase (the entity reconfigures)
+-- ---------------------------------------------------------------------------
+do
+    local boss = { health = 100, maxHealth = 100 }
+    RingBoss.attach(boss, { phaseThresholds = { 0.75, 0.5, 0.25 } })
+    assertEqual(boss.ringPhase, 1, "ring: attach starts at P1")
+    assertEqual(boss.coreDestroyed, false, "ring: attach core intact")
+
+    boss.health = 60
+    RingBoss.updatePhase(boss)
+    assertEqual(boss.ringPhase, 2, "ring: updatePhase -> P2 at 60% HP")
+
+    boss.health = 10
+    RingBoss.updatePhase(boss)
+    assertEqual(boss.ringPhase, 4, "ring: updatePhase -> P4 at 10% HP")
+    assertEqual(RingBoss.isCoreVulnerable(boss.ringPhase), true, "ring: core now vulnerable in P4")
 end
 
 print(string.format("OK (%d passed)", passed))

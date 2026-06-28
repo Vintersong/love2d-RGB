@@ -1,6 +1,8 @@
 local flux = require("libs.flux-master.flux")
 local RunSummary = require("src.core.RunSummary")
 local OnboardingSequence = require("src.gameplay.OnboardingSequence")
+local Config = require("src.Config")
+local RingBoss = require("src.patterns.RingBoss")
 local PlayingUpdateLoop = {}
 
 function PlayingUpdateLoop.update(state, dt, deps)
@@ -16,11 +18,25 @@ function PlayingUpdateLoop.update(state, dt, deps)
     local BossCoordinator = deps.BossCoordinator
     local enemyFlow = deps.enemyFlow
 
-    -- Song-end check must happen BEFORE musicReactor:update, which would
-    -- call advancePlaylist internally and reset isPlaying = true.
-    if state.musicReactor and state.musicReactor.isPlaying
-       and state.musicReactor.currentSong
-       and not state.musicReactor.currentSong:isPlaying() then
+    -- Win-condition routing.
+    -- ORIGINAL (preserved, default): track-completion -- the run is WON when the music song
+    -- finishes playing. This `songEnded` check must be evaluated BEFORE musicReactor:update,
+    -- which would call advancePlaylist internally and reset isPlaying = true.
+    -- NEW (flag-gated by Config.boss.ringBoss.use_ring_boss_wincon, default false): the player
+    -- wins only by destroying the exposed ring-boss core during Phase 4. The original path is
+    -- left fully intact for reconciliation; routing lives in RingBoss.evaluateWincon.
+    local ringCfg = (Config.boss and Config.boss.ringBoss) or {}
+    local songEnded = state.musicReactor and state.musicReactor.isPlaying
+        and state.musicReactor.currentSong
+        and not state.musicReactor.currentSong:isPlaying()
+    local activeBoss = deps.BossCoordinator and deps.BossCoordinator.getActiveBoss()
+    local won = RingBoss.evaluateWincon({
+        useRingWincon = ringCfg.use_ring_boss_wincon or false,
+        songEnded = songEnded and true or false,
+        phase = activeBoss and activeBoss.ringPhase or nil,
+        coreDestroyed = activeBoss and activeBoss.coreDestroyed or false,
+    })
+    if won then
         local StateManager = require("src.core.StateManager")
         StateManager.switch("Victory", {
             player = state.player,

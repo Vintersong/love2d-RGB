@@ -107,8 +107,16 @@ function BossSystem.spawnBoss(options)
     boss.defeatRotation = 0
     boss.defeatScale = 1
     
+    -- Ring-boss extension (opt-in, default OFF): attach dodecagonal ring phase state so this
+    -- same entity can reconfigure across P1-P4. Pure logic in src/patterns/RingBoss.lua; when
+    -- Config.boss.ringBoss.enabled is false this block is skipped and the boss is unchanged.
+    local Config = require("src.Config")
+    if Config.boss and Config.boss.ringBoss and Config.boss.ringBoss.enabled then
+        require("src.patterns.RingBoss").attach(boss, Config.boss.ringBoss)
+    end
+
     BossSystem.activeBoss = boss
-    
+
     -- Announcement (FloatingTextSystem will be called from main.lua)
     return boss
 end
@@ -229,11 +237,17 @@ function BossSystem:update(dt, playerX, playerY)
             self.hitFlash = self.hitFlash - dt
         end
 
+        -- Ring-boss (opt-in): recompute which of the four ring phases this entity is in from
+        -- its current HP. No-op unless ring state was attached at spawn (default off).
+        if self.ringPhase then
+            require("src.patterns.RingBoss").updatePhase(self)
+        end
+
         -- Check death
         if self.health <= 0 then
             self.phase = "defeated"
         end
-        
+
     elseif self.phase == "defeated" then
         if not self._defeatStarted then
             startDefeatSequence(self)
@@ -294,6 +308,16 @@ end
 function BossSystem:takeDamage(amount, colorName)
     if self.invulnerable then return end
 
+    -- Ring-boss (opt-in): the central core is only vulnerable in Phase 4 (closing circle /
+    -- core exposed). In P1-P3 the ring shields the core, so damage is ignored. No-op unless
+    -- ring state was attached at spawn (default off).
+    if self.ringPhase then
+        local RingBoss = require("src.patterns.RingBoss")
+        if not RingBoss.isCoreVulnerable(self.ringPhase) then
+            return
+        end
+    end
+
     -- Color affinity (bonus-only): a projectile matching this archetype's weak
     -- color deals bonus damage. Regular enemies never reach this path, so they
     -- stay affinity-free by design. See Config.boss.affinity.
@@ -309,8 +333,13 @@ function BossSystem:takeDamage(amount, colorName)
     if self.health <= 0 then
         self.health = 0
         self.phase = "defeated"
+        -- Ring-boss (opt-in): the exposed core was destroyed (damage only lands in P4 per the
+        -- vulnerability guard above). This flag drives the flag-gated P4 core-kill win path.
+        if self.ringPhase then
+            self.coreDestroyed = true
+        end
     end
-    
+
     -- Visual feedback - simplified (no VFX system integration yet)
     -- VFX:spawnHitEffect(self.x, self.y, WHITE_COLOR)
     

@@ -470,6 +470,7 @@ end
 function RingBoss.attach(boss, cfg)
     cfg = cfg or {}
     boss.ringPhase = RingBoss.PHASE.P1
+    boss.ringPhaseTimer = 0
     boss.coreDestroyed = false
     boss.ringThresholds = cfg.phaseThresholds or { 0.75, 0.5, 0.25 }
     boss.ringConfig = cfg
@@ -481,6 +482,24 @@ function RingBoss.updatePhase(boss)
     if not boss or not boss.ringPhase then return end
     local frac = (boss.maxHealth and boss.maxHealth > 0) and (boss.health / boss.maxHealth) or 1
     boss.ringPhase = RingBoss.phaseForHealth(frac, boss.ringThresholds)
+    return boss.ringPhase
+end
+
+-- Time-driven phase progression (the live driver). The core is invulnerable in P1-P3, so an
+-- HP-threshold progression would deadlock (HP can't drop, so P4 is never reached). Instead the
+-- boss DODGES through P1->P2->P3, one `phaseDuration` each, then enters P4 (terminal: the ring
+-- opens, the core is exposed and damageable until killed). Mutates ringPhase/ringPhaseTimer.
+function RingBoss.advancePhaseByTime(boss, dt, phaseDuration)
+    if not boss or not boss.ringPhase then return end
+    phaseDuration = phaseDuration or 12
+    if boss.ringPhase >= RingBoss.PHASE.P4 then
+        return boss.ringPhase -- P4 is terminal: stay until the exposed core dies
+    end
+    boss.ringPhaseTimer = (boss.ringPhaseTimer or 0) + (dt or 0)
+    if boss.ringPhaseTimer >= phaseDuration then
+        boss.ringPhaseTimer = 0
+        boss.ringPhase = RingBoss.nextPhase(boss.ringPhase)
+    end
     return boss.ringPhase
 end
 

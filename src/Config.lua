@@ -115,7 +115,13 @@ local Config = {
             fireCadence = 0.5,               -- seconds between ring-node attack volleys (P1-P4)
             chaseSpeed = 150,                -- P2 close-follow chase speed (px/s)
             curtainInterval = 5.0,           -- seconds between P1 6/6 pillar-curtain volleys
-            encounterIndex = 1,              -- which boss encounter IS the ring boss (nil = every boss)
+            phaseDuration = 12,              -- seconds spent dodging EACH of P1/P2/P3 before the
+                                             -- core opens in P4 (core is invulnerable until then)
+            encounterIndex = 3,              -- the ring boss is the MAIN/final boss: it appears at
+                                             -- the 3rd boss encounter, with mini (normal) bosses at
+                                             -- encounters 1-2 before it. (nil = every boss is the ring
+                                             -- boss.) For fast iteration while balancing, set this to 1
+                                             -- or lower Config.bossMeter.bossInterval to reach it sooner.
         },
     },
 

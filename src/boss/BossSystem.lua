@@ -41,6 +41,7 @@ function BossSystem.clearBossReferences(boss)
     boss._curtainState = nil
     boss._curtainTimer = nil
     boss._curtainCooldown = nil
+    boss.ringPhaseTimer = nil
 end
 
 function BossSystem.reset()
@@ -253,11 +254,11 @@ function BossSystem:update(dt, playerX, playerY)
             self.hitFlash = self.hitFlash - dt
         end
 
-        -- Ring-boss (opt-in): recompute which of the four ring phases this entity is in from
-        -- its current HP, then fire that phase's ring attack on a cadence. No-op unless ring
-        -- state was attached at spawn (Config.boss.ringBoss.enabled, default off).
+        -- Ring-boss (opt-in): advance P1->P2->P3 by time (the core is invulnerable until P4,
+        -- so an HP-driven progression would deadlock), then fire that phase's ring attack on a
+        -- cadence. No-op unless ring state was attached at spawn (default off).
         if self.ringPhase then
-            RingBoss.updatePhase(self)
+            RingBoss.advancePhaseByTime(self, dt, (self.ringConfig and self.ringConfig.phaseDuration) or 12)
 
             -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
             -- reconfigures via the phase layout). Clamped to the arena.

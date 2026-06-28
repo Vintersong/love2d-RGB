@@ -762,6 +762,37 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- RingBoss: time-driven phase progression (the live driver; avoids the HP deadlock)
+-- ---------------------------------------------------------------------------
+do
+    -- The core is invulnerable in P1-P3, so HP can't drop to reach P4; phases must advance by
+    -- TIME instead. Dodge each of P1/P2/P3 for `phaseDuration`, then land on P4 (terminal).
+    local boss = { health = 100, maxHealth = 100 }
+    RingBoss.attach(boss, {})
+    assertEqual(boss.ringPhase, 1, "timePhase: starts at P1")
+    assertEqual(boss.ringPhaseTimer, 0, "timePhase: attach zeroes the phase timer")
+
+    local dur = 10
+    -- Not enough elapsed: still P1, core invulnerable (this is the bug we are fixing).
+    RingBoss.advancePhaseByTime(boss, dur - 0.1, dur)
+    assertEqual(boss.ringPhase, 1, "timePhase: holds P1 before phaseDuration")
+    ok(not RingBoss.isCoreVulnerable(boss.ringPhase), "timePhase: core invulnerable in P1")
+
+    -- Cross each boundary -> P2 -> P3 -> P4.
+    RingBoss.advancePhaseByTime(boss, 0.2, dur)
+    assertEqual(boss.ringPhase, 2, "timePhase: P1 -> P2 after phaseDuration")
+    RingBoss.advancePhaseByTime(boss, dur, dur)
+    assertEqual(boss.ringPhase, 3, "timePhase: P2 -> P3")
+    RingBoss.advancePhaseByTime(boss, dur, dur)
+    assertEqual(boss.ringPhase, 4, "timePhase: P3 -> P4")
+    assertEqual(RingBoss.isCoreVulnerable(boss.ringPhase), true, "timePhase: core vulnerable in P4")
+
+    -- P4 is terminal: more time does not advance past it.
+    RingBoss.advancePhaseByTime(boss, dur * 5, dur)
+    assertEqual(boss.ringPhase, 4, "timePhase: P4 is terminal")
+end
+
+-- ---------------------------------------------------------------------------
 -- PatternSpawner bridge: descriptors -> live projectiles (love-free via fake factory)
 -- ---------------------------------------------------------------------------
 do

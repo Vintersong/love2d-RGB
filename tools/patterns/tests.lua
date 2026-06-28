@@ -671,6 +671,55 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- RingBoss: synchronized 6/6 curtain volley (warning markers / resolve bullets)
+-- ---------------------------------------------------------------------------
+do
+    local extent = 1000
+    local params = {
+        columns = 6, fieldLeft = 0, fieldRight = 1920, fieldTop = 0, fieldBottom = extent,
+        bulletsPerColumn = 8,
+        topGap = { pos = 0.30, width = 0.12 }, bottomGap = { pos = 0.64, width = 0.12 },
+        descendSpeed = 200,
+    }
+
+    -- warning: one telegraph marker per column per bank -> 6 top + 6 bottom = 12.
+    local warn = RingBoss.curtainVolley("warning", params)
+    assertEqual(#warn, 12, "curtain: warning -> 12 telegraph markers")
+    local topMarkers, botMarkers = 0, 0
+    for i = 1, #warn do
+        assertEqual(warn[i].type, "telegraph", "curtain: warning descriptor is telegraph " .. i)
+        if warn[i].bank == "top" then
+            topMarkers = topMarkers + 1
+            assertNear(warn[i].y, 0.30 * extent, "curtain: top marker at top gap center " .. i)
+        else
+            botMarkers = botMarkers + 1
+            assertNear(warn[i].y, 0.64 * extent, "curtain: bottom marker at bottom gap center " .. i)
+        end
+    end
+    assertEqual(topMarkers, 6, "curtain: 6 top markers")
+    assertEqual(botMarkers, 6, "curtain: 6 bottom markers")
+
+    -- resolve: bullets; top bank descends (vy>0), bottom rises (vy<0); gap bands stay empty.
+    local res = RingBoss.curtainVolley("resolve", params)
+    ok(#res > 0, "curtain: resolve emits bullets")
+    local sawTop, sawBottom = false, false
+    for i = 1, #res do
+        local b = res[i]
+        local u = (b.y - params.fieldTop) / extent
+        if b.bank == "top" then
+            sawTop = true
+            assertEqual(b.vy, 200, "curtain: top bullet descends")
+            ok(math.abs(u - 0.30) > 0.06, "curtain: top gap band empty " .. i)
+        else
+            sawBottom = true
+            assertEqual(b.vy, -200, "curtain: bottom bullet rises")
+            ok(math.abs(u - 0.64) > 0.06, "curtain: bottom gap band empty " .. i)
+        end
+    end
+    ok(sawTop and sawBottom, "curtain: both banks resolve to bullets")
+end
+
+-- ---------------------------------------------------------------------------
 -- RingBoss: per-phase boss movement (P2 chases, others hold)
 -- ---------------------------------------------------------------------------
 do

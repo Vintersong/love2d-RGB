@@ -33,6 +33,11 @@ function BossSystem.clearBossReferences(boss)
     boss._scheduledProjectiles = nil
     boss._scheduler = nil
     boss._ringLasers = nil
+    boss._curtainMarkers = nil
+    boss._curtainParams = nil
+    boss._curtainState = nil
+    boss._curtainTimer = nil
+    boss._curtainCooldown = nil
 end
 
 function BossSystem.reset()
@@ -112,8 +117,9 @@ function BossSystem.spawnBoss(options)
     -- same entity can reconfigure across P1-P4. Pure logic in src/patterns/RingBoss.lua; when
     -- Config.boss.ringBoss.enabled is false this block is skipped and the boss is unchanged.
     local Config = require("src.Config")
-    if Config.boss and Config.boss.ringBoss and Config.boss.ringBoss.enabled then
-        require("src.patterns.RingBoss").attach(boss, Config.boss.ringBoss)
+    local rc = Config.boss and Config.boss.ringBoss
+    if rc and rc.enabled and (rc.encounterIndex == nil or boss.encounterIndex == rc.encounterIndex) then
+        require("src.patterns.RingBoss").attach(boss, rc)
     end
 
     BossSystem.activeBoss = boss
@@ -307,6 +313,15 @@ function BossSystem:update(dt, playerX, playerY)
                         table.remove(self._ringLasers, i)
                     end
                 end
+            end
+
+            -- P1 also runs the telegraphed 6/6 pillar curtain on its own cadence; other
+            -- phases retire any lingering telegraph markers.
+            if self.ringPhase == RingBoss.PHASE.P1 then
+                self:updateRingCurtain(dt)
+            else
+                self._curtainMarkers = nil
+                self._curtainState = "idle"
             end
         end
 
@@ -541,6 +556,69 @@ function BossSystem:drawRing()
         for i = 1, #self._ringLasers do
             LaserBeam.draw(self._ringLasers[i], bossColor)
         end
+    end
+
+    -- P1 pillar-curtain telegraphs: outline the safe lanes before the curtain resolves.
+    self:drawCurtainTelegraphs()
+end
+
+-- P1 6/6 pillar curtain on a cadence: warn (telegraph markers) then resolve (live bullets).
+-- Reuses the pure RingBoss.curtainVolley + the PatternSpawner bridge. No-op outside P1.
+function BossSystem:updateRingCurtain(dt)
+    local RingBoss = require("src.patterns.RingBoss")
+    local cfg = self.ringConfig or {}
+    local sw, sh = GameConfig.getScreenSize()
+    local params = {
+        columns = 6,
+        fieldLeft = 0, fieldRight = sw or 1920,
+        fieldTop = 0, fieldBottom = sh or 1080,
+        bulletsPerColumn = 8,
+        descendSpeed = 200,
+        topGap = { pos = 0.30, width = 0.13 },
+        bottomGap = { pos = 0.64, width = 0.13 },
+        color_axis = "bass",
+    }
+
+    self._curtainState = self._curtainState or "idle"
+    if self._curtainState == "idle" then
+        self._curtainCooldown = (self._curtainCooldown or (cfg.curtainInterval or 5.0)) - dt
+        if self._curtainCooldown <= 0 then
+            self._curtainMarkers = RingBoss.curtainVolley("warning", params)
+            self._curtainParams = params
+            self._curtainState = "warning"
+            self._curtainTimer = cfg.telegraphDuration or 0.7
+        end
+    elseif self._curtainState == "warning" then
+        self._curtainTimer = (self._curtainTimer or 0) - dt
+        if self._curtainTimer <= 0 then
+            local PatternSpawner = require("src.combat.PatternSpawner")
+            local bullets = RingBoss.curtainVolley("resolve", self._curtainParams or params)
+            PatternSpawner.spawn(bullets, self._bossProjectiles or {}, {
+                damage = math.floor((self.damage or 10) * 0.4),
+                projType = "boss_orb",
+            })
+            self._curtainMarkers = nil
+            self._curtainState = "idle"
+            self._curtainCooldown = cfg.curtainInterval or 5.0
+        end
+    end
+end
+
+-- Draw the curtain telegraph markers as hollow "safe lane" rectangles. The inert
+-- marker_style / gap_height pass-throughs from the pattern library finally drive a visual:
+-- gap_height sizes the refuge band; marker_style picks luminance intent (outline/bright/dim).
+function BossSystem:drawCurtainTelegraphs()
+    if not self._curtainMarkers or #self._curtainMarkers == 0 then return end
+    local p = self._curtainParams or {}
+    local colWidth = ((p.fieldRight or 1920) - (p.fieldLeft or 0)) / (p.columns or 6)
+    local w = colWidth * 0.7
+    for i = 1, #self._curtainMarkers do
+        local m = self._curtainMarkers[i]
+        local h = m.gap_height or 60
+        local alpha = (m.marker_style == "bright") and 0.7 or (m.marker_style == "dim") and 0.22 or 0.45
+        love.graphics.setColor(1, 1, 0.4, alpha)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", m.x - w / 2, m.y - h / 2, w, h)
     end
 end
 

@@ -370,6 +370,46 @@ function RingBoss.phaseAttack(center, phaseId, t, params)
     return out
 end
 
+-- Synchronized 6/6 curtain volley for one stage ("warning" -> telegraph markers, "resolve"
+-- -> descending/rising bullets). Top bank descends, bottom bank rises, sharing the same
+-- columns with INDEPENDENT gaps (the convergence dodge). A simpler, balance-friendly live form
+-- of pillarChoreography: both banks fire together rather than walking. Pure; reuses pillars.
+function RingBoss.curtainVolley(stage, params)
+    params = params or {}
+    local columns = params.columns or 6
+    local fieldLeft = params.fieldLeft or 0
+    local fieldRight = params.fieldRight or 1920
+    local fieldTop = params.fieldTop or 0
+    local fieldBottom = params.fieldBottom or 1080
+    local speed = params.descendSpeed or 200
+    local color_axis = params.color_axis
+    local markerStyle = params.marker_style or "outline"
+    local topGap = params.topGap or { pos = 0.30, width = 0.13 }
+    local bottomGap = params.bottomGap or { pos = 0.64, width = 0.13 }
+
+    local function bank(name, gap, signedSpeed)
+        local part = BulletPatternLibrary.pillars({ x = 0, y = 0 }, 0, {
+            pillarCount = columns,
+            fieldLeft = fieldLeft, fieldRight = fieldRight,
+            fieldTop = fieldTop, fieldBottom = fieldBottom,
+            bulletsPerPillar = params.bulletsPerColumn,
+            spacing = params.spacing or 64,
+            gaps = { gap },
+            descendSpeed = signedSpeed,
+            marker_style = markerStyle,
+            color_axis = color_axis,
+            stage = stage,
+        })
+        for i = 1, #part do part[i].bank = name end
+        return part
+    end
+
+    local out = {}
+    for _, d in ipairs(bank("top", topGap, speed)) do out[#out + 1] = d end
+    for _, d in ipairs(bank("bottom", bottomGap, -speed)) do out[#out + 1] = d end
+    return out
+end
+
 -- Per-phase boss-entity motion (distinct from the ring RADIUS animation that phaseLayout
 -- handles). P2 "close follow" chases the player; the other phases hold position so the ring
 -- radius does the reconfiguring. Returns target velocity components (vx, vy). Pure.

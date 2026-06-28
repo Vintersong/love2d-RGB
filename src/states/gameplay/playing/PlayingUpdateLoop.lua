@@ -30,8 +30,13 @@ function PlayingUpdateLoop.update(state, dt, deps)
         and state.musicReactor.currentSong
         and not state.musicReactor.currentSong:isPlaying()
     local activeBoss = deps.BossCoordinator and deps.BossCoordinator.getActiveBoss()
+    -- Auto-pair the core-kill win condition: while a ring boss is alive the win is its P4
+    -- core kill (song-end suppressed for the duration); with no ring boss the original
+    -- track-completion path is unchanged. So enabling Config.boss.ringBoss.enabled alone
+    -- yields a winnable finale -- no second flag needed. RingBoss.evaluateWincon is untouched.
+    local ringBossActive = activeBoss and activeBoss.ringPhase ~= nil
     local won = RingBoss.evaluateWincon({
-        useRingWincon = ringCfg.use_ring_boss_wincon or false,
+        useRingWincon = (ringCfg.use_ring_boss_wincon or ringBossActive) and true or false,
         songEnded = songEnded and true or false,
         phase = activeBoss and activeBoss.ringPhase or nil,
         coreDestroyed = activeBoss and activeBoss.coreDestroyed or false,

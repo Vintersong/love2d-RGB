@@ -32,6 +32,7 @@ function BossSystem.clearBossReferences(boss)
     boss._bossProjectiles = nil
     boss._scheduledProjectiles = nil
     boss._scheduler = nil
+    boss._ringLasers = nil
 end
 
 function BossSystem.reset()
@@ -247,20 +248,48 @@ function BossSystem:update(dt, playerX, playerY)
             self._ringFireTimer = (self._ringFireTimer or 0) - dt
             if self._ringFireTimer <= 0 then
                 self._ringFireTimer = (self.ringConfig and self.ringConfig.fireCadence) or 0.5
-                -- Descriptors emit from the 12 ring-node positions; the PatternSpawner bridge
-                -- turns the bullet ones into live projectiles (lasers/telegraphs are skipped,
-                -- pending their own renderer -- see Phase 2 notes).
-                local PatternSpawner = require("src.combat.PatternSpawner")
+                -- Descriptors emit from the 12 ring-node positions.
+                local baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220
                 local descriptors = RingBoss.phaseAttack({x = self.x, y = self.y}, self.ringPhase, self.combatTime or 0, {
-                    baseRadius = (self.ringConfig and self.ringConfig.baseRadius) or 220,
+                    baseRadius = baseRadius,
                     speed = 230,
                     targetX = playerX, targetY = playerY,
                     color_axis = "mids",
                 })
-                PatternSpawner.spawn(descriptors, self._bossProjectiles or {}, {
-                    damage = math.floor((self.damage or 10) * 0.5),
-                    projType = "boss_orb",
-                })
+                if self.ringPhase == RingBoss.PHASE.P3 then
+                    -- P3 emits laser BEAMS (segments), not bullets: each telegraphs, then fires.
+                    -- BossCoordinator checks active beams against the player.
+                    local LaserBeam = require("src.combat.LaserBeam")
+                    self._ringLasers = self._ringLasers or {}
+                    local length = baseRadius * 2.4
+                    for _, d in ipairs(descriptors) do
+                        if d.type == "laser" then
+                            local seg = LaserBeam.segmentFromVelocity(d.x, d.y, d.vx, d.vy, length)
+                            self._ringLasers[#self._ringLasers + 1] = LaserBeam.new(seg, {
+                                damage = math.floor((self.damage or 10) * 0.6),
+                                color_axis = d.color_axis,
+                            })
+                        end
+                    end
+                else
+                    -- P1/P2/P4 emit bullets: realize them through the shared bridge.
+                    local PatternSpawner = require("src.combat.PatternSpawner")
+                    PatternSpawner.spawn(descriptors, self._bossProjectiles or {}, {
+                        damage = math.floor((self.damage or 10) * 0.5),
+                        projType = "boss_orb",
+                    })
+                end
+            end
+
+            -- Advance laser beams (telegraph -> active -> done) and retire finished ones.
+            if self._ringLasers and #self._ringLasers > 0 then
+                local LaserBeam = require("src.combat.LaserBeam")
+                for i = #self._ringLasers, 1, -1 do
+                    LaserBeam.update(self._ringLasers[i], dt)
+                    if LaserBeam.isDone(self._ringLasers[i]) then
+                        table.remove(self._ringLasers, i)
+                    end
+                end
             end
         end
 
@@ -487,6 +516,14 @@ function BossSystem:drawRing()
         love.graphics.setColor(1, 0.3, 0.3, 0.9)
         love.graphics.setLineWidth(3)
         love.graphics.circle("line", self.x, self.y, (self.size or 30) * 0.6)
+    end
+
+    -- P3 laser beams: dim while telegraphing, bright while firing.
+    if self._ringLasers and #self._ringLasers > 0 then
+        local LaserBeam = require("src.combat.LaserBeam")
+        for i = 1, #self._ringLasers do
+            LaserBeam.draw(self._ringLasers[i], bossColor)
+        end
     end
 end
 

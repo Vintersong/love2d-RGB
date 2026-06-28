@@ -752,4 +752,48 @@ do
     assertEqual(t5, #frame, "bridge: all warning descriptors counted as telegraphs")
 end
 
+-- ---------------------------------------------------------------------------
+-- LaserBeam: P3 beam geometry, lifecycle, and point/segment collision (pure)
+-- ---------------------------------------------------------------------------
+do
+    local LaserBeam = require("src.combat.LaserBeam")
+
+    -- segment: from->to extended to a length.
+    local seg = LaserBeam.segment({ x = 0, y = 0 }, { x = 10, y = 0 }, 20)
+    assertNear(seg.x1, 0, "laser: seg start x")
+    assertNear(seg.x2, 20, "laser: seg extended to length")
+    assertNear(seg.y2, 0, "laser: seg stays on axis")
+
+    -- segmentFromVelocity: direction normalized then scaled to length.
+    local segv = LaserBeam.segmentFromVelocity(5, 5, 0, 3, 10) -- straight down
+    assertNear(segv.x2, 5, "laser: velocity seg x unchanged")
+    assertNear(segv.y2, 15, "laser: velocity seg extends by length")
+
+    -- pointDistance: perpendicular, before-start, past-end, and on-line cases.
+    local s = { x1 = 0, y1 = 0, x2 = 10, y2 = 0 }
+    assertNear(LaserBeam.pointDistance(s, 5, 5), 5, "laser: perpendicular distance")
+    assertNear(LaserBeam.pointDistance(s, -3, 0), 3, "laser: clamps to start point")
+    assertNear(LaserBeam.pointDistance(s, 15, 0), 5, "laser: clamps to end point")
+    assertNear(LaserBeam.pointDistance(s, 4, 0), 0, "laser: point on the segment")
+
+    -- hitsPoint respects the half-width band.
+    ok(LaserBeam.hitsPoint(s, 5, 6, 8), "laser: within band -> hit")
+    ok(not LaserBeam.hitsPoint(s, 5, 6, 4), "laser: outside band -> miss")
+
+    -- lifecycle: telegraph (warn) -> active -> done.
+    assertEqual(LaserBeam.lifecycle(0.3, 0.6, 0.5), "warning", "laser: warning window")
+    assertEqual(LaserBeam.lifecycle(0.8, 0.6, 0.5), "active", "laser: active window")
+    assertEqual(LaserBeam.lifecycle(1.2, 0.6, 0.5), "done", "laser: done window")
+
+    -- a live beam advances through the stages and only damages while active.
+    local beam = LaserBeam.new(s, { telegraphTime = 0.6, activeTime = 0.5, halfWidth = 10, damage = 7 })
+    assertEqual(beam.phase, "warning", "laser: new beam starts warning")
+    LaserBeam.update(beam, 0.3)
+    ok(not LaserBeam.isActive(beam), "laser: still warning at 0.3s (no damage)")
+    LaserBeam.update(beam, 0.4) -- elapsed 0.7 -> active
+    ok(LaserBeam.isActive(beam), "laser: active at 0.7s")
+    LaserBeam.update(beam, 0.5) -- elapsed 1.2 -> done
+    ok(LaserBeam.isDone(beam), "laser: done at 1.2s")
+end
+
 print(string.format("OK (%d passed)", passed))

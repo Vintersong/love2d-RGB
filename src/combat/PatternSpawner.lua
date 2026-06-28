@@ -37,6 +37,7 @@ end
 -- opts: damage, projType, owner, color, fallbackColor, resolveColor(fn), factory(fn)
 -- Returns: spawnedCount, skippedTelegraphCount.
 function PatternSpawner.spawn(descriptors, sink, opts)
+    if not descriptors then return 0, 0 end
     opts = opts or {}
     local factory = opts.factory or defaultFactory
     local resolve = opts.resolveColor or PatternSpawner.resolveColorAxis

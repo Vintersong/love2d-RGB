@@ -61,7 +61,8 @@ end
 -- yielding floats in [0, 1). Does NOT touch math.random / love.math, so it never mutates
 -- global RNG state and is reproducible from its seed alone.
 local function newRng(seed)
-    local state = (seed or 0) % 2147483648
+    -- Force an integer state: a float seed would degrade the LCG's integer arithmetic.
+    local state = math.floor(seed or 0) % 2147483648
     return function()
         state = (1103515245 * state + 12345) % 2147483648
         return state / 2147483648
@@ -271,7 +272,8 @@ end
 function BulletPatternLibrary.pillars(origin, t, params)
     params = params or {}
     t = t or 0
-    local pillarCount = params.pillarCount or 4
+    -- Default the count to the supplied xs length so explicit positions are never truncated.
+    local pillarCount = params.pillarCount or (type(params.xs) == "table" and #params.xs) or 4
     local fieldLeft = params.fieldLeft or 0
     local fieldRight = params.fieldRight or 1920
     local fieldTop = params.fieldTop or 0
@@ -372,6 +374,7 @@ end
 -- is called if provided, else a warning is written to io.stderr. Never throws.
 -- Returns: merged, total, overCap
 function BulletPatternLibrary.composite(lists, opts)
+    if not lists then return {}, 0, false end
     opts = opts or {}
     local softCap = opts.softCap or 600
 

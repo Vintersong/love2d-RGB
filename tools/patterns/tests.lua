@@ -494,20 +494,20 @@ end
 do
     local seq = RingBoss.firingSequence({ columns = 6, nodeDelay = 0.2 })
     assertEqual(#seq, 12, "ring: 6 columns x 2 banks = 12 firings")
-    -- Default alternating walk: top c0, bottom c0, top c1, bottom c1, ...
+    -- Default alternating walk (1-indexed columns): top c1, bottom c1, top c2, bottom c2, ...
     assertEqual(seq[1].bank, "top", "ring: seq[1] is top bank")
-    assertEqual(seq[1].col, 0, "ring: seq[1] is column 0")
+    assertEqual(seq[1].col, 1, "ring: seq[1] is column 1")
     assertEqual(seq[2].bank, "bottom", "ring: seq[2] is bottom bank")
-    assertEqual(seq[2].col, 0, "ring: seq[2] is column 0")
+    assertEqual(seq[2].col, 1, "ring: seq[2] is column 1")
     assertEqual(seq[3].bank, "top", "ring: seq[3] is top bank")
-    assertEqual(seq[3].col, 1, "ring: seq[3] walks to column 1")
+    assertEqual(seq[3].col, 2, "ring: seq[3] walks to column 2")
     -- fire times are monotonically increasing by nodeDelay.
     for i = 1, #seq do
         assertNear(seq[i].fireTime, (i - 1) * 0.2, "ring: fireTime step " .. i)
     end
     -- Sequence is reorderable via params.order.
     local custom = RingBoss.firingSequence({ nodeDelay = 0.1,
-        order = { { bank = "bottom", col = 3 }, { bank = "top", col = 0 } } })
+        order = { { bank = "bottom", col = 3 }, { bank = "top", col = 1 } } })
     assertEqual(#custom, 2, "ring: custom order length")
     assertEqual(custom[1].bank, "bottom", "ring: custom order respected (bank)")
     assertEqual(custom[1].col, 3, "ring: custom order respected (col)")
@@ -520,7 +520,7 @@ do
     -- Whole-tone generator maps banks to the two whole-tone scales (offset by construction).
     local topG = RingBoss.wholeToneGaps("top", 6)
     local botG = RingBoss.wholeToneGaps("bottom", 6)
-    for c = 0, 5 do
+    for c = 1, 6 do
         ok(math.abs(topG[c].pos - botG[c].pos) > 1e-6, "ring: whole-tone banks differ at col " .. c)
     end
 

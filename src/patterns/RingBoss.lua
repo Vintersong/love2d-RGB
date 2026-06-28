@@ -62,12 +62,15 @@ end
 -- HP-threshold transition. thresholds are descending HP fractions {t1,t2,t3}:
 --   frac > t1 -> P1, frac > t2 -> P2, frac > t3 -> P3, else P4.
 function RingBoss.phaseForHealth(frac, thresholds)
-    thresholds = thresholds or { 0.75, 0.5, 0.25 }
-    if frac > thresholds[1] then
+    -- Per-index fallbacks so a short/partial custom thresholds table can't crash the compare.
+    local t1 = (thresholds and thresholds[1]) or 0.75
+    local t2 = (thresholds and thresholds[2]) or 0.5
+    local t3 = (thresholds and thresholds[3]) or 0.25
+    if frac > t1 then
         return RingBoss.PHASE.P1
-    elseif frac > thresholds[2] then
+    elseif frac > t2 then
         return RingBoss.PHASE.P2
-    elseif frac > thresholds[3] then
+    elseif frac > t3 then
         return RingBoss.PHASE.P3
     end
     return RingBoss.PHASE.P4
@@ -151,10 +154,11 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Default firing order: alternating banks walking across the columns
--- (top c0, bottom c0, top c1, bottom c1, ...). Data-driven: pass params.order to reorder.
+-- (top c1, bottom c1, top c2, bottom c2, ...). Columns are 1-indexed to match Lua tables, so
+-- caller-supplied xs / topGapsPerColumn / bottomGapsPerColumn line up. Pass params.order to reorder.
 function RingBoss.defaultFiringOrder(columns)
     local order = {}
-    for c = 0, columns - 1 do
+    for c = 1, columns do
         order[#order + 1] = { bank = "top", col = c }
         order[#order + 1] = { bank = "bottom", col = c }
     end
@@ -182,8 +186,8 @@ function RingBoss.wholeToneGaps(bank, columns, width)
     local scale = (bank == "top") and 0 or 1
     local pitches = RingBoss.WHOLE_TONE[scale]
     local gaps = {}
-    for c = 0, columns - 1 do
-        local pitch = pitches[(c % #pitches) + 1]
+    for c = 1, columns do
+        local pitch = pitches[((c - 1) % #pitches) + 1]
         gaps[c] = { pos = (pitch + 0.5) / 12, width = width }
     end
     return gaps
@@ -194,8 +198,8 @@ local function columnXs(columns, fieldLeft, fieldRight, xs)
     if xs then return xs end
     local out = {}
     local w = fieldRight - fieldLeft
-    for c = 0, columns - 1 do
-        out[c] = fieldLeft + (c + 0.5) / columns * w
+    for c = 1, columns do
+        out[c] = fieldLeft + (c - 0.5) / columns * w
     end
     return out
 end

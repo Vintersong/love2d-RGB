@@ -671,6 +671,29 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- RingBoss: per-phase boss movement (P2 chases, others hold)
+-- ---------------------------------------------------------------------------
+do
+    -- P2 (close_follow) chases the player: velocity points at the target at ~chaseSpeed.
+    local vx, vy = RingBoss.phaseVelocity(RingBoss.PHASE.P2, 0, 0, 300, 0, { chaseSpeed = 150 })
+    ok(vx > 0, "phaseVelocity: P2 moves toward target x")
+    assertNear(vy, 0, "phaseVelocity: P2 stays on the target axis")
+    assertNear(math.sqrt(vx ^ 2 + vy ^ 2), 150, "phaseVelocity: P2 uses chaseSpeed")
+
+    -- Within the follow-stop band, the chaser holds.
+    local sx, sy = RingBoss.phaseVelocity(RingBoss.PHASE.P2, 0, 0, 50, 0, { followStop = 80 })
+    assertEqual(sx, 0, "phaseVelocity: P2 holds inside follow-stop (x)")
+    assertEqual(sy, 0, "phaseVelocity: P2 holds inside follow-stop (y)")
+
+    -- Non-follow phases hold position (the ring radius reconfigures, the body does not chase).
+    for _, ph in ipairs({ RingBoss.PHASE.P1, RingBoss.PHASE.P3, RingBoss.PHASE.P4 }) do
+        local hx, hy = RingBoss.phaseVelocity(ph, 0, 0, 500, 500)
+        assertEqual(hx, 0, "phaseVelocity: phase " .. ph .. " holds x")
+        assertEqual(hy, 0, "phaseVelocity: phase " .. ph .. " holds y")
+    end
+end
+
+-- ---------------------------------------------------------------------------
 -- RingBoss: boss-state attach / updatePhase (the entity reconfigures)
 -- ---------------------------------------------------------------------------
 do

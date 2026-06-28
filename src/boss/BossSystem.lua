@@ -166,51 +166,57 @@ function BossSystem:update(dt, playerX, playerY)
             musicReactor = self._musicReactor,
         })
 
-        local movement = self._currentMovementBehavior
-        if not movement or (movement.canRun and not movement.canRun(self, context)) then
-            movement = BehaviorSelector.select(
-                BossBehaviors.listByKind("movement"),
-                "movement",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.movement}
-            ) or BossBehaviors.getById("horizontal_oscillate")
-        end
-        BehaviorSelector.setMovement(self, movement, context)
-        if self._currentMovementBehavior and self._currentMovementBehavior.update then
-            self._currentMovementBehavior.update(self, dt, context)
-        end
+        -- Ring bosses drive their own movement and attacks from the ring phase (below), so the
+        -- archetype movement/attack/phase selection is suppressed while ring state is attached.
+        -- This makes the four phases read as ONE entity reconfiguring, not the stock boss plus
+        -- extra bullets. No-op unless ring state was attached (default off).
+        if not self.ringPhase then
+            local movement = self._currentMovementBehavior
+            if not movement or (movement.canRun and not movement.canRun(self, context)) then
+                movement = BehaviorSelector.select(
+                    BossBehaviors.listByKind("movement"),
+                    "movement",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.movement}
+                ) or BossBehaviors.getById("horizontal_oscillate")
+            end
+            BehaviorSelector.setMovement(self, movement, context)
+            if self._currentMovementBehavior and self._currentMovementBehavior.update then
+                self._currentMovementBehavior.update(self, dt, context)
+            end
 
-        local lowHealthPhase = BossBehaviors.getById("phase_low_health")
-        if lowHealthPhase and lowHealthPhase.canRun and lowHealthPhase.canRun(self, context) then
-            BehaviorSelector.execute(self, lowHealthPhase, context)
-        end
+            local lowHealthPhase = BossBehaviors.getById("phase_low_health")
+            if lowHealthPhase and lowHealthPhase.canRun and lowHealthPhase.canRun(self, context) then
+                BehaviorSelector.execute(self, lowHealthPhase, context)
+            end
 
-        self.behaviorTimer = self.behaviorTimer - dt
-        if self.behaviorTimer <= 0 then
-            local phaseBehavior = BehaviorSelector.select(
-                BossBehaviors.listByKind("phase"),
-                "phase",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.phase or BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
-            )
-            local attackBehavior = BehaviorSelector.select(
-                BossBehaviors.listByKind("attack"),
-                "attack",
-                "boss",
-                self,
-                context,
-                {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.attack or BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
-            )
+            self.behaviorTimer = self.behaviorTimer - dt
+            if self.behaviorTimer <= 0 then
+                local phaseBehavior = BehaviorSelector.select(
+                    BossBehaviors.listByKind("phase"),
+                    "phase",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.phase or BossBehaviors.getAllowedIds(self.archetypeName, "phase")}
+                )
+                local attackBehavior = BehaviorSelector.select(
+                    BossBehaviors.listByKind("attack"),
+                    "attack",
+                    "boss",
+                    self,
+                    context,
+                    {allowedIds = self.allowedBehaviorIds and self.allowedBehaviorIds.attack or BossBehaviors.getAllowedIds(self.archetypeName, "attack")}
+                )
 
-            local behavior = phaseBehavior or attackBehavior
-            if behavior then
-                self.behaviorTimer = BehaviorSelector.execute(self, behavior, context) or self.attackRate or 0.8
-            else
-                self.behaviorTimer = 0.3
+                local behavior = phaseBehavior or attackBehavior
+                if behavior then
+                    self.behaviorTimer = BehaviorSelector.execute(self, behavior, context) or self.attackRate or 0.8
+                else
+                    self.behaviorTimer = 0.3
+                end
             end
         end
 
@@ -244,6 +250,17 @@ function BossSystem:update(dt, playerX, playerY)
         if self.ringPhase then
             local RingBoss = require("src.patterns.RingBoss")
             RingBoss.updatePhase(self)
+
+            -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
+            -- reconfigures via the phase layout). Clamped to the arena.
+            local mvx, mvy = RingBoss.phaseVelocity(self.ringPhase, self.x, self.y, playerX, playerY, {
+                chaseSpeed = (self.ringConfig and self.ringConfig.chaseSpeed) or 150,
+            })
+            if mvx ~= 0 or mvy ~= 0 then
+                local sw, sh = GameConfig.getScreenSize()
+                self.x = math.max(40, math.min((sw or 1920) - 40, self.x + mvx * dt))
+                self.y = math.max(self.minY or 50, math.min((sh or 1080) - 120, self.y + mvy * dt))
+            end
 
             self._ringFireTimer = (self._ringFireTimer or 0) - dt
             if self._ringFireTimer <= 0 then

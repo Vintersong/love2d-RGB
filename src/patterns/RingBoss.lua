@@ -370,6 +370,24 @@ function RingBoss.phaseAttack(center, phaseId, t, params)
     return out
 end
 
+-- Per-phase boss-entity motion (distinct from the ring RADIUS animation that phaseLayout
+-- handles). P2 "close follow" chases the player; the other phases hold position so the ring
+-- radius does the reconfiguring. Returns target velocity components (vx, vy). Pure.
+function RingBoss.phaseVelocity(phaseId, fromX, fromY, targetX, targetY, params)
+    params = params or {}
+    local cfg = RingBoss.phaseConfig(phaseId)
+    if cfg.fireMode == "follow" then
+        local tx, ty = targetX or fromX, targetY or fromY
+        local dx, dy = tx - fromX, ty - fromY
+        local d = math.sqrt(dx * dx + dy * dy)
+        local stop = params.followStop or 80
+        if d <= stop or d == 0 then return 0, 0 end
+        local speed = params.chaseSpeed or 150
+        return dx / d * speed, dy / d * speed
+    end
+    return 0, 0
+end
+
 -- ---------------------------------------------------------------------------
 -- Win condition (pure router; the flag-gated live hook calls this)
 -- ---------------------------------------------------------------------------

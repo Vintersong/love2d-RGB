@@ -258,10 +258,10 @@ function BossSystem:update(dt, playerX, playerY)
 
         -- Ring-boss (opt-in): the phase tracks the boss's HP quarter (P1 100-75%, P2 75-50%,
         -- P3 50-25%, P4 25-0%), so the four phases map 1:1 to the four health-bar segments and
-        -- damage visibly drives the fight. Then fire that phase's ring attack on a cadence.
-        -- No-op unless ring state was attached at spawn (default off).
+        -- damage visibly drives the fight. Clamped to one step at a time so a burst that crosses
+        -- several thresholds can't skip a phase. Then fire that phase's ring attack on a cadence.
         if self.ringPhase then
-            RingBoss.updatePhase(self)
+            RingBoss.advancePhaseClamped(self, dt, (self.ringConfig and self.ringConfig.minPhaseDwell) or 1.5)
 
             -- Per-phase movement: P2 closes on the player; other phases hold (the ring radius
             -- reconfigures via the phase layout). Clamped to the arena.
@@ -289,7 +289,10 @@ function BossSystem:update(dt, playerX, playerY)
                     -- P3 emits laser BEAMS (segments), not bullets: each telegraphs, then fires.
                     -- BossCoordinator checks active beams against the player.
                     self._ringLasers = self._ringLasers or {}
-                    local length = baseRadius * 2.4
+                    -- Span the whole screen (node -> through the core -> off the far edge) so the
+                    -- beams read as full-screen sweeps rather than short stubs near the boss.
+                    local sw, sh = GameConfig.getScreenSize()
+                    local length = math.sqrt((sw or 1920) ^ 2 + (sh or 1080) ^ 2)
                     for _, d in ipairs(descriptors) do
                         if d.type == "laser" then
                             local seg = LaserBeam.segmentFromVelocity(d.x, d.y, d.vx, d.vy, length)
@@ -466,6 +469,11 @@ function BossSystem:draw()
     local renderScale = self.scale * (self.defeatScale or 1)
     local rotation = self.defeatRotation or 0
 
+    -- Ring-boss P3 lasers render BEHIND the boss body for a more dynamic, layered look.
+    if self.ringPhase then
+        self:drawRingLasers()
+    end
+
     -- Draw boss ship
     love.graphics.push()
     love.graphics.translate(self.x, self.y)
@@ -550,15 +558,18 @@ function BossSystem:drawRing()
         love.graphics.circle("line", self.x, self.y, (self.size or 30) * 0.6)
     end
 
-    -- P3 laser beams: dim while telegraphing, bright while firing.
-    if self._ringLasers and #self._ringLasers > 0 then
-        for i = 1, #self._ringLasers do
-            LaserBeam.draw(self._ringLasers[i], bossColor)
-        end
-    end
-
     -- P1 pillar-curtain telegraphs: outline the safe lanes before the curtain resolves.
     self:drawCurtainTelegraphs()
+end
+
+-- P3 laser beams: dim while telegraphing, bright while firing. Drawn BEHIND the boss body
+-- (called before it in :draw) so the full-screen sweeps pass behind the silhouette.
+function BossSystem:drawRingLasers()
+    if not self._ringLasers or #self._ringLasers == 0 then return end
+    local bossColor = self.bossColor or BOSS_COLOR
+    for i = 1, #self._ringLasers do
+        LaserBeam.draw(self._ringLasers[i], bossColor)
+    end
 end
 
 -- P1 6/6 pillar curtain on a cadence: warn (telegraph markers) then resolve (live bullets).

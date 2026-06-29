@@ -762,34 +762,43 @@ do
 end
 
 -- ---------------------------------------------------------------------------
--- RingBoss: time-driven phase progression (the live driver; avoids the HP deadlock)
+-- RingBoss: clamped phase progression (HP-gated, one step at a time, never skips)
 -- ---------------------------------------------------------------------------
 do
-    -- The core is invulnerable in P1-P3, so HP can't drop to reach P4; phases must advance by
-    -- TIME instead. Dodge each of P1/P2/P3 for `phaseDuration`, then land on P4 (terminal).
     local boss = { health = 100, maxHealth = 100 }
     RingBoss.attach(boss, {})
-    assertEqual(boss.ringPhase, 1, "timePhase: starts at P1")
-    assertEqual(boss.ringPhaseTimer, 0, "timePhase: attach zeroes the phase timer")
+    assertEqual(boss.ringPhase, 1, "clampPhase: starts at P1")
+    assertEqual(boss.ringPhaseTimer, 0, "clampPhase: attach zeroes the phase timer")
 
-    local dur = 10
-    -- Not enough elapsed: still P1, core invulnerable (this is the bug we are fixing).
-    RingBoss.advancePhaseByTime(boss, dur - 0.1, dur)
-    assertEqual(boss.ringPhase, 1, "timePhase: holds P1 before phaseDuration")
-    ok(not RingBoss.isCoreVulnerable(boss.ringPhase), "timePhase: core invulnerable in P1")
+    -- Normal play: HP into the P2 band advances one phase (dwell satisfied).
+    boss.health = 60
+    RingBoss.advancePhaseClamped(boss, 2.0, 1.5) -- dwell met
+    assertEqual(boss.ringPhase, 2, "clampPhase: 60% HP -> P2")
 
-    -- Cross each boundary -> P2 -> P3 -> P4.
-    RingBoss.advancePhaseByTime(boss, 0.2, dur)
-    assertEqual(boss.ringPhase, 2, "timePhase: P1 -> P2 after phaseDuration")
-    RingBoss.advancePhaseByTime(boss, dur, dur)
-    assertEqual(boss.ringPhase, 3, "timePhase: P2 -> P3")
-    RingBoss.advancePhaseByTime(boss, dur, dur)
-    assertEqual(boss.ringPhase, 4, "timePhase: P3 -> P4")
-    assertEqual(RingBoss.isCoreVulnerable(boss.ringPhase), true, "timePhase: core vulnerable in P4")
+    -- BURST: drop straight to the P4 band. It must NOT jump to P4 -- one step per call.
+    boss.health = 5
+    RingBoss.advancePhaseClamped(boss, 2.0, 1.5)
+    assertEqual(boss.ringPhase, 3, "clampPhase: burst steps P2 -> P3 (no skip)")
+    RingBoss.advancePhaseClamped(boss, 2.0, 1.5)
+    assertEqual(boss.ringPhase, 4, "clampPhase: next step -> P4")
+    assertEqual(RingBoss.isCoreVulnerable(boss.ringPhase), true, "clampPhase: core vulnerable at P4")
 
-    -- P4 is terminal: more time does not advance past it.
-    RingBoss.advancePhaseByTime(boss, dur * 5, dur)
-    assertEqual(boss.ringPhase, 4, "timePhase: P4 is terminal")
+    -- minDwell holds a phase until enough time has elapsed, even if HP says advance.
+    local b2 = { health = 100, maxHealth = 100 }
+    RingBoss.attach(b2, {})
+    b2.health = 5 -- target P4
+    RingBoss.advancePhaseClamped(b2, 0.5, 1.5) -- not enough dwell yet
+    assertEqual(b2.ringPhase, 1, "clampPhase: holds P1 until minDwell elapses")
+    RingBoss.advancePhaseClamped(b2, 1.0, 1.5) -- cumulative 1.5 -> advance one
+    assertEqual(b2.ringPhase, 2, "clampPhase: advances one step once dwell met")
+
+    -- Forward-only: phase never decreases if HP somehow rises (e.g. heal).
+    local b3 = { health = 40, maxHealth = 100 }
+    RingBoss.attach(b3, {})
+    b3.ringPhase = 3
+    b3.health = 90 -- would map to P1
+    RingBoss.advancePhaseClamped(b3, 5, 0)
+    assertEqual(b3.ringPhase, 3, "clampPhase: never steps backward")
 end
 
 -- ---------------------------------------------------------------------------

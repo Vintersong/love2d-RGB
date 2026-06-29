@@ -36,16 +36,24 @@ License text: `assets/fonts/OFL.txt`.
 ## Audio (`assets/music/`, `assets/songs/`, `assets/sfx/`)
 | File | Type | Source / License |
 |------|------|------------------|
-| `assets/music/song1.wav` | music track | **TODO — confirm source & license** |
-| `assets/music/song2.wav` | music track | **TODO — confirm source & license** |
-| `assets/sfx/Dash.mp3` | sound effect | **TODO — confirm source & license** |
+| `assets/music/song1.wav` | music track | **Suno** (generative AI) — commercial-use rights held by the author. **AI-generated: must be disclosed (see below).** |
+| `assets/music/song2.wav` | music track | **Suno** (generative AI) — commercial-use rights held by the author. **AI-generated: must be disclosed (see below).** |
+| `assets/sfx/Dash.mp3` | sound effect | **OpenGameArt.com** — **TODO: record the exact license (e.g. CC0 / CC-BY / CC-BY-SA) + author, and add attribution if required.** |
 | `assets/sfx/MenuSelectorMove.wav` | sound effect | **TODO — confirm source & license** |
 
 > ACTION (rules §2.3 originality, §2.7 asset disclosure): every audio file must be an
-> original work OR used under a license that permits this use. Fill in the source and license
-> for each file above, and ensure proof/links are declared on the submission form. Submissions
-> that do not comply with asset licenses are rejected (§3.3).
+> original work OR used under a license that permits this use, and disclosed on the submission
+> form. For the Suno tracks, keep proof of your commercial-rights tier. For the OpenGameArt
+> effect, note the exact license — if it is CC-BY / CC-BY-SA you must credit the author by name
+> here and in-game. `MenuSelectorMove.wav` still needs its source confirmed. Submissions that do
+> not comply with asset licenses are rejected (§3.3).
 
-## Generative AI
-AI use must be disclosed on the submission form (rules §3.2). See the submission form / your
-AI-use statement for details of how AI tools were used in development.
+## Generative AI (disclosure — rules §3.2)
+Generative AI was used in this project and is disclosed as required:
+- **Music** — both in-game tracks were generated with **Suno** (a generative-AI music tool);
+  the author holds commercial-use rights to the generated audio.
+- **Code** — an AI coding assistant was used to help write/refactor game-system code under
+  author direction; all design, integration, and final review were done by the team.
+
+No AI-generated visual art or narrative assets are used. The exact wording above should also be
+entered in the submission form's AI-disclosure field.

@@ -477,7 +477,8 @@ function RingBoss.attach(boss, cfg)
     return boss
 end
 
--- Recompute the ring phase from the boss's current HP fraction (no-op if not a ring boss).
+-- Recompute the ring phase directly from the boss's current HP fraction (instant, may skip
+-- phases under burst). Pure helper; the live driver below clamps this to one step at a time.
 function RingBoss.updatePhase(boss)
     if not boss or not boss.ringPhase then return end
     local frac = (boss.maxHealth and boss.maxHealth > 0) and (boss.health / boss.maxHealth) or 1
@@ -485,20 +486,18 @@ function RingBoss.updatePhase(boss)
     return boss.ringPhase
 end
 
--- Time-driven phase progression (the live driver). The core is invulnerable in P1-P3, so an
--- HP-threshold progression would deadlock (HP can't drop, so P4 is never reached). Instead the
--- boss DODGES through P1->P2->P3, one `phaseDuration` each, then enters P4 (terminal: the ring
--- opens, the core is exposed and damageable until killed). Mutates ringPhase/ringPhaseTimer.
-function RingBoss.advancePhaseByTime(boss, dt, phaseDuration)
+-- The live driver. Phases are health-gated (each 25% of HP), but a burst that crosses several
+-- thresholds at once must NOT skip phases: advance at most ONE phase per call, and only after a
+-- `minDwell` minimum time in the current phase, so every phase is actually experienced.
+-- Forward-only (HP only falls). Mutates ringPhase/ringPhaseTimer.
+function RingBoss.advancePhaseClamped(boss, dt, minDwell)
     if not boss or not boss.ringPhase then return end
-    phaseDuration = phaseDuration or 12
-    if boss.ringPhase >= RingBoss.PHASE.P4 then
-        return boss.ringPhase -- P4 is terminal: stay until the exposed core dies
-    end
+    local frac = (boss.maxHealth and boss.maxHealth > 0) and (boss.health / boss.maxHealth) or 1
+    local target = RingBoss.phaseForHealth(frac, boss.ringThresholds)
     boss.ringPhaseTimer = (boss.ringPhaseTimer or 0) + (dt or 0)
-    if boss.ringPhaseTimer >= phaseDuration then
+    if target > boss.ringPhase and boss.ringPhaseTimer >= (minDwell or 0) then
+        boss.ringPhase = boss.ringPhase + 1 -- one step toward the HP-target phase
         boss.ringPhaseTimer = 0
-        boss.ringPhase = RingBoss.nextPhase(boss.ringPhase)
     end
     return boss.ringPhase
 end

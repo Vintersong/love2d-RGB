@@ -108,6 +108,8 @@ local Config = {
                                              -- so defeating the final boss is the only victory.
                                              -- false restores the ORIGINAL track-completion win.
             phaseThresholds = { 0.75, 0.5, 0.25 }, -- HP fractions: >t1 P1, >t2 P2, >t3 P3, else P4
+            minPhaseDwell = 1.5,             -- min seconds in a phase before it can advance, so a
+                                             -- burst across thresholds steps through (never skips)
             baseRadius = 220,                -- ring radius (px) at scale 1.0
             nodeDelay = 0.18,                -- per-node firing delay in the 6/6 choreography (s)
             telegraphDuration = 0.7,         -- safe-gap warning lead time (s); not beat-synced

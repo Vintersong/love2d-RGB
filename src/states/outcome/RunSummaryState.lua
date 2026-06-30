@@ -7,6 +7,8 @@ local Config = require("src.Config")
 local Theme = require("src.render.Theme")
 local MetaProgression = require("src.core.MetaProgression")
 local RunSummary = require("src.core.RunSummary")
+local FirstEncounter = require("src.gameplay.FirstEncounter")
+local FirstEncounterCard = require("src.ui.FirstEncounterCard")
 
 local buttons = {
     {label = "PLAY AGAIN", action = "play"},
@@ -45,6 +47,12 @@ function RunSummaryState:enter(previous, data)
 
     self.unlocks = MetaProgression.recordRun(self.summary)
     self.profile = MetaProgression.getProfile()
+
+    self.explainerCard = nil
+    local earned = (self.unlocks and (self.unlocks.chromaEarned or self.unlocks.shardsEarned)) or 0
+    if earned > 0 and FirstEncounter.shouldTeach("chroma_earned") then
+        self.explainerCard = FirstEncounter.cardFor("chroma_earned")
+    end
 end
 
 function RunSummaryState:update(dt)
@@ -179,6 +187,10 @@ function RunSummaryState:draw()
     love.graphics.setFont(Theme.font("ui", 16))
     love.graphics.setColor(Theme.color.fg3[1], Theme.color.fg3[2], Theme.color.fg3[3], 1)
     love.graphics.printf("ENTER / SPACE to activate   |   ESC to quit to menu", 0, sh - 72, sw, "center")
+
+    if self.explainerCard then
+        FirstEncounterCard.drawModal(self.explainerCard)
+    end
 end
 
 local function buttonAt(x, y)
@@ -209,6 +221,14 @@ function RunSummaryState:activate(action)
 end
 
 function RunSummaryState:keypressed(key)
+    if self.explainerCard then
+        if key == "space" or key == "return" or key == "escape" then
+            FirstEncounter.markTaught("chroma_earned")
+            self.explainerCard = nil
+        end
+        return
+    end
+
     if key == "up" then
         selectedButton = selectedButton - 1
         if selectedButton < 1 then selectedButton = #buttons end
@@ -230,6 +250,11 @@ function RunSummaryState:mousemoved(x, y)
 end
 
 function RunSummaryState:mousepressed(x, y, button)
+    if self.explainerCard then
+        FirstEncounter.markTaught("chroma_earned")
+        self.explainerCard = nil
+        return
+    end
     if button ~= 1 then return end
     local index = buttonAt(x, y)
     if index then

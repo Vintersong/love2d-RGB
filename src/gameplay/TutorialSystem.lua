@@ -222,8 +222,8 @@ function TutorialSystem.onColorAdded(_code)
 end
 
 function TutorialSystem.onArtifactCollected(_artifactType)
-    if not TutorialSystem.areTipsActive() then return end
-    queueOnce("ARTIFACT")
+    -- Artifact teaching now handled by FirstEncounter (per-artifact, in-combat toast).
+    return
 end
 
 function TutorialSystem.onSynergyActivated(_synergyName)

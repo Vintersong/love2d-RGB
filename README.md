@@ -36,6 +36,7 @@ Debug hotkeys (**PlayingState**, development prototype; gated by `Config.debug.e
 | F9 | Spawn medium XP particle orb |
 | F10 | Spawn large XP particle orb |
 | F11 | Print loot / drop-rate diagnostics |
+| F12 | Reset first-encounter explainer flags (re-enables teaching cards for testing) |
 | T | Pulse **SimpleGrid** wave animation (visual dev test) |
 | L | Grant +50 player EXP |
 

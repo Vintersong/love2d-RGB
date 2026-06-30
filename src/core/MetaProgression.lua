@@ -22,6 +22,7 @@ local DEFAULT_PROFILE = {
     ownedArtifacts = {},
     artifactInvestment = {},
     artifactPurchases = 0,
+    seenExplainers = {},
 }
 
 local profile = nil
@@ -98,6 +99,15 @@ local function ensureProfileShape(data)
             inferredPurchases = inferredPurchases + math.max(0, math.floor(level or 0))
         end
         result.artifactPurchases = inferredPurchases
+    end
+
+    if type(data.seenExplainers) == "table" then
+        result.seenExplainers = {}
+        for key, value in pairs(data.seenExplainers) do
+            if type(key) == "string" and value == true then
+                result.seenExplainers[key] = true
+            end
+        end
     end
 
     return result
@@ -256,6 +266,23 @@ function MetaProgression.markTutorialSeen()
         profile.tutorialSeen = true
         MetaProgression.save()
     end
+end
+
+function MetaProgression.hasSeenExplainer(id)
+    return type(id) == "string" and profile.seenExplainers[id] == true
+end
+
+function MetaProgression.markExplainerSeen(id)
+    if type(id) ~= "string" then return end
+    if not profile.seenExplainers[id] then
+        profile.seenExplainers[id] = true
+        MetaProgression.save()
+    end
+end
+
+function MetaProgression.clearExplainers()
+    profile.seenExplainers = {}
+    MetaProgression.save()
 end
 
 function MetaProgression.getUnlockedColors()

@@ -253,6 +253,11 @@ local Config = {
         },
     },
 
+    -- Teaching / first-encounter toasts
+    teaching = {
+        toastSeconds = 6,   -- how long an in-combat first-encounter toast stays up
+    },
+
     -- Debug settings
     debug = {
         enabled = true,

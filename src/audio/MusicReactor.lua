@@ -12,6 +12,7 @@ function MusicReactor:new()
     reactor.currentSongInfo = nil
     reactor.soundData = nil
     reactor.isPlaying = false
+    reactor.hasStartedPlaying = false  -- observed the source actually playing at least once
     reactor.playlist = nil
     reactor.playlistIndex = 1
     reactor.playlistOptions = nil
@@ -68,6 +69,7 @@ function MusicReactor:loadSong(filepath, structure, options)
         self.currentSong:stop()
     end
     self.isPlaying = false
+    self.hasStartedPlaying = false
 
     self.currentSong = love.audio.newSource(filepath, options.sourceType or "stream")
     self.currentSong:setLooping(options.looping ~= false)
@@ -181,7 +183,15 @@ end
 function MusicReactor:update(dt)
     if not self.isPlaying then return end
 
-    if self.autoAdvance and self.currentSong and not self.currentSong:isPlaying() then
+    -- Observe whether the source has actually begun playing. With a dead/absent
+    -- audio device (e.g. no output hardware) isPlaying() stays false forever, so
+    -- we must never treat "not playing" as "finished" until we've seen it start.
+    if self.currentSong and self.currentSong:isPlaying() then
+        self.hasStartedPlaying = true
+    end
+
+    if self.autoAdvance and self.currentSong and self.hasStartedPlaying
+        and not self.currentSong:isPlaying() then
         self:advancePlaylist()
         if not self.currentSong then
             return

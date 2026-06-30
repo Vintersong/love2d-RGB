@@ -1,3 +1,5 @@
+local FirstEncounter = require("src.gameplay.FirstEncounter")
+local FirstEncounterCard = require("src.ui.FirstEncounterCard")
 local PlayingRenderLayers = {}
 
 function PlayingRenderLayers.draw(state, deps)
@@ -82,6 +84,10 @@ function PlayingRenderLayers.draw(state, deps)
     if GameConfig.isDebugMode() then
         local DebugMenu = require("src.debug.DebugMenu")
         DebugMenu.draw(state.player)
+    end
+
+    if FirstEncounter.hasToast() then
+        FirstEncounterCard.drawToast(FirstEncounter.peekToast(), 1)
     end
 end
 

@@ -20,9 +20,9 @@ licenses, for the Student Games Festival 2026 submission (rules §2.6, §2.7, §
 | **moonshine** (`moonshine-master`) | Matthias Richter / contributors | MIT | post-processing shaders |
 | **ripple** (`ripple-master`) | tesselode | MIT | `libs/ripple-master/LICENSE` — audio helper |
 
-> ACTION: confirm each library's upstream `LICENSE` text is included in the shipped build
-> (`libs/` is bundled in the `.love`). hump / bump / moonshine ship without a license file in
-> this tree — add their upstream MIT license text to `libs/<name>/LICENSE` before submitting.
+> Each library's upstream MIT license text is included in its `libs/<name>/` folder and ships
+> inside the `.love` build: bump (`MIT-LICENSE.txt`), flux (`LICENSE`), ripple (`LICENSE`),
+> hump (`LICENSE`), moonshine (`LICENSE`).
 
 ## Fonts (`assets/fonts/`)
 | Font | License |
@@ -38,15 +38,18 @@ License text: `assets/fonts/OFL.txt`.
 |------|------|------------------|
 | `assets/music/song1.wav` | music track | **Suno** (generative AI) — commercial-use rights held by the author. **AI-generated: must be disclosed (see below).** |
 | `assets/music/song2.wav` | music track | **Suno** (generative AI) — commercial-use rights held by the author. **AI-generated: must be disclosed (see below).** |
-| `assets/sfx/Dash.mp3` | sound effect | **OpenGameArt.com** — **TODO: record the exact license (e.g. CC0 / CC-BY / CC-BY-SA) + author, and add attribution if required.** |
-| `assets/sfx/MenuSelectorMove.wav` | sound effect | **TODO — confirm source & license** |
+| `assets/sfx/Dash.mp3` | sound effect | **"Space SFX Pack"** by GameDev Market (https://www.gamedevmarket.net/asset/space-sfx-pack-2127), acquired via the Humble Bundle "Best of 2024", used under the **GameDev Market Standard Pro Licence** — commercial use in unlimited projects, no attribution required. |
+| `assets/sfx/MenuSelectorMove.wav` | sound effect | **"Space SFX Pack"** by GameDev Market (https://www.gamedevmarket.net/asset/space-sfx-pack-2127), acquired via the Humble Bundle "Best of 2024", used under the **GameDev Market Standard Pro Licence** — commercial use in unlimited projects, no attribution required. |
 
-> ACTION (rules §2.3 originality, §2.7 asset disclosure): every audio file must be an
-> original work OR used under a license that permits this use, and disclosed on the submission
-> form. For the Suno tracks, keep proof of your commercial-rights tier. For the OpenGameArt
-> effect, note the exact license — if it is CC-BY / CC-BY-SA you must credit the author by name
-> here and in-game. `MenuSelectorMove.wav` still needs its source confirmed. Submissions that do
-> not comply with asset licenses are rejected (§3.3).
+> NOTE (rules §2.3 originality, §2.7 asset disclosure): every audio file is either an original
+> work or used under a license that permits this use, and is disclosed on the submission form.
+> - **Music (Suno):** keep proof of your commercial-rights tier.
+> - **SFX (GameDev Market "Space SFX Pack"):** used under the GameDev Market Standard Pro Licence
+>   — commercial use in unlimited projects, **no attribution required**. Keep the Humble Bundle
+>   purchase receipt and the GDM Pro Licence text as proof of rights. The licence forbids
+>   redistributing/extracting the raw assets *outside* the game; shipping them inside the game
+>   build is the licensed "Media Product" use and is permitted.
+> Submissions that do not comply with asset licenses are rejected (§3.3).
 
 ## Generative AI (disclosure — rules §3.2)
 Generative AI was used in this project and is disclosed as required:

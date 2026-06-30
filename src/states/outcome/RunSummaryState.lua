@@ -250,6 +250,11 @@ function RunSummaryState:mousemoved(x, y)
 end
 
 function RunSummaryState:mousepressed(x, y, button)
+    if self.explainerCard then
+        FirstEncounter.markTaught("chroma_earned")
+        self.explainerCard = nil
+        return
+    end
     if button ~= 1 then return end
     local index = buttonAt(x, y)
     if index then

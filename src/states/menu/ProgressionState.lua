@@ -485,6 +485,11 @@ function ProgressionState:mousemoved(x, y)
 end
 
 function ProgressionState:mousepressed(x, y, button)
+    if self.explainerCard then
+        FirstEncounter.markTaught("chroma_spend")
+        self.explainerCard = nil
+        return
+    end
     if button ~= 1 then return end
     local artifactIndex = artifactAt(x, y)
     if artifactIndex then

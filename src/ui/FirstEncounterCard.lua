@@ -15,25 +15,27 @@ local function accent(card)
     return card.color or Theme.color.accent
 end
 
-local function drawCard(card, x, y, w, h, footer)
+local function drawCard(card, x, y, w, h, footer, alpha)
+    alpha = alpha or 1
+
     -- Background fill + dim border via the shared panel utility.
     -- ShellStyle.drawPanel(x, y, w, h, alpha, accentColor)
-    ShellStyle.drawPanel(x, y, w, h)
+    ShellStyle.drawPanel(x, y, w, h, alpha, accent(card))
 
     -- Bright accent rim tinted to the card's own color (or the default accent).
     local rim = accent(card)
     love.graphics.setLineWidth(2)
-    love.graphics.setColor(rim[1], rim[2], rim[3], 0.9)
+    love.graphics.setColor(rim[1], rim[2], rim[3], 0.9 * alpha)
     love.graphics.rectangle("line", x, y, w, h, 8, 8)
 
     -- Title  (uiSemiBold = ChakraPetch-SemiBold.ttf)
     love.graphics.setFont(Theme.font("uiSemiBold", 24))
-    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setColor(1, 1, 1, 1 * alpha)
     love.graphics.print(card.title, x + 28, y + 20)
 
     -- Body lines — read-only; do NOT mutate card.lines (may alias FE internal table)
     love.graphics.setFont(Theme.font("ui", 18))
-    love.graphics.setColor(1, 1, 1, 0.92)
+    love.graphics.setColor(1, 1, 1, 0.92 * alpha)
     for i, line in ipairs(card.lines or {}) do
         love.graphics.print(line, x + 28, y + 60 + (i - 1) * 26)
     end
@@ -41,7 +43,7 @@ local function drawCard(card, x, y, w, h, footer)
     -- Footer keybind hint
     if footer then
         love.graphics.setFont(Theme.font("mono", 14))
-        love.graphics.setColor(1, 1, 1, 0.55)
+        love.graphics.setColor(1, 1, 1, 0.55 * alpha)
         love.graphics.print(footer, x + 28, y + h - 30)
     end
 end
@@ -52,9 +54,8 @@ end
 function FirstEncounterCard.drawToast(card, alphaScale)
     if not card then return end
     love.graphics.push("all")
-    love.graphics.setColor(1, 1, 1, alphaScale or 1)
     local x = (1920 - TOAST_W) / 2
-    drawCard(card, x, 1080 - TOAST_H - 60, TOAST_W, TOAST_H, nil)
+    drawCard(card, x, 1080 - TOAST_H - 60, TOAST_W, TOAST_H, nil, alphaScale or 1)
     love.graphics.pop()
 end
 

@@ -8,6 +8,9 @@ local MetaProgression = require("src.core.MetaProgression")
 local Icons = require("src.render.Icons")
 local ArtifactManager = require("src.gameplay.ArtifactManager")
 local ShellStyle = require("src.ui.ShellStyle")
+local StateManager = require("src.core.StateManager")
+local FirstEncounter = require("src.gameplay.FirstEncounter")
+local FirstEncounterCard = require("src.ui.FirstEncounterCard")
 
 local buttons = {
     {label = "REPLAY TUTORIAL", action = "tutorial"},
@@ -171,6 +174,10 @@ function ProgressionState:enter(previous, data)
     self.noticeColor = Theme.color.fg3
     self.noticeTimer = 0
     bgShader = bgShader or ShellStyle.loadShader("ProgressionState")
+    self.explainerCard = nil
+    if FirstEncounter.shouldTeach("chroma_spend") then
+        self.explainerCard = FirstEncounter.cardFor("chroma_spend")
+    end
 end
 
 function ProgressionState:update(dt)
@@ -282,6 +289,9 @@ function ProgressionState:draw()
 
     love.graphics.setLineWidth(1)
     ShellStyle.drawFooter("ENTER / SPACE to buy or activate   |   TAB / UP / DOWN to switch sections   |   ESC to return", sh - 76, self.alpha)
+    if self.explainerCard then
+        FirstEncounterCard.drawModal(self.explainerCard)
+    end
 end
 
 local function buttonAt(x, y)
@@ -401,6 +411,17 @@ function ProgressionState:activate(action)
 end
 
 function ProgressionState:keypressed(key)
+    if self.explainerCard then
+        if key == "a" then
+            FirstEncounter.markTaught("chroma_spend")
+            self.explainerCard = nil
+            StateManager.switch("Atlas")
+        elseif key == "space" or key == "return" or key == "escape" then
+            FirstEncounter.markTaught("chroma_spend")
+            self.explainerCard = nil
+        end
+        return
+    end
     if key == "tab" then
         focusArea = focusArea == "artifacts" and "buttons" or "artifacts"
     elseif key == "up" then

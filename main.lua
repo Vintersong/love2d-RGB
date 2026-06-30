@@ -115,6 +115,15 @@ end
 
 function love.load(args)
     Runtime.init(args)
+
+    for _, a in ipairs(args or {}) do
+        if a == "--selftest" then
+            require("tests.selftest")
+            love.event.quit()
+            return
+        end
+    end
+
     love.window.setTitle(Config.screen.title or "CHROMATIC")
 
     Viewport.init(screenWidth, screenHeight)

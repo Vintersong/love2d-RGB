@@ -20,9 +20,9 @@ licenses, for the Student Games Festival 2026 submission (rules §2.6, §2.7, §
 | **moonshine** (`moonshine-master`) | Matthias Richter / contributors | MIT | post-processing shaders |
 | **ripple** (`ripple-master`) | tesselode | MIT | `libs/ripple-master/LICENSE` — audio helper |
 
-> ACTION: confirm each library's upstream `LICENSE` text is included in the shipped build
-> (`libs/` is bundled in the `.love`). hump / bump / moonshine ship without a license file in
-> this tree — add their upstream MIT license text to `libs/<name>/LICENSE` before submitting.
+> Each library's upstream MIT license text is included in its `libs/<name>/` folder and ships
+> inside the `.love` build: bump (`MIT-LICENSE.txt`), flux (`LICENSE`), ripple (`LICENSE`),
+> hump (`LICENSE`), moonshine (`LICENSE`).
 
 ## Fonts (`assets/fonts/`)
 | Font | License |

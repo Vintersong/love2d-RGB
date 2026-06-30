@@ -1,4 +1,5 @@
 local FirstEncounter = require("src.gameplay.FirstEncounter")
+local MetaProgression = require("src.core.MetaProgression")
 local OnboardingSequence = require("src.gameplay.OnboardingSequence")
 local RhythmDash = require("src.gameplay.RhythmDash")
 
@@ -138,6 +139,10 @@ function PlayingInputHandlers.keypressed(state, key, deps)
         local secondaryChance = state:calculateDropChance("secondary", state.player.level, state.gameTime)
         print(string.format("[DEBUG] Drop Chances - Primary: %.1f%%, Secondary: %.1f%%", primaryChance * 100, secondaryChance * 100))
         print(string.format("[DEBUG] Game Time: %.1fs, Level: %d", state.gameTime, state.player.level))
+    elseif debugEnabled and key == "f12" then
+        MetaProgression.clearExplainers()
+        require("src.gameplay.FirstEncounter").resetAll()
+        print("[Debug] Cleared first-encounter explainer flags")
     elseif debugEnabled and key == "l" then
         state.player.exp = state.player.exp + 50
     end

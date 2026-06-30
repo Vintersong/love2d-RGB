@@ -41,6 +41,11 @@ check("repeat pickup does not re-teach", FE.hasToast() == false)
 require("src.ui.FirstEncounterCard")
 check("card renderer loads", true)
 
+-- clearExplainers regression guard
+Meta.markExplainerSeen("chroma_spend")
+Meta.clearExplainers()
+check("clearExplainers wipes flags", Meta.hasSeenExplainer("chroma_spend") == false)
+
 Meta.clearExplainers()  -- teardown: leave profile explainer flags clean
 print(string.format("SELFTEST: %s (%d passed, %d failed)",
     results.failed == 0 and "PASS" or "FAIL", results.passed, results.failed))

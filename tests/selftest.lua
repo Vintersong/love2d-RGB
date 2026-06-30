@@ -37,6 +37,10 @@ check("toast empties after dismiss", FE.hasToast() == false)
 FE.onArtifact("halo")
 check("repeat pickup does not re-teach", FE.hasToast() == false)
 
+-- FirstEncounterCard renderer (load-only; visual confirmation deferred to human play-test)
+require("src.ui.FirstEncounterCard")
+check("card renderer loads", true)
+
 Meta.clearExplainers()  -- teardown: leave profile explainer flags clean
 print(string.format("SELFTEST: %s (%d passed, %d failed)",
     results.failed == 0 and "PASS" or "FAIL", results.passed, results.failed))

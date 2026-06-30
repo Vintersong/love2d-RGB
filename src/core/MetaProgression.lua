@@ -280,6 +280,11 @@ function MetaProgression.markExplainerSeen(id)
     end
 end
 
+function MetaProgression.clearExplainers()
+    profile.seenExplainers = {}
+    MetaProgression.save()
+end
+
 function MetaProgression.getUnlockedColors()
     return sortedKeys(profile.unlocks.colors)
 end

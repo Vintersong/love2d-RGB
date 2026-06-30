@@ -1,3 +1,4 @@
+local FirstEncounter = require("src.gameplay.FirstEncounter")
 local OnboardingSequence = require("src.gameplay.OnboardingSequence")
 local RhythmDash = require("src.gameplay.RhythmDash")
 
@@ -8,6 +9,11 @@ function PlayingInputHandlers.keypressed(state, key, deps)
     local ColorSystem = deps.ColorSystem
     local XPParticleSystem = deps.XPParticleSystem
     local enemyFlow = deps.enemyFlow
+
+    if FirstEncounter.hasToast() and (key == "space" or key == "return") then
+        FirstEncounter.dismissToast()
+        return
+    end
 
     if key == "escape" or key == "p" then
         if OnboardingSequence.isActive() then

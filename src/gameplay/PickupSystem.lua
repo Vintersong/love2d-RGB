@@ -4,6 +4,7 @@
 local PickupSystem = {}
 
 local ColorSystem = require("src.gameplay.ColorSystem")
+local FirstEncounter = require("src.gameplay.FirstEncounter")
 local FloatingTextSystem = require("src.effects.FloatingTextSystem")
 local TutorialSystem = require("src.gameplay.TutorialSystem")
 local VFXLibrary = require("src.effects.VFXLibrary")
@@ -36,6 +37,7 @@ function PickupSystem.updatePowerups(dt, player, enemies, powerups, centerX, cen
             -- Show floating text for artifact collection
             if result and result.success then
                 TutorialSystem.onArtifactCollected(result.type)
+                FirstEncounter.onArtifact(result.type)
 
                 FloatingTextSystem.addArtifact(
                     result.artifactName,
